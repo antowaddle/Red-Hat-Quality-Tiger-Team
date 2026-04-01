@@ -59,7 +59,25 @@ Extracts test patterns from existing tests and generates `.claude/rules/` docume
 - `contract-tests.md` - Contract test patterns (if found)
 - `mock-tests.md` - Mock/component test patterns (if found)
 
-### 4. Konflux CI Dashboard (`/konflux-CI-Dashboard/`)
+### 4. Test Plan Creator (`/.claude/skills/test-plan-creator/`)
+
+Generates comprehensive test plans for RHOAI features from a refined strategy (RHAISTRAT) and its source RFE (RHAIRFE), with optional ADR for additional technical depth.
+
+**Usage:**
+```bash
+/test-plan-creator
+```
+
+**Inputs:**
+- Strategy Jira key (RHAISTRAT) or local artifact
+- Source RFE Jira key (RHAIRFE) or local artifact
+- ADR file path (optional, for API-level detail)
+
+**Outputs:**
+- `<feature_name>/TestPlan.md` - Structured test plan following a consistent template
+- `<feature_name>/README.md` - Feature summary with links
+
+### 5. Konflux CI Dashboard (`/konflux-CI-Dashboard/`)
 
 **Status:** Design Phase (Planned Q2 2026)
 
@@ -84,9 +102,12 @@ Web dashboard for monitoring Konflux pipeline health across all RHOAI components
 │           ├── konflux-build-simulator/
 │           │   ├── SKILL.md
 │           │   └── instructions.md
-│           └── test-rules-generator/
+│           ├── test-rules-generator/
+│           │   ├── SKILL.md
+│           │   └── instructions.md
+│           └── test-plan-creator/
 │               ├── SKILL.md
-│               └── instructions.md
+│               └── test-plan-template.md
 └── konflux-CI-Dashboard/
     └── KONFLUX-CI-DASHBOARD.md
 ```
@@ -115,6 +136,9 @@ Skills can be invoked using the `/skill-name` syntax in Claude Code:
 
 # Extract test patterns
 /test-rules-generator https://github.com/opendatahub-io/notebooks
+
+# Generate test plan from strategy + RFE
+/test-plan-creator
 ```
 
 ## Documentation
@@ -146,6 +170,7 @@ This is a Red Hat internal repository. For questions or contributions, contact t
 - ✅ Quality Repo Analysis: Production Ready
 - ✅ Konflux Build Simulator: Production Ready
 - ✅ Test Rules Generator: Production Ready
+- 🧪 Test Plan Creator: Tested / WIP
 - 🔮 Konflux CI Dashboard: Planned (Q2 2026)
 
 ## License
