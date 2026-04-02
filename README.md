@@ -110,30 +110,27 @@ Web dashboard for monitoring Konflux pipeline health across all RHOAI components
 ```
 .
 ├── .claude/
-│   └── .claude/
-│       └── skills/
-│           ├── quality-repo-analysis/
-│           │   ├── SKILL.md
-│           │   └── instructions.md
-│           ├── konflux-build-simulator/
-│           │   ├── SKILL.md
-│           │   └── instructions.md
-│           ├── test-rules-generator/
-│           │   ├── SKILL.md
-│           │   └── instructions.md
-│           ├── test-plan-creator/          # Orchestrator
-│           │   ├── SKILL.md
-│           │   └── test-plan-template.md
-│           ├── scope-endpoint-analyzer/    # Sub-agent (fork)
-│           │   └── SKILL.md
-│           ├── test-strategy-risk-analyzer/ # Sub-agent (fork)
-│           │   └── SKILL.md
-│           ├── environment-infra-analyzer/ # Sub-agent (fork)
-│           │   └── SKILL.md
-│           ├── test-plan-reviewer/         # Sub-agent (fork)
-│           │   └── SKILL.md
-│           └── test-cases/     # Parked for follow-up
-│             
+│   └── skills/
+│       ├── quality-repo-analysis/
+│       │   ├── SKILL.md
+│       │   └── instructions.md
+│       ├── konflux-build-simulator/
+│       │   ├── SKILL.md
+│       │   └── instructions.md
+│       ├── test-rules-generator/
+│       │   ├── SKILL.md
+│       │   └── instructions.md
+│       ├── test-plan-creator/          # Orchestrator
+│       │   ├── SKILL.md
+│       │   └── test-plan-template.md
+│       ├── scope-endpoint-analyzer/    # Sub-agent (fork)
+│       │   └── SKILL.md
+│       ├── test-strategy-risk-analyzer/ # Sub-agent (fork)
+│       │   └── SKILL.md
+│       ├── environment-infra-analyzer/ # Sub-agent (fork)
+│       │   └── SKILL.md
+│       └── test-plan-reviewer/         # Sub-agent (fork)
+│           └── SKILL.md
 └── konflux-CI-Dashboard/
     └── KONFLUX-CI-DASHBOARD.md
 ```
