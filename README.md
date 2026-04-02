@@ -61,23 +61,39 @@ Extracts test patterns from existing tests and generates `.claude/rules/` docume
 
 ### 4. Test Plan Creator (`/.claude/skills/test-plan-creator/`)
 
-Generates comprehensive test plans for RHOAI features from a refined strategy (RHAISTRAT) and its source RFE (RHAIRFE), with optional ADR for additional technical depth.
+Generates comprehensive test plans for RHOAI features from a refined strategy (RHAISTRAT), with optional ADR for additional technical depth. Uses parallel sub-agents for analysis and includes an automated review step.
 
 **Usage:**
 ```bash
-/test-plan-creator
+/test-plan-creator RHAISTRAT-400
+/test-plan-creator RHAISTRAT-400 /path/to/adr.pdf
 ```
 
 **Inputs:**
-- Strategy Jira key (RHAISTRAT) or local artifact
-- Source RFE Jira key (RHAIRFE) or local artifact
+- Strategy Jira key (RHAISTRAT) — required
 - ADR file path (optional, for API-level detail)
+
+**Pipeline:**
+1. Fetch strategy from Jira (MCP integration required)
+2. 3 parallel sub-agents analyze scope, test strategy, and environment
+3. Generate TestPlan.md from merged findings
+4. Reviewer sub-agent checks for gaps and recommends additional documents
+
+**Sub-agents (context: fork, non-user-invocable):**
+- `scope-endpoint-analyzer` — feature scope + endpoints/methods under test
+- `test-strategy-risk-analyzer` — test levels, types, priorities + risks
+- `environment-infra-analyzer` — environment config, test data, infrastructure
+- `test-plan-reviewer` — completeness review, gap analysis, document recommendations
 
 **Outputs:**
 - `<feature_name>/TestPlan.md` - Structured test plan following a consistent template
 - `<feature_name>/README.md` - Feature summary with links
 
-### 5. Konflux CI Dashboard (`/konflux-CI-Dashboard/`)
+### 5. Test Case Generator (`/.claude/skills/test-cases/`)
+
+**Status:** To be implemented in a follow-up. Will generate individual test case files from the output of `/test-plan-creator`.
+
+### 6. Konflux CI Dashboard (`/konflux-CI-Dashboard/`)
 
 **Status:** Design Phase (Planned Q2 2026)
 
@@ -105,9 +121,19 @@ Web dashboard for monitoring Konflux pipeline health across all RHOAI components
 │           ├── test-rules-generator/
 │           │   ├── SKILL.md
 │           │   └── instructions.md
-│           └── test-plan-creator/
-│               ├── SKILL.md
-│               └── test-plan-template.md
+│           ├── test-plan-creator/          # Orchestrator
+│           │   ├── SKILL.md
+│           │   └── test-plan-template.md
+│           ├── scope-endpoint-analyzer/    # Sub-agent (fork)
+│           │   └── SKILL.md
+│           ├── test-strategy-risk-analyzer/ # Sub-agent (fork)
+│           │   └── SKILL.md
+│           ├── environment-infra-analyzer/ # Sub-agent (fork)
+│           │   └── SKILL.md
+│           ├── test-plan-reviewer/         # Sub-agent (fork)
+│           │   └── SKILL.md
+│           └── test-cases/
+│               └── SKILL.md
 └── konflux-CI-Dashboard/
     └── KONFLUX-CI-DASHBOARD.md
 ```
@@ -137,8 +163,11 @@ Skills can be invoked using the `/skill-name` syntax in Claude Code:
 # Extract test patterns
 /test-rules-generator https://github.com/opendatahub-io/notebooks
 
-# Generate test plan from strategy + RFE
-/test-plan-creator
+# Generate test plan from strategy
+/test-plan-creator RHAISTRAT-400
+
+# Generate test cases from test plan
+/test-cases
 ```
 
 ## Documentation
@@ -170,7 +199,8 @@ This is a Red Hat internal repository. For questions or contributions, contact t
 - ✅ Quality Repo Analysis: Production Ready
 - ✅ Konflux Build Simulator: Production Ready
 - ✅ Test Rules Generator: Production Ready
-- 🧪 Test Plan Creator: Tested / WIP
+- 🧪 Test Plan Creator: Tested / WIP (with parallel sub-agents)
+- 🧪 Test Case Generator: Next
 - 🔮 Konflux CI Dashboard: Planned (Q2 2026)
 
 ## License
@@ -180,4 +210,4 @@ Internal Red Hat tooling.
 ---
 
 **Maintained by:** Quality Tiger Team
-**Last Updated:** March 30, 2026
+**Last Updated:** April 2, 2026

@@ -4,7 +4,6 @@
 ## Document Information
 - **Feature**: {feature_name}
 - **Strategy**: [{strat_key}]({strat_url})
-- **Source RFE**: [{rfe_key}]({rfe_url})
 - **ADR**: [{adr_title}]({adr_link}) (if provided, otherwise remove this line)
 - **Team**: {team_name}
 - **Version**: 1.0
@@ -15,18 +14,18 @@
 ## 1. Executive Summary
 
 ### 1.1 Purpose
-{1-2 paragraphs describing what is being tested and why, derived from the strategy and RFE}
+{1-2 paragraphs describing what is being tested and why, derived from the strategy and its business need}
 
 ### 1.2 Scope
 
 #### In Scope ({team_name} Responsibilities)
-{Bulleted list derived from the strategy and RFE}
+{Bulleted list derived from the strategy and its business need}
 
 #### Out of Scope (Other Teams)
-{Bulleted list of explicitly excluded areas from the strategy and RFE}
+{Bulleted list of explicitly excluded areas from the strategy and its business need}
 
 ### 1.3 Test Objectives
-{Numbered list of 3-7 concrete test objectives derived from the strategy and RFE requirements}
+{Numbered list of 3-7 concrete test objectives derived from the strategy and its business need requirements}
 
 ---
 
