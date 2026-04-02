@@ -1,0 +1,51 @@
+flowchart TD
+    subgraph lifecycle["Agentic Development Lifecycle"]
+        direction TB
+
+        subgraph define["DEFINE"]
+            DEF1["Problem\nStatement"] --> DEF2["RFE\n/rfe.create"]
+            DEF2 --> DEF3["Strategy\n/strat.create + refine"]
+        end
+
+        subgraph plan["PLAN"]
+            PLAN1["Test Plan\n/test-plan-creator"] --> PLAN2["Test Rules\n/test-rules-generator"]
+        end
+
+        subgraph build["BUILD"]
+            BUILD1["Agent writes code\nguided by strategy"] --> BUILD2["Agent writes tests\nguided by TestPlan.md\n+ .claude/rules/"]
+        end
+
+        subgraph validate["VALIDATE"]
+            VAL1["Run test suite"] --> VAL2["Coverage\nanalysis"]
+            VAL2 --> VAL3{{"Quality\ngate"}}
+        end
+    end
+
+    DEF3 --> PLAN1
+    DEF3 --> BUILD1
+    PLAN2 --> BUILD2
+    BUILD2 --> VAL1
+
+    VAL3 -- "pass" --> SHIP["Ship to\nproduction"]
+    VAL3 -- "fail: missing tests" --> PLAN1
+    VAL3 -- "fail: new requirement" --> DEF1
+    VAL3 -- "fail: wrong patterns" --> PLAN2
+
+    subgraph tools["Tool Ownership"]
+        direction LR
+        T1["jwforres/rfe-creator\nDEFINE phase"]
+        T2["Tiger Team\nPLAN phase"]
+        T3["Claude Code Agent\nBUILD + VALIDATE"]
+    end
+
+    style lifecycle fill:#0d0d1a,stroke:#4a4a4a,color:#fff
+    style define fill:#1a1a2e,stroke:#2d4a6e,color:#fff
+    style plan fill:#1a1a2e,stroke:#2d5a2d,color:#fff
+    style build fill:#1a1a2e,stroke:#3a3a5a,color:#fff
+    style validate fill:#1a1a2e,stroke:#5a5a2d,color:#fff
+    style tools fill:#0d0d1a,stroke:#4a4a4a,color:#fff
+    style SHIP fill:#2d5a2d,stroke:#4a4a4a,color:#fff
+    style VAL3 fill:#5a5a2d,stroke:#4a4a4a,color:#fff
+    style T1 fill:#2d4a6e,stroke:#4a4a4a,color:#fff
+    style T2 fill:#2d5a2d,stroke:#4a4a4a,color:#fff
+    style T3 fill:#3a3a5a,stroke:#4a4a4a,color:#fff
