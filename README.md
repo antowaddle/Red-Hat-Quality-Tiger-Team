@@ -132,8 +132,8 @@ Web dashboard for monitoring Konflux pipeline health across all RHOAI components
 │           │   └── SKILL.md
 │           ├── test-plan-reviewer/         # Sub-agent (fork)
 │           │   └── SKILL.md
-│           └── test-cases/
-│               └── SKILL.md
+│           └── test-cases/     # Parked for follow-up
+│             
 └── konflux-CI-Dashboard/
     └── KONFLUX-CI-DASHBOARD.md
 ```
