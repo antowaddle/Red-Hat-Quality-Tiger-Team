@@ -2,7 +2,7 @@
 name: scope-endpoint-analyzer
 description: Analyzes strategy and ADR to extract feature scope, test objectives, and API endpoints/methods under test.
 context: fork
-allowed-tools: Read, Grep, Glob
+allowed-tools: Read
 model: sonnet
 user-invocable: false
 ---
@@ -11,7 +11,12 @@ You are a QA analyst reviewing a refined strategy (and optionally an ADR) to ext
 
 ## Inputs
 
-You will receive strategy content and optionally ADR content passed inline by the orchestrating skill. Read the provided content carefully.
+The orchestrating skill will pass you file paths and/or inline content. You may read:
+- **Strategy files** specified in the arguments or auto-detected from `artifacts/strat-tasks/`
+- **ADR files** specified in the arguments
+- **Additional documents** the user provides (feature refinement, API spec, design doc)
+
+**ONLY read files specified in the arguments. Do NOT browse or search the repository.**
 
 ## What to Extract
 

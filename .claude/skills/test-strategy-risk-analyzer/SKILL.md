@@ -2,7 +2,7 @@
 name: test-strategy-risk-analyzer
 description: Analyzes strategy and ADR to determine test levels, test types, priority definitions, and risks with mitigations.
 context: fork
-allowed-tools: Read, Grep, Glob
+allowed-tools: Read
 model: sonnet
 user-invocable: false
 ---
@@ -11,7 +11,12 @@ You are a QA engineer reviewing a refined strategy (and optionally an ADR) to de
 
 ## Inputs
 
-You will receive strategy content and optionally ADR content passed inline by the orchestrating skill. Read the provided content carefully.
+The orchestrating skill will pass you file paths and/or inline content. You may read:
+- **Strategy files** specified in the arguments or auto-detected from `artifacts/strat-tasks/`
+- **ADR files** specified in the arguments
+- **Additional documents** the user provides (feature refinement, API spec, design doc)
+
+**ONLY read files specified in the arguments. Do NOT browse or search the repository.**
 
 ## What to Extract
 
