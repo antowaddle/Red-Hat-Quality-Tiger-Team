@@ -75,11 +75,9 @@ Pass the full strategy content (and ADR content if available) inline in the skil
 - **`test-strategy-risk-analyzer`**: Determines test levels, test types, priority definitions, and risks with mitigations. Produces findings for Sections 2 and 6.
 - **`environment-infra-analyzer`**: Identifies test environment configuration, test data, test users, infrastructure, and tooling requirements. Produces findings for Sections 3 and 7.
 
-Once all three sub-agents return, merge their structured findings into the test plan template (Step 3).
-
-**Post-merge validation:**
-- If `scope-endpoint-analyzer` reports pending endpoint details, ask the user via AskUserQuestion whether they can provide an API specification or ADR
-- If any sub-agent flags ambiguities, ask the user for clarification using AskUserQuestion
+Once all three sub-agents return:
+1. Merge their structured findings into the test plan template (Step 3)
+2. Collect their `## Gaps` sections for Step 3.5
 - Do NOT add information that was not present in any sub-agent's output
 
 ### Step 3: Generate Files
@@ -94,24 +92,45 @@ Once all three sub-agents return, merge their structured findings into the test 
    - Link to TestPlan.md
    - Brief mention of where automated tests will be implemented
 
+### Step 3.5: Collect Gaps and Prompt for Additional Documents
+
+After generating the test plan, collect all gaps reported by the three sub-agents from Step 2.
+
+1. **Extract gaps** from each sub-agent's `## Gaps` output section
+2. **Write `<feature_name>/TestPlanGaps.md`** with all gaps organized by source sub-agent:
+   ```markdown
+   # Gaps — <Feature Name>
+
+   ## Scope & Endpoints
+   {gaps from scope-endpoint-analyzer, or "No gaps identified."}
+
+   ## Test Strategy & Risks
+   {gaps from test-strategy-risk-analyzer, or "No gaps identified."}
+
+   ## Environment & Infrastructure
+   {gaps from environment-infra-analyzer, or "No gaps identified."}
+   ```
+3. **If gaps exist**, ask the user via AskUserQuestion whether they can provide any of the recommended documents. Be specific — list the exact gaps and what document type would resolve each one. Example:
+   > "The following gaps were identified in the test plan:
+   > - Endpoint paths for the catalog API are not specified — an **API spec** or **ADR** would resolve this
+   > - RBAC roles are unclear — a **feature refinement** doc would help
+   >
+   > Do you have any of these documents available?"
+4. **If the user provides additional documents**: Read them, re-run only the relevant sub-agents from Step 2 with the new material, update the test plan, and update `TestPlanGaps.md` (removing resolved gaps, adding any new ones).
+5. **If the user has no additional documents or no gaps exist**: Proceed to Step 4.
+
 ### Step 4: Review and Improve
 
-After generating the test plan, invoke the **`test-plan-reviewer`** forked skill, passing the full content of the generated TestPlan.md.
+After the gaps flow is complete, invoke the **`test-plan-reviewer`** forked skill, passing the full content of the generated TestPlan.md.
 
 The reviewer will return:
 - Completeness and consistency assessment
-- Specific gaps identified
-- Recommended additional documents the user may have
 - Concrete improvement suggestions
 
 **Handle the review output:**
 
 1. **Auto-fix**: Apply any suggested improvements that are clearly correct (e.g., consistency fixes, missing entries in Section 8.2, generic priority definitions that should be feature-specific). Edit the TestPlan.md directly.
-2. **Ask the user**: If the reviewer recommends additional documents (ADR, API spec, feature refinement, design doc), ask the user via AskUserQuestion whether they can provide any of them. Be specific about what each document would improve.
-3. **If the user provides additional documents**: Read them, re-run the relevant sub-agents from Step 2 with the new material, and update the test plan accordingly. Then re-run the reviewer to validate.
-4. **If the user has no additional documents**: Note the gaps as known limitations in the test plan and proceed.
-
-Present the final review summary to the user along with any remaining gaps, so they have full visibility into the test plan's quality.
+2. **Present summary**: Show the user the final review summary along with any remaining gaps from `TestPlanGaps.md`, so they have full visibility into the test plan's quality before proceeding to test case generation.
 
 ### What this skill does NOT do
 

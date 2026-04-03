@@ -93,6 +93,14 @@ Return your findings in this exact structure:
 
 ### Test Tools
 {bulleted list}
+
+## Gaps
+
+{List every gap found during analysis. Each gap must specify what is missing and what document type could fill it.}
+
+- **{gap description}** — would be resolved by: {ADR / API spec / feature refinement / design doc}
+
+{If no gaps: "No gaps identified."}
 ```
 
-Ground every finding in the source documents. If the strategy is light on environment details, mark items as TBD and note what information is missing.
+Ground every finding in the source documents. If the strategy is light on environment details, mark items as TBD and flag them in Gaps.

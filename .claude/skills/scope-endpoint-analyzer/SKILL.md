@@ -78,6 +78,14 @@ Return your findings in this exact structure:
 
 ### Pending Details
 {List any functionality described in the strategy that lacks concrete endpoint/method details. If none, write "None — all interfaces fully specified."}
+
+## Gaps
+
+{List every gap found during analysis. Each gap must specify what is missing and what document type could fill it.}
+
+- **{gap description}** — would be resolved by: {ADR / API spec / feature refinement / design doc}
+
+{If no gaps: "No gaps identified."}
 ```
 
-Ground every finding in the source documents. If something is ambiguous, flag it in Pending Details rather than guessing.
+Ground every finding in the source documents. If something is ambiguous, flag it in Gaps rather than guessing.
