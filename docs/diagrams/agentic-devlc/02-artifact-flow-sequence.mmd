@@ -1,0 +1,51 @@
+sequenceDiagram
+    autonumber
+    participant U as Developer
+    participant RFE as rfe-creator
+    participant JIRA as Jira RHAIRFE/RHAISTRAT
+    participant TP as test-plan-creator
+    participant TR as test-rules-generator
+    participant AGENT as Claude Code Agent
+    participant REPO as Component Repo
+
+    rect rgb(26, 26, 46)
+    Note over U, JIRA: Phase 1-2: RFE + Strategy Pipeline
+    U->>RFE: /rfe.speedrun "problem statement"
+    RFE->>RFE: create → review → auto-revise
+    RFE->>JIRA: Submit RHAIRFE ticket
+    JIRA-->>RFE: RHAIRFE-1595
+    RFE->>RFE: /strat.create RHAIRFE-1595
+    RFE->>RFE: /strat.refine → /strat.review
+    RFE->>JIRA: Submit RHAISTRAT ticket
+    JIRA-->>RFE: RHAISTRAT-400
+    RFE-->>U: Strategy refined + submitted
+    end
+
+    rect rgb(26, 46, 26)
+    Note over U, REPO: Phase 3-4: Test Planning + Rules (parallel)
+    par Test Plan Generation
+        U->>TP: /test-plan-creator RHAISTRAT-400
+        TP->>JIRA: Fetch strategy details
+        JIRA-->>TP: Strategy + linked RFE content
+        TP->>TP: Fork: scope + strategy + environment analyzers
+        TP->>TP: Merge → TestPlan.md
+        TP->>TP: /test-plan-reviewer validates
+        TP-->>U: feature_name/TestPlan.md
+    and Test Rules Extraction
+        U->>TR: /test-rules-generator repo-url
+        TR->>REPO: Clone + analyze test patterns
+        REPO-->>TR: Test files + frameworks
+        TR->>TR: Extract patterns per test type
+        TR-->>U: .claude/rules/*.md
+    end
+    end
+
+    rect rgb(46, 26, 46)
+    Note over AGENT, REPO: Phase 5: Agent Writes Tests
+    U->>AGENT: "Write tests for this feature"
+    AGENT->>AGENT: Read TestPlan.md (what to test)
+    AGENT->>AGENT: Read .claude/rules/*.md (how to test)
+    AGENT->>REPO: Generate test files following patterns
+    AGENT->>AGENT: Run tests, validate coverage
+    AGENT-->>U: Test cases + coverage report
+    end

@@ -1,0 +1,64 @@
+flowchart TD
+    subgraph phase1["Phase 1: Define the WHAT and WHY"]
+        A1["/rfe.create\nProblem statement → RFE"] --> A2["/rfe.review\nRubric scoring + auto-revise"]
+        A2 --> A3{{"Review\npassed?"}}
+        A3 -- "yes" --> A4["/rfe.submit\nCreate RHAIRFE in Jira"]
+        A3 -- "no: revise" --> A2
+        A3 -- "no: split" --> A5["/rfe.split\nDecompose oversized RFE"]
+        A5 --> A2
+    end
+
+    subgraph phase2["Phase 2: Define the HOW"]
+        B1["/strat.create\nClone RFE → RHAISTRAT"] --> B2["/strat.refine\nTechnical approach + components"]
+        B2 --> B3["/strat.review\n4 parallel reviewers"]
+        B3 --> B4{{"Review\npassed?"}}
+        B4 -- "yes" --> B5["Refined Strategy\nartifacts/strat-tasks/*.md"]
+        B4 -- "no" --> B2
+    end
+
+    subgraph phase3["Phase 3: Define HOW to TEST"]
+        C0["/test-plan-creator\nOrchestrator"]
+        C0 --> C1["/scope-endpoint-analyzer\nSections 1, 4"]
+        C0 --> C2["/test-strategy-risk-analyzer\nSections 2, 6"]
+        C0 --> C3["/environment-infra-analyzer\nSections 3, 7"]
+        C1 --> C4["Merge into\nTestPlan.md"]
+        C2 --> C4
+        C3 --> C4
+        C4 --> C5["/test-plan-reviewer\nCompleteness + consistency"]
+        C5 --> C6{{"Gaps\nfound?"}}
+        C6 -- "auto-fix" --> C4
+        C6 -- "needs user input" --> C7["AskUserQuestion\nRequest ADR or API spec"]
+        C7 --> C0
+        C6 -- "clean" --> C8["feature_name/TestPlan.md\nfeature_name/README.md"]
+    end
+
+    subgraph phase4["Phase 4: Learn HOW to WRITE Tests"]
+        D1["/test-rules-generator\nClone + analyze repo"] --> D2["Pattern extraction\n5-10 sample tests per type"]
+        D2 --> D3["Generate .claude/rules/\ntesting-standards.md\nunit-tests.md\ne2e-tests.md"]
+    end
+
+    subgraph phase5["Phase 5: Agent Writes Tests"]
+        E1["Claude Code Agent\nreads TestPlan.md"] --> E2["Agent reads\n.claude/rules/*.md"]
+        E2 --> E3["Agent generates\ntest case files\nfollowing repo patterns"]
+        E3 --> E4["Run test suite\nvalidate coverage"]
+    end
+
+    A4 --> B1
+    B5 --> C0
+    B5 --> D1
+    C8 --> E1
+    D3 --> E2
+
+    style phase1 fill:#1a1a2e,stroke:#4a4a4a,color:#fff
+    style phase2 fill:#1a1a2e,stroke:#4a4a4a,color:#fff
+    style phase3 fill:#1a1a2e,stroke:#4a4a4a,color:#fff
+    style phase4 fill:#1a1a2e,stroke:#4a4a4a,color:#fff
+    style phase5 fill:#1a1a2e,stroke:#4a4a4a,color:#fff
+    style A4 fill:#2d5a2d,stroke:#4a4a4a,color:#fff
+    style B5 fill:#2d5a2d,stroke:#4a4a4a,color:#fff
+    style C8 fill:#2d5a2d,stroke:#4a4a4a,color:#fff
+    style D3 fill:#2d5a2d,stroke:#4a4a4a,color:#fff
+    style E4 fill:#2d5a2d,stroke:#4a4a4a,color:#fff
+    style A3 fill:#5a5a2d,stroke:#4a4a4a,color:#fff
+    style B4 fill:#5a5a2d,stroke:#4a4a4a,color:#fff
+    style C6 fill:#5a5a2d,stroke:#4a4a4a,color:#fff

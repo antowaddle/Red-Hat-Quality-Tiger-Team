@@ -1,0 +1,24 @@
+flowchart LR
+    subgraph rfecreator["jwforres/rfe-creator"]
+        R1["artifacts/rfe-tasks/\nRFE-001-*.md\n─────────────\nYAML frontmatter\nrfe_id, title,\npriority, status"]
+        R2["artifacts/strat-tasks/\nSTRAT-001-*.md\n─────────────\nYAML frontmatter\nstrat_id, source_rfe,\npriority, status"]
+        R3["artifacts/rfe-reviews/\nRFE-001-*-review.md\n─────────────\nscore, pass,\nfeasibility, scores.*"]
+    end
+
+    subgraph tigerteam["Tiger Team repo"]
+        T1["feature_name/TestPlan.md\n─────────────\nPlain markdown\nDocument Information\nsection metadata"]
+        T2[".claude/rules/\ntesting-standards.md\nunit-tests.md\ne2e-tests.md\n─────────────\nPattern examples\nconventions, checklists"]
+    end
+
+    subgraph agentoutput["Agent Output"]
+        A1["test_cases/\nTC-API-001.md\nTC-SEC-001.md\n─────────────\nTest implementations\nfollowing repo patterns"]
+    end
+
+    R2 -- "Jira MCP or\nlocal file" --> T1
+    R1 -- "linked via\nsource_rfe field" --> T1
+    T1 -- "what to test" --> A1
+    T2 -- "how to test" --> A1
+
+    style rfecreator fill:#1a1a2e,stroke:#2d4a6e,color:#fff
+    style tigerteam fill:#1a1a2e,stroke:#2d5a2d,color:#fff
+    style agentoutput fill:#1a1a2e,stroke:#3a3a5a,color:#fff
