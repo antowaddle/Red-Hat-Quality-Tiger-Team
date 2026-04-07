@@ -62,7 +62,7 @@ If the MCP tool **is available**, proceed to Step 1.
 
 ### Step 1: Gather Information
 
-1. **Strategy**: If a Jira key was provided, fetch it using `getJiraIssue`. The strategy contains both the technical approach (HOW) and the business need (WHAT/WHY). If auto-detected, read the local file from `artifacts/strat-tasks/`.
+1. **Strategy**: If a Jira key was provided, fetch it using `mcp__atlassian__getJiraIssue`. The strategy contains both the technical approach (HOW) and the business need (WHAT/WHY). If auto-detected, read the local file from `artifacts/strat-tasks/`.
 2. **ADR** (if provided): Read the ADR file for additional technical detail (API endpoints, data models, implementation specifics).
 
 ### Step 2: Analyze (Parallel Sub-Agents)
