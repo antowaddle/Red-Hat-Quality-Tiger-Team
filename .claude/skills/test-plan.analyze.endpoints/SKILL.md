@@ -1,5 +1,5 @@
 ---
-name: scope-endpoint-analyzer
+name: test-plan.analyze.endpoints
 description: Analyzes strategy and ADR to extract feature scope, test objectives, and API endpoints/methods under test.
 context: fork
 allowed-tools: Read

@@ -1,5 +1,5 @@
 ---
-name: test-plan-reviewer
+name: test-plan.review
 description: Reviews a generated test plan for completeness, consistency, and quality. Suggests concrete improvements.
 context: fork
 allowed-tools: Read
