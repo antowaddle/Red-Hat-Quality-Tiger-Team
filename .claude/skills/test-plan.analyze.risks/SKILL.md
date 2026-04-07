@@ -1,5 +1,5 @@
 ---
-name: tplan.analyze.risks
+name: test-plan.analyze.risks
 description: Analyzes strategy and ADR to determine test levels, test types, priority definitions, and risks with mitigations.
 context: fork
 allowed-tools: Read

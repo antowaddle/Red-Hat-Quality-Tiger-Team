@@ -59,14 +59,14 @@ Extracts test patterns from existing tests and generates `.claude/rules/` docume
 - `contract-tests.md` - Contract test patterns (if found)
 - `mock-tests.md` - Mock/component test patterns (if found)
 
-### 4. Test Plan Creator (`/.claude/skills/tplan.create/`)
+### 4. Test Plan Creator (`/.claude/skills/test-plan.create/`)
 
 Generates comprehensive test plans for RHOAI features from a refined strategy (RHAISTRAT), with optional ADR for additional technical depth. Uses parallel sub-agents for analysis and includes an automated review step.
 
 **Usage:**
 ```bash
-/tplan.create RHAISTRAT-400
-/tplan.create RHAISTRAT-400 /path/to/adr.pdf
+/test-plan.create RHAISTRAT-400
+/test-plan.create RHAISTRAT-400 /path/to/adr.pdf
 ```
 
 **Inputs:**
@@ -80,27 +80,27 @@ Generates comprehensive test plans for RHOAI features from a refined strategy (R
 4. Reviewer sub-agent checks for gaps and recommends additional documents
 
 **Sub-agents (context: fork, non-user-invocable):**
-- `tplan.analyze.endpoints` — feature scope + endpoints/methods under test
-- `tplan.analyze.risks` — test levels, types, priorities + risks
-- `tplan.analyze.infra` — environment config, test data, infrastructure
-- `tplan.review` — completeness review, gap analysis, document recommendations
+- `test-plan.analyze.endpoints` — feature scope + endpoints/methods under test
+- `test-plan.analyze.risks` — test levels, types, priorities + risks
+- `test-plan.analyze.infra` — environment config, test data, infrastructure
+- `test-plan.review` — completeness review, gap analysis, document recommendations
 
 **Outputs:**
 - `<feature_name>/TestPlan.md` - Structured test plan following a consistent template
 - `<feature_name>/README.md` - Feature summary with links
 
-### 5. Test Case Generator (`/.claude/skills/tcases.create/`)
+### 5. Test Case Generator (`/.claude/skills/test-cases.create/`)
 
-Generates individual test case specification files from an existing test plan. Designed to run after `/tplan.create`.
+Generates individual test case specification files from an existing test plan. Designed to run after `/test-plan.create`.
 
 **Usage:**
 ```bash
-/tcases.create
-/tcases.create mcp_catalog
+/test-cases.create
+/test-cases.create mcp_catalog
 ```
 
 **Inputs:**
-- Auto-detects feature directory if run after `/tplan.create` in the same session
+- Auto-detects feature directory if run after `/test-plan.create` in the same session
 - Otherwise accepts a feature directory path or asks interactively
 
 **Outputs:**
@@ -135,18 +135,18 @@ Web dashboard for monitoring Konflux pipeline health across all RHOAI components
 │       ├── test-rules-generator/
 │       │   ├── SKILL.md
 │       │   └── instructions.md
-│       ├── tplan.create/               # Orchestrator
+│       ├── test-plan.create/            # Orchestrator
 │       │   ├── SKILL.md
 │       │   └── test-plan-template.md
-│       ├── tplan.analyze.endpoints/    # Sub-agent (fork)
+│       ├── test-plan.analyze.endpoints/ # Sub-agent (fork)
 │       │   └── SKILL.md
-│       ├── tplan.analyze.risks/        # Sub-agent (fork)
+│       ├── test-plan.analyze.risks/     # Sub-agent (fork)
 │       │   └── SKILL.md
-│       ├── tplan.analyze.infra/        # Sub-agent (fork)
+│       ├── test-plan.analyze.infra/     # Sub-agent (fork)
 │       │   └── SKILL.md
-│       ├── tplan.review/               # Sub-agent (fork)
+│       ├── test-plan.review/            # Sub-agent (fork)
 │       │   └── SKILL.md
-│       └── tcases.create/
+│       └── test-cases.create/
 │           ├── SKILL.md
 │           └── test-case-template.md
 └── konflux-CI-Dashboard/
@@ -179,10 +179,10 @@ Skills can be invoked using the `/skill-name` syntax in Claude Code:
 /test-rules-generator https://github.com/opendatahub-io/notebooks
 
 # Generate test plan from strategy
-/tplan.create RHAISTRAT-400
+/test-plan.create RHAISTRAT-400
 
 # Generate test cases from test plan
-/tcases.create
+/test-cases.create
 ```
 
 ## Documentation
