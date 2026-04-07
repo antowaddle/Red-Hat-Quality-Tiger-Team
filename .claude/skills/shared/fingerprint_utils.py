@@ -39,6 +39,7 @@ try:
         api_call,
         create_issue,
         add_labels,
+        remove_labels,
         add_comment,
         markdown_to_adf,
     )
@@ -52,6 +53,7 @@ except ImportError:
         api_call,
         create_issue,
         add_labels,
+        remove_labels,
         add_comment,
         markdown_to_adf,
     )
@@ -59,7 +61,7 @@ except ImportError:
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
 
-DEFAULT_PROJECT = "RHOAIENG"  # Default Jira project for tracking issues
+DEFAULT_JIRA_PROJECT = "RHOAIENG"  # Default Jira project for tracking issues
 
 
 # ─── Environment Detection ─────────────────────────────────────────────────────
@@ -374,7 +376,7 @@ def record_skill_execution(
     repo_url: str,
     status: str,
     results: Dict[str, Any],
-    project: str = DEFAULT_PROJECT,
+    project: str = DEFAULT_JIRA_PROJECT,
 ) -> bool:
     """Record skill execution as Jira fingerprint.
 
@@ -442,10 +444,11 @@ def record_skill_execution(
         ]
 
         # Remove opposite status label (success vs failure)
-        # This ensures we always have the latest status
+        # This ensures we always have the latest status, not both
         opposite_status = "success" if status == "failure" else "failure"
-        # Note: add_labels in jira_utils.py doesn't remove, it only adds
-        # For now, we'll just add - labels accumulate
+        opposite_label = f"quality-tiger-team-{opposite_status}"
+        print(f"🧹 Removing stale label: {opposite_label}")
+        remove_labels(server, user, token, issue_key, [opposite_label])
 
         # Add labels
         print(f"🏷️  Adding labels: {', '.join(labels)}")
@@ -484,8 +487,8 @@ def main():
                         help="Repository URL")
     parser.add_argument("--status", choices=["success", "failure"], default="success",
                         help="Execution status")
-    parser.add_argument("--project", default=DEFAULT_PROJECT,
-                        help=f"Jira project (default: {DEFAULT_PROJECT})")
+    parser.add_argument("--project", default=DEFAULT_JIRA_PROJECT,
+                        help=f"Jira project (default: {DEFAULT_JIRA_PROJECT})")
 
     args = parser.parse_args()
 
