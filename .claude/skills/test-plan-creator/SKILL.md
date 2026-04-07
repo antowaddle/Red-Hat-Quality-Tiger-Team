@@ -8,7 +8,7 @@ allowedTools:
   - Bash
   - Glob
   - Skill
-  - mcp__mcp-atlassian__jira_get_issue
+  - mcp__atlassian__getJiraIssue
   - AskUserQuestion
 ---
 
@@ -51,18 +51,18 @@ If no arguments are provided and no strategy file is available from the current 
 
 ### Step 0: Check MCP Integration
 
-Before proceeding, verify that the Atlassian MCP integration is available by attempting to use the `mcp__mcp-atlassian__jira_get_issue` tool.
+Before proceeding, verify that the Atlassian MCP integration is available by attempting to use the `mcp__atlassian__getJiraIssue` tool.
 
 If the MCP tool is **not available**:
 1. Inform the user that Jira MCP integration is required to fetch strategy details
-2. Ask the user to set up the MCP Atlassian server in their Claude Code configuration (see https://github.com/sooperset/mcp-atlassian)
+2. Ask the user to set up the official Atlassian MCP server (see https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/)
 3. Do NOT proceed until MCP is available or the user provides a local strategy file from `artifacts/strat-tasks/` as an alternative
 
 If the MCP tool **is available**, proceed to Step 1.
 
 ### Step 1: Gather Information
 
-1. **Strategy**: If a Jira key was provided, fetch it using `jira_get_issue` with `fields='*all'`. The strategy contains both the technical approach (HOW) and the business need (WHAT/WHY). If auto-detected, read the local file from `artifacts/strat-tasks/`.
+1. **Strategy**: If a Jira key was provided, fetch it using `getJiraIssue`. The strategy contains both the technical approach (HOW) and the business need (WHAT/WHY). If auto-detected, read the local file from `artifacts/strat-tasks/`.
 2. **ADR** (if provided): Read the ADR file for additional technical detail (API endpoints, data models, implementation specifics).
 
 ### Step 2: Analyze (Parallel Sub-Agents)
