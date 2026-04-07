@@ -89,9 +89,24 @@ Generates comprehensive test plans for RHOAI features from a refined strategy (R
 - `<feature_name>/TestPlan.md` - Structured test plan following a consistent template
 - `<feature_name>/README.md` - Feature summary with links
 
-### 5. Test Case Generator (`/.claude/skills/test-cases/`)
+### 5. Test Case Generator (`/.claude/skills/test-cases-creator/`)
 
-**Status:** To be implemented in a follow-up. Will generate individual test case files from the output of `/test-plan-creator`.
+Generates individual test case specification files from an existing test plan. Designed to run after `/test-plan-creator`.
+
+**Usage:**
+```bash
+/test-cases-creator
+/test-cases-creator mcp_catalog
+```
+
+**Inputs:**
+- Auto-detects feature directory if run after `/test-plan-creator` in the same session
+- Otherwise accepts a feature directory path or asks interactively
+
+**Outputs:**
+- `<feature_dir>/test_cases/TC-<CATEGORY>-<NUMBER>.md` — Individual test case files
+- `<feature_dir>/test_cases/INDEX.md` — Test case index with stats
+- Updates TestPlan.md Sections 5, 5.1, 8.1, 8.2
 
 ### 6. Konflux CI Dashboard (`/konflux-CI-Dashboard/`)
 
@@ -129,8 +144,11 @@ Web dashboard for monitoring Konflux pipeline health across all RHOAI components
 │       │   └── SKILL.md
 │       ├── environment-infra-analyzer/ # Sub-agent (fork)
 │       │   └── SKILL.md
-│       └── test-plan-reviewer/         # Sub-agent (fork)
-│           └── SKILL.md
+│       ├── test-plan-reviewer/         # Sub-agent (fork)
+│       │   └── SKILL.md
+│       └── test-cases-creator/
+│           ├── SKILL.md
+│           └── test-case-template.md
 └── konflux-CI-Dashboard/
     └── KONFLUX-CI-DASHBOARD.md
 ```
@@ -164,7 +182,7 @@ Skills can be invoked using the `/skill-name` syntax in Claude Code:
 /test-plan-creator RHAISTRAT-400
 
 # Generate test cases from test plan
-/test-cases
+/test-cases-creator
 ```
 
 ## Documentation
@@ -197,7 +215,7 @@ This is a Red Hat internal repository. For questions or contributions, contact t
 - ✅ Konflux Build Simulator: Production Ready
 - ✅ Test Rules Generator: Production Ready
 - 🧪 Test Plan Creator: Tested / WIP (with parallel sub-agents)
-- 🧪 Test Case Generator: Next
+- 🧪 Test Case Generator: Tested / WIP
 - 🔮 Konflux CI Dashboard: Planned (Q2 2026)
 
 ## License

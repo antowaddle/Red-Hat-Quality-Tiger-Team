@@ -83,6 +83,14 @@ Return your findings in this exact structure:
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
 | {risk} | {High/Medium/Low} | {High/Medium/Low} | {mitigation} |
+
+## Gaps
+
+{List every gap found during analysis. Each gap must specify what is missing and what document type could fill it.}
+
+- **{gap description}** — would be resolved by: {ADR / API spec / feature refinement / design doc}
+
+{If no gaps: "No gaps identified."}
 ```
 
 Ground every finding in the source documents. If the strategy is light on details for a particular area, note it as a risk rather than guessing.
