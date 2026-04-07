@@ -1,5 +1,5 @@
 ---
-name: environment-infra-analyzer
+name: tplan.analyze.infra
 description: Analyzes strategy and ADR to identify test environment configuration, test data, test users, infrastructure, and tooling requirements.
 context: fork
 allowed-tools: Read

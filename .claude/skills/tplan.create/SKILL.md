@@ -1,4 +1,5 @@
 ---
+name: tplan.create
 description: Generate a test plan from a strategy (RHAISTRAT), with optional ADR for extra technical depth
 user-invocable: true
 model: opus
@@ -19,12 +20,12 @@ Generate a complete test plan for a RHOAI feature based on a refined strategy, a
 ## Usage
 
 ```
-/test-plan-creator <RHAISTRAT_KEY> [ADR_FILE_PATH]
+/tplan.create <RHAISTRAT_KEY> [ADR_FILE_PATH]
 ```
 
 Examples:
-- `/test-plan-creator RHAISTRAT-400`
-- `/test-plan-creator RHAISTRAT-400 /path/to/adr.pdf`
+- `/tplan.create RHAISTRAT-400`
+- `/tplan.create RHAISTRAT-400 /path/to/adr.pdf`
 
 ## Inputs
 
@@ -71,9 +72,9 @@ Invoke these three forked analyzer skills **in parallel** using the Skill tool. 
 
 Pass the full strategy content (and ADR content if available) inline in the skill arguments so each sub-agent has the source material.
 
-- **`scope-endpoint-analyzer`**: Extracts feature scope (in-scope, out-of-scope, test objectives) and identifies API endpoints/methods under test. Produces findings for Sections 1 and 4.
-- **`test-strategy-risk-analyzer`**: Determines test levels, test types, priority definitions, and risks with mitigations. Produces findings for Sections 2 and 6.
-- **`environment-infra-analyzer`**: Identifies test environment configuration, test data, test users, infrastructure, and tooling requirements. Produces findings for Sections 3 and 7.
+- **`tplan.analyze.endpoints`**: Extracts feature scope (in-scope, out-of-scope, test objectives) and identifies API endpoints/methods under test. Produces findings for Sections 1 and 4.
+- **`tplan.analyze.risks`**: Determines test levels, test types, priority definitions, and risks with mitigations. Produces findings for Sections 2 and 6.
+- **`tplan.analyze.infra`**: Identifies test environment configuration, test data, test users, infrastructure, and tooling requirements. Produces findings for Sections 3 and 7.
 
 Once all three sub-agents return:
 1. Merge their structured findings into the test plan template (Step 3)
@@ -102,26 +103,34 @@ After generating the test plan, collect all gaps reported by the three sub-agent
    # Gaps — <Feature Name>
 
    ## Scope & Endpoints
-   {gaps from scope-endpoint-analyzer, or "No gaps identified."}
+   {gaps from tplan.analyze.endpoints, or "No gaps identified."}
 
    ## Test Strategy & Risks
-   {gaps from test-strategy-risk-analyzer, or "No gaps identified."}
+   {gaps from tplan.analyze.risks, or "No gaps identified."}
 
    ## Environment & Infrastructure
-   {gaps from environment-infra-analyzer, or "No gaps identified."}
+   {gaps from tplan.analyze.infra, or "No gaps identified."}
    ```
-3. **If gaps exist**, ask the user via AskUserQuestion whether they can provide any of the recommended documents. Be specific — list the exact gaps and what document type would resolve each one. Example:
-   > "The following gaps were identified in the test plan:
+3. **If gaps exist**, present the user with a structured action menu via AskUserQuestion. List the gaps first, then offer numbered options. Example:
+
+   > The following gaps were identified in the test plan:
    > - Endpoint paths for the catalog API are not specified — an **API spec** or **ADR** would resolve this
    > - RBAC roles are unclear — a **feature refinement** doc would help
+   > - KServe CSI configuration details are missing — a **design doc** would resolve this
    >
-   > Do you have any of these documents available?"
-4. **If the user provides additional documents**: Read them, re-run only the relevant sub-agents from Step 2 with the new material, update the test plan, and update `TestPlanGaps.md` (removing resolved gaps, adding any new ones).
-5. **If the user has no additional documents or no gaps exist**: Proceed to Step 4.
+   > **What would you like to do?**
+   >
+   > 1. **Provide documents** — paste file paths (ADR, API spec, design doc) to resolve gaps
+   > 2. **Proceed to review** — continue with the test plan as-is (gaps will be noted in TestPlanGaps.md)
+   > 3. **Proceed to review + generate test cases** — continue and automatically run `/tcases.create` after review
+
+4. **If the user chooses option 1**: Read the provided documents, re-run only the relevant sub-agents from Step 2 with the new material, update the test plan, update `TestPlanGaps.md` (removing resolved gaps, adding any new ones), then present the menu again with remaining gaps (if any).
+5. **If the user chooses option 2 or no gaps exist**: Proceed to Step 4.
+6. **If the user chooses option 3**: Proceed to Step 4, and after the review is complete, automatically invoke `/tcases.create` with the feature directory.
 
 ### Step 4: Review and Improve
 
-After the gaps flow is complete, invoke the **`test-plan-reviewer`** forked skill, passing the full content of the generated TestPlan.md.
+After the gaps flow is complete, invoke the **`tplan.review`** forked skill, passing the full content of the generated TestPlan.md.
 
 The reviewer will return:
 - Completeness and consistency assessment
