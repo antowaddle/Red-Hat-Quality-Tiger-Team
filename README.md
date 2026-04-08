@@ -59,66 +59,19 @@ Extracts test patterns from existing tests and generates `.claude/rules/` docume
 - `contract-tests.md` - Contract test patterns (if found)
 - `mock-tests.md` - Mock/component test patterns (if found)
 
-### 4. Test Plan Creator (`/.claude/skills/test-plan.create/`)
+### 4. Workflow Diagram Generator (`/.claude/skills/workflow-diagram-generator/`)
 
-Generates comprehensive test plans for RHOAI features from a refined strategy (RHAISTRAT), with optional ADR for additional technical depth. Uses parallel sub-agents for analysis and includes an automated review step.
-
-**Usage:**
-```bash
-/test-plan.create RHAISTRAT-400
-/test-plan.create RHAISTRAT-400 /path/to/adr.pdf
-```
-
-**Inputs:**
-- Strategy Jira key (RHAISTRAT) — required
-- ADR file path (optional, for API-level detail)
-
-**Pipeline:**
-1. Fetch strategy from Jira (MCP integration required)
-2. 3 parallel sub-agents analyze scope, test strategy, and environment
-3. Generate TestPlan.md from merged findings
-4. Reviewer sub-agent checks for gaps and recommends additional documents
-
-**Sub-agents (context: fork, non-user-invocable):**
-- `test-plan.analyze.endpoints` — feature scope + endpoints/methods under test
-- `test-plan.analyze.risks` — test levels, types, priorities + risks
-- `test-plan.analyze.infra` — environment config, test data, infrastructure
-- `test-plan.review` — completeness review, gap analysis, document recommendations
-
-**Outputs:**
-- `<feature_name>/TestPlan.md` - Structured test plan following a consistent template
-- `<feature_name>/README.md` - Feature summary with links
-
-### 5. Test Case Generator (`/.claude/skills/test-cases.create/`)
-
-Generates individual test case specification files from an existing test plan. Designed to run after `/test-plan.create`.
+Generates Mermaid diagrams visualizing software development workflows and processes.
 
 **Usage:**
 ```bash
-/test-cases.create
-/test-cases.create mcp_catalog
+/workflow-diagram-generator
 ```
 
-**Inputs:**
-- Auto-detects feature directory if run after `/test-plan.create` in the same session
-- Otherwise accepts a feature directory path or asks interactively
-
 **Outputs:**
-- `<feature_dir>/test_cases/TC-<CATEGORY>-<NUMBER>.md` — Individual test case files
-- `<feature_dir>/test_cases/INDEX.md` — Test case index with stats
-- Updates TestPlan.md Sections 5, 5.1, 8.1, 8.2
-
-### 6. Konflux CI Dashboard (`/konflux-CI-Dashboard/`)
-
-**Status:** Design Phase (Planned Q2 2026)
-
-Web dashboard for monitoring Konflux pipeline health across all RHOAI components.
-
-**Planned Features:**
-- Real-time pipeline status
-- Historical trend analysis
-- Automated alerting
-- Failure pattern recognition
+- Mermaid diagram definitions (.mmd files)
+- PNG renderings of diagrams
+- Documentation of workflow processes
 
 ## Repository Structure
 
@@ -135,22 +88,14 @@ Web dashboard for monitoring Konflux pipeline health across all RHOAI components
 │       ├── test-rules-generator/
 │       │   ├── SKILL.md
 │       │   └── instructions.md
-│       ├── test-plan.create/            # Orchestrator
-│       │   ├── SKILL.md
-│       │   └── test-plan-template.md
-│       ├── test-plan.analyze.endpoints/ # Sub-agent (fork)
+│       ├── workflow-diagram-generator/
 │       │   └── SKILL.md
-│       ├── test-plan.analyze.risks/     # Sub-agent (fork)
-│       │   └── SKILL.md
-│       ├── test-plan.analyze.infra/     # Sub-agent (fork)
-│       │   └── SKILL.md
-│       ├── test-plan.review/            # Sub-agent (fork)
-│       │   └── SKILL.md
-│       └── test-cases.create/
-│           ├── SKILL.md
-│           └── test-case-template.md
-└── konflux-CI-Dashboard/
-    └── KONFLUX-CI-DASHBOARD.md
+│       └── shared/
+│           ├── fingerprint_utils.py
+│           └── jira_utils.py
+├── docs/
+│   └── diagrams/
+└── README.md
 ```
 
 ## Getting Started
@@ -178,11 +123,8 @@ Skills can be invoked using the `/skill-name` syntax in Claude Code:
 # Extract test patterns
 /test-rules-generator https://github.com/opendatahub-io/notebooks
 
-# Generate test plan from strategy
-/test-plan.create RHAISTRAT-400
-
-# Generate test cases from test plan
-/test-cases.create
+# Generate workflow diagrams
+/workflow-diagram-generator
 ```
 
 ## Documentation
@@ -214,9 +156,7 @@ This is a Red Hat internal repository. For questions or contributions, contact t
 - ✅ Quality Repo Analysis: Production Ready
 - ✅ Konflux Build Simulator: Production Ready
 - ✅ Test Rules Generator: Production Ready
-- 🧪 Test Plan Creator: Tested / WIP (with parallel sub-agents)
-- 🧪 Test Case Generator: Tested / WIP
-- 🔮 Konflux CI Dashboard: Planned (Q2 2026)
+- ✅ Workflow Diagram Generator: Production Ready
 
 ## License
 
@@ -225,4 +165,4 @@ Internal Red Hat tooling.
 ---
 
 **Maintained by:** Quality Tiger Team
-**Last Updated:** April 2, 2026
+**Last Updated:** April 8, 2026
