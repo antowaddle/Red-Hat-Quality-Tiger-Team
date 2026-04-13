@@ -6,13 +6,13 @@ Converts markdown analysis output to an interactive HTML page with embedded CSS/
 """
 
 import re
-import json
 import sys
 from datetime import datetime
-from typing import Dict, List, Tuple
+from html import escape
+from typing import Any, Dict, List, Tuple
 
 
-def extract_executive_summary(content: str) -> Dict[str, str]:
+def extract_executive_summary(content: str) -> Dict[str, Any]:
     """Extract executive summary section"""
     match = re.search(r'## Executive Summary\n(.*?)(?=\n##|\Z)', content, re.DOTALL)
     if not match:
@@ -54,8 +54,10 @@ def extract_scorecard(content: str) -> List[Dict[str, str]]:
         if len(cells) >= 3:
             score_match = re.search(r'(\d+(?:\.\d+)?)/10', cells[1])
             score = float(score_match.group(1)) if score_match else 0
+            # Remove markdown bold (**text**)
+            dimension = re.sub(r'\*\*(.+?)\*\*', r'\1', cells[0])
             scorecard.append({
-                'dimension': cells[0].strip('*'),  # Remove markdown bold
+                'dimension': dimension,
                 'score': score,
                 'status': cells[2]
             })
@@ -121,8 +123,10 @@ def generate_html(markdown_content: str, repo_name: str = "Repository") -> str:
     quick_wins = extract_sections(markdown_content, 'Quick Wins')
     recommendations = extract_recommendations(markdown_content)
 
-    # Calculate average score
-    avg_score = sum(item['score'] for item in scorecard) / len(scorecard) if scorecard else summary.get('overall_score', 0)
+    # Use overall score from summary, fall back to scorecard average if not available
+    avg_score = summary.get('overall_score', 0)
+    if avg_score == 0 and scorecard:
+        avg_score = sum(item['score'] for item in scorecard) / len(scorecard)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -459,7 +463,7 @@ def generate_html(markdown_content: str, repo_name: str = "Repository") -> str:
         <header>
             <h1>Quality Analysis Report</h1>
             <p class="timestamp">Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
-            <h2 style="margin-top: 1rem; font-weight: 400;">{repo_name}</h2>
+            <h2 style="margin-top: 1rem; font-weight: 400;">{escape(repo_name)}</h2>
         </header>
 
         <div class="content">
@@ -545,9 +549,9 @@ def generate_scorecard_items(scorecard: List[Dict[str, str]]) -> str:
         color = get_score_color(item['score'])
         items_html.append(f"""
                         <div class="scorecard-item">
-                            <h3>{item['dimension']}</h3>
+                            <h3>{escape(item['dimension'])}</h3>
                             <div class="scorecard-score" style="color: {color};">{item['score']:.1f}/10</div>
-                            <div class="scorecard-status">{item['status']}</div>
+                            <div class="scorecard-status">{escape(item['status'])}</div>
                         </div>""")
     return ''.join(items_html)
 
@@ -562,18 +566,18 @@ def generate_section(title: str, items: List[Dict[str, str]]) -> str:
         severity_class = item['severity'].lower() if item['severity'] else ''
         items_html.append(f"""
                         <li class="item-card {severity_class}">
-                            <div class="item-description">{item['description']}</div>
-                            {f'<p>{item["impact"]}</p>' if item['impact'] else ''}
+                            <div class="item-description">{escape(item['description'])}</div>
+                            {f'<p>{escape(item["impact"])}</p>' if item['impact'] else ''}
                             <div class="item-meta">
-                                {f'<span class="meta-tag severity-{severity_class}">{item["severity"]}</span>' if item['severity'] else ''}
-                                {f'<span class="meta-tag effort-tag">{item["effort"]}</span>' if item['effort'] else ''}
+                                {f'<span class="meta-tag severity-{severity_class}">{escape(item["severity"])}</span>' if item['severity'] else ''}
+                                {f'<span class="meta-tag effort-tag">{escape(item["effort"])}</span>' if item['effort'] else ''}
                             </div>
                         </li>""")
 
     return f"""
             <div class="section">
                 <h2 class="section-title" onclick="toggleSection(this)">
-                    {title}
+                    {escape(title)}
                     <span class="toggle-icon">▼</span>
                 </h2>
                 <div class="section-content">
@@ -596,10 +600,10 @@ def generate_recommendations_section(recommendations: Dict[str, List[str]]) -> s
 
     for key, title, css_class in priorities:
         if recommendations.get(key):
-            items = ''.join(f'<li>{item}</li>' for item in recommendations[key])
+            items = ''.join(f'<li>{escape(item)}</li>' for item in recommendations[key])
             sections.append(f"""
                         <div class="rec-priority {css_class}">
-                            <h3>{title}</h3>
+                            <h3>{escape(title)}</h3>
                             <ul>{items}</ul>
                         </div>""")
 

@@ -134,23 +134,6 @@ See `sample_output.html` for an example of the generated report based on `sample
 **Issue**: Sections not collapsing
 - **Solution**: Ensure JavaScript is enabled in your browser.
 
-## Integration with CI/CD
-
-You can integrate the HTML generator into your CI/CD pipeline:
-
-```yaml
-- name: Generate Quality Report
-  run: |
-    /quality-repo-analysis https://github.com/org/repo
-    python3 .claude/skills/quality-repo-analysis/html_generator.py quality-analysis-repo.md report.html
-
-- name: Upload Report
-  uses: actions/upload-artifact@v3
-  with:
-    name: quality-report
-    path: report.html
-```
-
 ## License
 
 Part of the Quality Tiger Team toolkit.

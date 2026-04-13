@@ -234,7 +234,7 @@ After generating the markdown report, create an interactive HTML visualization:
 2. **Generate HTML Report**
    - Run the HTML generator:
    ```bash
-   python3 .claude/skills/quality-repo-analysis/html_generator.py quality-analysis-{repo}.md quality-report.html
+   python3 .claude/skills/quality-repo-analysis/html_generator.py quality-analysis-{repo}.md quality-report-{repo}.html
    ```
 
 3. **Open the Report**
