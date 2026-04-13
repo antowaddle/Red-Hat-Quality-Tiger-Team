@@ -65,7 +65,10 @@ This skill performs a comprehensive quality assessment across multiple dimension
 
 ## Output
 
-The skill generates a comprehensive report including:
+The skill generates a comprehensive report in two formats:
+
+### Markdown Report (Default)
+A detailed markdown document saved as `quality-analysis-{repo}.md` including:
 
 1. **Quality Scorecard** - Overall scores across dimensions
 2. **Critical Gaps** - High-priority issues to address
@@ -73,6 +76,21 @@ The skill generates a comprehensive report including:
 4. **Detailed Findings** - File-by-file analysis
 5. **Recommendations** - Prioritized action items
 6. **Comparison** - Benchmarking against gold standards
+
+### HTML Report (Interactive)
+An interactive, visually-rich HTML page with:
+
+- **Animated score visualization** - Circular progress indicator for overall score
+- **Interactive scorecard** - Hover effects and color-coded scores
+- **Collapsible sections** - Expand/collapse sections for easy navigation
+- **Color-coded severity** - Visual indicators for critical gaps (RED=High, YELLOW=Medium, GREEN=Low)
+- **Responsive design** - Works on desktop and mobile devices
+- **Zero dependencies** - Pure HTML/CSS/JS, no external libraries required
+
+To generate the HTML report from a markdown analysis:
+```bash
+python3 .claude/skills/quality-repo-analysis/html_generator.py quality-analysis-repo.md output.html
+```
 
 ## Gold Standards
 
@@ -123,3 +141,12 @@ The skill uses the Agent tool to:
 - Repository must be publicly accessible
 - Works best with Go, TypeScript/JavaScript, Python projects
 - Analyzes Kubernetes operators, web applications, and CLI tools
+- Python 3.6+ required for HTML report generation
+
+## Files
+
+- `SKILL.md` - This documentation
+- `instructions.md` - Detailed analysis instructions for the agent
+- `html_generator.py` - Converts markdown reports to interactive HTML
+- `sample_report.md` - Example markdown report
+- `sample_output.html` - Example HTML visualization
