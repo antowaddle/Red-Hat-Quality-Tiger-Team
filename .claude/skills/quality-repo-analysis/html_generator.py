@@ -41,11 +41,18 @@ def extract_executive_summary(content: str) -> Dict[str, Any]:
 
 def extract_scorecard(content: str) -> List[Dict[str, str]]:
     """Extract quality scorecard table"""
-    match = re.search(r'## Quality Scorecard\n.*?\n((?:\|.*\n)+)', content, re.DOTALL)
-    if not match:
+    # First extract only the Quality Scorecard section (up to next ## heading)
+    section_match = re.search(r'## Quality Scorecard\n(.*?)(?=\n##|\Z)', content, re.DOTALL)
+    if not section_match:
         return []
 
-    table_text = match.group(1)
+    # Then find the pipe table within that bounded section
+    section_text = section_match.group(1)
+    table_match = re.search(r'((?:\|.*\n)+)', section_text)
+    if not table_match:
+        return []
+
+    table_text = table_match.group(1)
     lines = [line.strip() for line in table_text.split('\n') if line.strip() and not line.strip().startswith('|---')]
 
     scorecard = []
