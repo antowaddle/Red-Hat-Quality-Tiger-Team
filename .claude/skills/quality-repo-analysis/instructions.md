@@ -224,30 +224,37 @@ Create structured report with:
    - Workflow templates
    - Configuration examples
 
-## Step 10: Generate HTML Report
+## Step 10: Generate Reports (Markdown + HTML)
 
-After generating the markdown report, create an interactive HTML visualization:
+After completing the analysis, generate both markdown and HTML reports:
 
 1. **Save the Markdown Report**
-   - Write the markdown analysis to a file (e.g., `quality-analysis-{repo}.md`)
+   - Write the complete markdown analysis to a file: `quality-analysis-{repo}.md`
+   - **CRITICAL**: Include YAML frontmatter at the top with all structured data
+   - Include detailed markdown content after the frontmatter
 
-2. **Generate HTML Report**
-   - Run the HTML generator:
+2. **Automatically Generate HTML Report**
+   - Run the HTML generator to create the interactive visualization:
    ```bash
    python3 .claude/skills/quality-repo-analysis/html_generator.py quality-analysis-{repo}.md quality-report-{repo}.html
    ```
-
-3. **Open the Report**
-   - Open the generated HTML file in a browser to verify
-   - The HTML report provides an interactive, visual representation with:
+   - This creates an interactive HTML page with:
      - Animated score circles
-     - Color-coded severity indicators
+     - Color-coded severity indicators  
      - Collapsible sections
      - Responsive design
 
-4. **Provide Both Outputs**
-   - Markdown report for detailed reading and archiving
-   - HTML report for presentations and stakeholder sharing
+3. **Open the HTML Report**
+   - Open the generated HTML file in the default browser:
+   ```bash
+   open quality-report-{repo}.html  # macOS
+   ```
+
+4. **Provide Summary**
+   - Inform the user that both reports have been generated:
+     - `quality-analysis-{repo}.md` - Detailed markdown for archiving
+     - `quality-report-{repo}.html` - Interactive visualization for sharing
+   - Provide the file paths so they can easily find the reports
 
 ## Output Format
 

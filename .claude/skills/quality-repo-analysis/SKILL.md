@@ -65,20 +65,21 @@ This skill performs a comprehensive quality assessment across multiple dimension
 
 ## Output
 
-The skill generates a comprehensive report in two formats:
+The skill automatically generates a comprehensive report in **two formats**:
 
-### Markdown Report (Default)
-A detailed markdown document saved as `quality-analysis-{repo}.md` including:
+### 1. Markdown Report
+A detailed markdown document saved as `quality-analysis-{repo}.md` with:
 
-1. **Quality Scorecard** - Overall scores across dimensions
-2. **Critical Gaps** - High-priority issues to address
-3. **Quick Wins** - Low-effort, high-impact improvements
-4. **Detailed Findings** - File-by-file analysis
-5. **Recommendations** - Prioritized action items
-6. **Comparison** - Benchmarking against gold standards
+- **YAML Frontmatter** - Structured data for reliable HTML generation (scorecard, gaps, wins, recommendations)
+- **Quality Scorecard** - Overall scores across dimensions
+- **Critical Gaps** - High-priority issues to address
+- **Quick Wins** - Low-effort, high-impact improvements
+- **Detailed Findings** - File-by-file analysis
+- **Recommendations** - Prioritized action items
+- **Comparison** - Benchmarking against gold standards
 
-### HTML Report (Interactive)
-An interactive, visually-rich HTML page with:
+### 2. HTML Report (Interactive) - **Generated Automatically**
+An interactive, visually-rich HTML page saved as `quality-report-{repo}.html` with:
 
 - **Animated score visualization** - Circular progress indicator for overall score
 - **Interactive scorecard** - Hover effects and color-coded scores
@@ -86,11 +87,9 @@ An interactive, visually-rich HTML page with:
 - **Color-coded severity** - Visual indicators for critical gaps (RED=High, YELLOW=Medium, GREEN=Low)
 - **Responsive design** - Works on desktop and mobile devices
 - **Zero dependencies** - Pure HTML/CSS/JS, no external libraries required
+- **Automatically opened** - Opens in your default browser after generation
 
-To generate the HTML report from a markdown analysis:
-```bash
-python3 .claude/skills/quality-repo-analysis/html_generator.py quality-analysis-repo.md output.html
-```
+Both files are created automatically when you run the skill. No manual steps required!
 
 ## Gold Standards
 
