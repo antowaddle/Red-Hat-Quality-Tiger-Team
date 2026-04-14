@@ -19,6 +19,12 @@ Converts Quality Repository Analysis markdown reports into beautiful, interactiv
 
 ### Basic Usage
 
+**Recommended (with uv):**
+```bash
+uv run --with pyyaml python3 html_generator.py input.md output.html
+```
+
+**Alternative (requires PyYAML installed globally):**
 ```bash
 python3 html_generator.py input.md output.html
 ```
@@ -26,8 +32,8 @@ python3 html_generator.py input.md output.html
 ### Example
 
 ```bash
-# Generate HTML from a quality analysis report
-python3 html_generator.py quality-analysis-kserve.md kserve-report.html
+# Generate HTML from a quality analysis report (recommended)
+uv run --with pyyaml python3 html_generator.py quality-analysis-kserve.md kserve-report.html
 
 # Open in browser
 open kserve-report.html  # macOS
@@ -60,12 +66,24 @@ When using `/quality-repo-analysis`, the skill will:
 ## Requirements
 
 - Python 3.6 or higher
-- PyYAML (recommended for YAML frontmatter support)
-  ```bash
-  pip install -r requirements.txt
-  ```
+- **PyYAML** (required for reliable YAML frontmatter parsing)
 
-**Note**: The generator works without PyYAML but falls back to regex parsing, which is less reliable with LLM-generated markdown. For best results, install PyYAML.
+### Installation Options
+
+**Option 1: Use `uv` (Recommended)**
+```bash
+# No installation needed - uv handles dependencies automatically
+uv run --with pyyaml python3 html_generator.py input.md output.html
+```
+
+**Option 2: Install globally with pip**
+```bash
+pip install -r requirements.txt
+# or
+pip install pyyaml
+```
+
+**Note**: The generator has a fallback parser for systems without PyYAML, but it's less reliable. For production use, always use `uv run --with pyyaml` or install PyYAML globally.
 
 ## Input Format
 
