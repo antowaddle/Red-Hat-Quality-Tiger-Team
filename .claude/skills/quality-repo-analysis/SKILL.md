@@ -65,14 +65,31 @@ This skill performs a comprehensive quality assessment across multiple dimension
 
 ## Output
 
-The skill generates a comprehensive report including:
+The skill automatically generates a comprehensive report in **two formats**:
 
-1. **Quality Scorecard** - Overall scores across dimensions
-2. **Critical Gaps** - High-priority issues to address
-3. **Quick Wins** - Low-effort, high-impact improvements
-4. **Detailed Findings** - File-by-file analysis
-5. **Recommendations** - Prioritized action items
-6. **Comparison** - Benchmarking against gold standards
+### 1. Markdown Report
+A detailed markdown document saved as `quality-analysis-{repo}.md` with:
+
+- **YAML Frontmatter** - Structured data for reliable HTML generation (scorecard, gaps, wins, recommendations)
+- **Quality Scorecard** - Overall scores across dimensions
+- **Critical Gaps** - High-priority issues to address
+- **Quick Wins** - Low-effort, high-impact improvements
+- **Detailed Findings** - File-by-file analysis
+- **Recommendations** - Prioritized action items
+- **Comparison** - Benchmarking against gold standards
+
+### 2. HTML Report (Interactive) - **Generated Automatically**
+An interactive, visually-rich HTML page saved as `quality-report-{repo}.html` with:
+
+- **Animated score visualization** - Circular progress indicator for overall score
+- **Interactive scorecard** - Hover effects and color-coded scores
+- **Collapsible sections** - Expand/collapse sections for easy navigation
+- **Color-coded severity** - Visual indicators for critical gaps (RED=High, YELLOW=Medium, GREEN=Low)
+- **Responsive design** - Works on desktop and mobile devices
+- **Zero dependencies** - Pure HTML/CSS/JS, no external libraries required
+- **Automatically opened** - Opens in your default browser after generation
+
+Both files are created automatically when you run the skill. No manual steps required!
 
 ## Gold Standards
 
@@ -123,3 +140,12 @@ The skill uses the Agent tool to:
 - Repository must be publicly accessible
 - Works best with Go, TypeScript/JavaScript, Python projects
 - Analyzes Kubernetes operators, web applications, and CLI tools
+- Python 3.6+ required for HTML report generation
+
+## Files
+
+- `SKILL.md` - This documentation
+- `instructions.md` - Detailed analysis instructions for the agent
+- `html_generator.py` - Converts markdown reports to interactive HTML
+- `sample_report.md` - Example markdown report
+- `sample_output.html` - Example HTML visualization

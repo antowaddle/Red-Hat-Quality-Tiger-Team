@@ -11,6 +11,26 @@ Analyze a given repository's quality practices and provide actionable recommenda
 
 ## Process
 
+### Step 0: Pre-flight Checks
+
+**CRITICAL**: Verify Python dependencies before starting the analysis.
+
+1. **Check PyYAML availability**
+   - Run this command to verify PyYAML can be imported:
+   ```bash
+   uv run --with pyyaml python3 -c "import yaml; print('✅ PyYAML available')"
+   ```
+
+2. **If the check fails**, install dependencies:
+   ```bash
+   uv pip install -r .claude/skills/quality-repo-analysis/requirements.txt
+   ```
+   Or use `uv run --with pyyaml` to automatically handle dependencies.
+
+3. **Do NOT proceed** with the analysis until PyYAML is confirmed available.
+   - Without PyYAML, the HTML generator will fall back to a less reliable parser
+   - This can result in missing data in the final report
+
 ### Step 1: Repository Discovery
 
 1. Clone or access the repository
@@ -224,9 +244,97 @@ Create structured report with:
    - Workflow templates
    - Configuration examples
 
+## Step 10: Generate Reports (Markdown + HTML)
+
+After completing the analysis, generate both markdown and HTML reports:
+
+1. **Save the Markdown Report**
+   - Write the complete markdown analysis to a file: `quality-analysis-{repo}.md`
+   - **CRITICAL**: Include YAML frontmatter at the top with all structured data
+   - Include detailed markdown content after the frontmatter
+
+2. **Automatically Generate HTML Report**
+   - Run the HTML generator using uv to ensure dependencies are available:
+   ```bash
+   uv run --with pyyaml python3 .claude/skills/quality-repo-analysis/html_generator.py quality-analysis-{repo}.md quality-report-{repo}.html
+   ```
+   - This creates an interactive HTML page with:
+     - Animated score circles
+     - Color-coded severity indicators  
+     - Collapsible sections
+     - Responsive design
+   - Note: `uv run --with pyyaml` ensures PyYAML is installed without requiring global installation
+
+3. **Open the HTML Report**
+   - Open the generated HTML file in the default browser:
+   ```bash
+   open quality-report-{repo}.html  # macOS
+   ```
+
+4. **Provide Summary**
+   - Inform the user that both reports have been generated:
+     - `quality-analysis-{repo}.md` - Detailed markdown for archiving
+     - `quality-report-{repo}.html` - Interactive visualization for sharing
+   - Provide the file paths so they can easily find the reports
+
 ## Output Format
 
+**IMPORTANT**: Reports MUST include YAML frontmatter for structured data extraction. This enables reliable HTML report generation.
+
 ```markdown
+---
+repository: "owner/repo-name"
+overall_score: 7.8
+scorecard:
+  - dimension: "Unit Tests"
+    score: 8.0
+    status: "Strong test coverage with Go testing framework"
+  - dimension: "Integration/E2E"
+    score: 9.0
+    status: "Comprehensive E2E suite with multi-version testing"
+  - dimension: "Build Integration"
+    score: 4.0
+    status: "No PR-time Konflux simulation or image validation"
+  - dimension: "Image Testing"
+    score: 6.0
+    status: "Basic image builds but limited runtime validation"
+  - dimension: "Coverage Tracking"
+    score: 8.0
+    status: "Codecov integration with enforcement"
+  - dimension: "CI/CD Automation"
+    score: 9.0
+    status: "Well-organized workflows with caching"
+  - dimension: "Agent Rules"
+    score: 2.0
+    status: "No test automation guidance for AI agents"
+critical_gaps:
+  - title: "Missing PR-time build integration testing"
+    impact: "Build failures discovered only after merge in Konflux"
+    severity: "HIGH"
+    effort: "8-12 hours"
+  - title: "No container image runtime validation"
+    impact: "Image startup issues not caught until deployment"
+    severity: "HIGH"
+    effort: "4-6 hours"
+quick_wins:
+  - title: "Add Trivy scanning to PR workflow"
+    effort: "1-2 hours"
+    impact: "Early detection of security vulnerabilities in dependencies"
+  - title: "Create basic agent rules for unit test patterns"
+    effort: "2-3 hours"
+    impact: "Improve AI-generated test quality and consistency"
+recommendations:
+  priority_0:
+    - "Implement PR-time Konflux build simulation to catch build issues before merge"
+    - "Add container runtime validation tests for all built images"
+  priority_1:
+    - "Add contract tests for API boundaries between components"
+    - "Create comprehensive agent rules for test automation (.claude/rules/)"
+  priority_2:
+    - "Add performance regression testing for prediction endpoints"
+    - "Implement chaos engineering tests for resilience"
+---
+
 # Quality Analysis: [Repository Name]
 
 ## Executive Summary
