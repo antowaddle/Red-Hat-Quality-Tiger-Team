@@ -9,7 +9,133 @@ import re
 import sys
 from datetime import datetime
 from html import escape
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    import yaml
+    YAML_AVAILABLE = True
+except ImportError:
+    YAML_AVAILABLE = False
+
+
+def parse_yaml_simple(yaml_str: str) -> Dict[str, Any]:
+    """
+    Simple YAML parser for our specific frontmatter format.
+    Handles strings, numbers, lists, and nested dictionaries.
+    """
+    import json
+
+    result = {}
+    current_dict = result
+    dict_stack = [result]
+    list_context = None
+    current_key = None
+    indent_stack = [0]
+
+    for line in yaml_str.split('\n'):
+        if not line.strip() or line.strip().startswith('#'):
+            continue
+
+        # Calculate indentation
+        indent = len(line) - len(line.lstrip())
+        stripped = line.strip()
+
+        # Handle key-value pairs
+        if ':' in stripped and not stripped.startswith('-'):
+            key, _, value = stripped.partition(':')
+            key = key.strip().strip('"\'')
+            value = value.strip().strip('"\'')
+
+            # Adjust dict stack based on indentation
+            while len(indent_stack) > 1 and indent <= indent_stack[-1]:
+                indent_stack.pop()
+                dict_stack.pop()
+
+            current_dict = dict_stack[-1]
+
+            if not value:  # New nested dict or list coming
+                if key not in current_dict:
+                    current_dict[key] = {}
+                dict_stack.append(current_dict[key])
+                indent_stack.append(indent)
+                current_key = key
+            else:
+                # Parse value
+                if value.lower() == 'true':
+                    current_dict[key] = True
+                elif value.lower() == 'false':
+                    current_dict[key] = False
+                elif value.replace('.', '').replace('-', '').isdigit():
+                    current_dict[key] = float(value) if '.' in value else int(value)
+                else:
+                    current_dict[key] = value
+
+        # Handle list items
+        elif stripped.startswith('-'):
+            value = stripped[1:].strip()
+
+            # Adjust to correct dict level
+            while len(indent_stack) > 1 and indent < indent_stack[-1]:
+                indent_stack.pop()
+                dict_stack.pop()
+
+            current_dict = dict_stack[-1]
+
+            # Find the parent key for this list
+            if isinstance(current_dict, dict):
+                # Convert current dict to list if needed
+                parent_dict = dict_stack[-2] if len(dict_stack) > 1 else result
+                for k, v in parent_dict.items():
+                    if v is current_dict and not isinstance(v, list):
+                        parent_dict[k] = []
+                        current_dict = parent_dict[k]
+                        dict_stack[-1] = current_dict
+                        break
+
+            # Add item to list
+            if isinstance(current_dict, list):
+                if value:
+                    current_dict.append(value.strip('"\''))
+                else:
+                    # New dict item in list
+                    new_item = {}
+                    current_dict.append(new_item)
+                    dict_stack.append(new_item)
+                    indent_stack.append(indent)
+
+    return result
+
+
+def extract_frontmatter(content: str) -> Tuple[Optional[Dict[str, Any]], str]:
+    """
+    Extract YAML frontmatter from markdown content.
+
+    Returns:
+        Tuple of (frontmatter_dict, remaining_markdown)
+        If no frontmatter, returns (None, original_content)
+    """
+    # Check for frontmatter (must start with ---)
+    if not content.strip().startswith('---'):
+        return None, content
+
+    # Find the closing ---
+    parts = content.split('---', 2)
+    if len(parts) < 3:
+        return None, content
+
+    try:
+        # Parse YAML (parts[1] is between the two ---)
+        if YAML_AVAILABLE:
+            frontmatter = yaml.safe_load(parts[1])
+        else:
+            frontmatter = parse_yaml_simple(parts[1])
+
+        # Remaining markdown is parts[2]
+        markdown_body = parts[2].strip()
+        return frontmatter, markdown_body
+    except Exception as e:
+        print(f"Warning: Failed to parse YAML frontmatter: {e}", file=sys.stderr)
+        return None, content
 
 
 def extract_executive_summary(content: str) -> Dict[str, Any]:
@@ -123,17 +249,59 @@ def extract_recommendations(content: str) -> Dict[str, List[str]]:
 def generate_html(markdown_content: str, repo_name: str = "Repository") -> str:
     """Generate complete HTML report"""
 
-    # Extract data from markdown
-    summary = extract_executive_summary(markdown_content)
-    scorecard = extract_scorecard(markdown_content)
-    critical_gaps = extract_sections(markdown_content, 'Critical Gaps')
-    quick_wins = extract_sections(markdown_content, 'Quick Wins')
-    recommendations = extract_recommendations(markdown_content)
+    # Try to extract YAML frontmatter first
+    frontmatter, markdown_body = extract_frontmatter(markdown_content)
 
-    # Use overall score from summary, fall back to scorecard average if not available
-    avg_score = summary.get('overall_score', 0)
-    if avg_score == 0 and scorecard:
-        avg_score = sum(item['score'] for item in scorecard) / len(scorecard)
+    if frontmatter:
+        # Use structured data from frontmatter
+        print("Using YAML frontmatter for structured data extraction", file=sys.stderr)
+        avg_score = frontmatter.get('overall_score', 0)
+        scorecard = frontmatter.get('scorecard', [])
+
+        # Convert frontmatter format to internal format
+        critical_gaps = [
+            {
+                'description': item.get('title', ''),
+                'impact': item.get('impact', ''),
+                'severity': item.get('severity', ''),
+                'effort': item.get('effort', '')
+            }
+            for item in frontmatter.get('critical_gaps', [])
+        ]
+
+        quick_wins = [
+            {
+                'description': item.get('title', ''),
+                'impact': item.get('impact', ''),
+                'severity': '',
+                'effort': item.get('effort', '')
+            }
+            for item in frontmatter.get('quick_wins', [])
+        ]
+
+        # Convert recommendations format
+        recommendations = {
+            'P0': frontmatter.get('recommendations', {}).get('priority_0', []),
+            'P1': frontmatter.get('recommendations', {}).get('priority_1', []),
+            'P2': frontmatter.get('recommendations', {}).get('priority_2', [])
+        }
+
+        # Extract repo name from frontmatter if available
+        if 'repository' in frontmatter:
+            repo_name = frontmatter['repository']
+    else:
+        # Fall back to regex parsing for backward compatibility
+        print("No frontmatter found, using regex parsing", file=sys.stderr)
+        summary = extract_executive_summary(markdown_content)
+        scorecard = extract_scorecard(markdown_content)
+        critical_gaps = extract_sections(markdown_content, 'Critical Gaps')
+        quick_wins = extract_sections(markdown_content, 'Quick Wins')
+        recommendations = extract_recommendations(markdown_content)
+
+        # Use overall score from summary, fall back to scorecard average if not available
+        avg_score = summary.get('overall_score', 0)
+        if avg_score == 0 and scorecard:
+            avg_score = sum(item['score'] for item in scorecard) / len(scorecard)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">

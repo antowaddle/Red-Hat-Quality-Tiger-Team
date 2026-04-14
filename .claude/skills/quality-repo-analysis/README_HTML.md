@@ -60,11 +60,54 @@ When using `/quality-repo-analysis`, the skill will:
 ## Requirements
 
 - Python 3.6 or higher
-- No external Python dependencies (uses only standard library)
+- PyYAML (recommended for YAML frontmatter support)
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+**Note**: The generator works without PyYAML but falls back to regex parsing, which is less reliable with LLM-generated markdown. For best results, install PyYAML.
 
 ## Input Format
 
-The generator expects markdown reports with the following sections:
+The generator supports two input formats:
+
+### Recommended: YAML Frontmatter (v2)
+
+For reliable parsing with LLM-generated content, use YAML frontmatter:
+
+```markdown
+---
+repository: "owner/repo-name"
+overall_score: 7.8
+scorecard:
+  - dimension: "Unit Tests"
+    score: 8.0
+    status: "Strong coverage"
+critical_gaps:
+  - title: "Missing coverage reporting"
+    impact: "Regression risk"
+    severity: "HIGH"
+    effort: "2-4 hours"
+quick_wins:
+  - title: "Add Trivy scanning"
+    effort: "1 hour"
+    impact: "Security improvements"
+recommendations:
+  priority_0:
+    - "Add coverage to PRs"
+  priority_1:
+    - "Create test rules"
+  priority_2:
+    - "Add benchmarks"
+---
+
+# Quality Analysis: [Repository Name]
+...markdown content...
+```
+
+### Legacy: Regex Parsing (v1)
+
+For backward compatibility, the generator also parses markdown reports without frontmatter:
 
 ```markdown
 # Quality Analysis: [Repository Name]

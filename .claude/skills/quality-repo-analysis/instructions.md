@@ -251,7 +251,62 @@ After generating the markdown report, create an interactive HTML visualization:
 
 ## Output Format
 
+**IMPORTANT**: Reports MUST include YAML frontmatter for structured data extraction. This enables reliable HTML report generation.
+
 ```markdown
+---
+repository: "owner/repo-name"
+overall_score: 7.8
+scorecard:
+  - dimension: "Unit Tests"
+    score: 8.0
+    status: "Strong test coverage with Go testing framework"
+  - dimension: "Integration/E2E"
+    score: 9.0
+    status: "Comprehensive E2E suite with multi-version testing"
+  - dimension: "Build Integration"
+    score: 4.0
+    status: "No PR-time Konflux simulation or image validation"
+  - dimension: "Image Testing"
+    score: 6.0
+    status: "Basic image builds but limited runtime validation"
+  - dimension: "Coverage Tracking"
+    score: 8.0
+    status: "Codecov integration with enforcement"
+  - dimension: "CI/CD Automation"
+    score: 9.0
+    status: "Well-organized workflows with caching"
+  - dimension: "Agent Rules"
+    score: 2.0
+    status: "No test automation guidance for AI agents"
+critical_gaps:
+  - title: "Missing PR-time build integration testing"
+    impact: "Build failures discovered only after merge in Konflux"
+    severity: "HIGH"
+    effort: "8-12 hours"
+  - title: "No container image runtime validation"
+    impact: "Image startup issues not caught until deployment"
+    severity: "HIGH"
+    effort: "4-6 hours"
+quick_wins:
+  - title: "Add Trivy scanning to PR workflow"
+    effort: "1-2 hours"
+    impact: "Early detection of security vulnerabilities in dependencies"
+  - title: "Create basic agent rules for unit test patterns"
+    effort: "2-3 hours"
+    impact: "Improve AI-generated test quality and consistency"
+recommendations:
+  priority_0:
+    - "Implement PR-time Konflux build simulation to catch build issues before merge"
+    - "Add container runtime validation tests for all built images"
+  priority_1:
+    - "Add contract tests for API boundaries between components"
+    - "Create comprehensive agent rules for test automation (.claude/rules/)"
+  priority_2:
+    - "Add performance regression testing for prediction endpoints"
+    - "Implement chaos engineering tests for resilience"
+---
+
 # Quality Analysis: [Repository Name]
 
 ## Executive Summary
