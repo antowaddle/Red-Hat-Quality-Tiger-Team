@@ -16,94 +16,161 @@ try:
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
+    print("=" * 70, file=sys.stderr)
+    print("WARNING: PyYAML is not installed!", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("The HTML generator requires PyYAML for reliable parsing.", file=sys.stderr)
+    print("Please install it with:", file=sys.stderr)
+    print("  pip3 install pyyaml", file=sys.stderr)
+    print("or:", file=sys.stderr)
+    print("  pip3 install -r .claude/skills/quality-repo-analysis/requirements.txt", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Falling back to basic parser (may have limited functionality)...", file=sys.stderr)
+    print("=" * 70, file=sys.stderr)
 
 
 def parse_yaml_simple(yaml_str: str) -> Dict[str, Any]:
     """
-    Simple YAML parser for our specific frontmatter format.
-    Handles strings, numbers, lists, and nested dictionaries.
+    Simple YAML parser for frontmatter.
+
+    Note: This is a basic fallback parser. For full YAML support, install PyYAML:
+        pip3 install pyyaml
     """
-    import json
-
+    lines = yaml_str.split('\n')
     result = {}
-    current_dict = result
-    dict_stack = [result]
-    list_context = None
-    current_key = None
-    indent_stack = [0]
 
-    for line in yaml_str.split('\n'):
+    # State tracking
+    path_stack = [result]  # Stack of containers we're currently in
+    indent_stack = [-1]  # Indentation level for each container
+    last_key_stack = []  # Track last key at each level
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # Skip empty lines and comments
         if not line.strip() or line.strip().startswith('#'):
+            i += 1
             continue
 
         # Calculate indentation
         indent = len(line) - len(line.lstrip())
         stripped = line.strip()
 
+        # Pop stack to match current indentation
+        while len(indent_stack) > 1 and indent <= indent_stack[-1]:
+            indent_stack.pop()
+            path_stack.pop()
+            if last_key_stack:
+                last_key_stack.pop()
+
+        current_container = path_stack[-1]
+
+        # Handle list items
+        if stripped.startswith('-'):
+            content = stripped[1:].strip()
+
+            # Ensure current container is a list
+            if not isinstance(current_container, list):
+                # Need to convert the last key's value to a list
+                if last_key_stack and isinstance(path_stack[-2], dict):
+                    parent = path_stack[-2]
+                    key = last_key_stack[-1]
+                    parent[key] = []
+                    path_stack[-1] = parent[key]
+                    current_container = parent[key]
+                else:
+                    i += 1
+                    continue
+
+            # Parse list item
+            if ':' in content and not content.startswith('"'):
+                # Dict item in list
+                key, _, value = content.partition(':')
+                key = key.strip().strip('"\'')
+                value = value.strip().strip('"\'')
+
+                if value:
+                    # Inline key-value - but may have more keys coming
+                    item = {key: parse_value(value)}
+                    current_container.append(item)
+                    # Push onto stack in case more keys follow
+                    path_stack.append(item)
+                    indent_stack.append(indent)
+                    last_key_stack.append(None)
+                else:
+                    # Multi-line dict item
+                    item = {}
+                    current_container.append(item)
+                    path_stack.append(item)
+                    indent_stack.append(indent)
+                    last_key_stack.append(None)
+            else:
+                # Simple value
+                current_container.append(parse_value(content))
+
         # Handle key-value pairs
-        if ':' in stripped and not stripped.startswith('-'):
+        elif ':' in stripped:
             key, _, value = stripped.partition(':')
             key = key.strip().strip('"\'')
             value = value.strip().strip('"\'')
 
-            # Adjust dict stack based on indentation
-            while len(indent_stack) > 1 and indent <= indent_stack[-1]:
-                indent_stack.pop()
-                dict_stack.pop()
+            if not isinstance(current_container, dict):
+                i += 1
+                continue
 
-            current_dict = dict_stack[-1]
-
-            if not value:  # New nested dict or list coming
-                if key not in current_dict:
-                    current_dict[key] = {}
-                dict_stack.append(current_dict[key])
-                indent_stack.append(indent)
-                current_key = key
+            if value:
+                # Simple key-value
+                current_container[key] = parse_value(value)
             else:
-                # Parse value
-                if value.lower() == 'true':
-                    current_dict[key] = True
-                elif value.lower() == 'false':
-                    current_dict[key] = False
-                elif value.replace('.', '').replace('-', '').isdigit():
-                    current_dict[key] = float(value) if '.' in value else int(value)
-                else:
-                    current_dict[key] = value
-
-        # Handle list items
-        elif stripped.startswith('-'):
-            value = stripped[1:].strip()
-
-            # Adjust to correct dict level
-            while len(indent_stack) > 1 and indent < indent_stack[-1]:
-                indent_stack.pop()
-                dict_stack.pop()
-
-            current_dict = dict_stack[-1]
-
-            # Find the parent key for this list
-            if isinstance(current_dict, dict):
-                # Convert current dict to list if needed
-                parent_dict = dict_stack[-2] if len(dict_stack) > 1 else result
-                for k, v in parent_dict.items():
-                    if v is current_dict and not isinstance(v, list):
-                        parent_dict[k] = []
-                        current_dict = parent_dict[k]
-                        dict_stack[-1] = current_dict
+                # Key with nested content - look ahead to determine type
+                next_indent = None
+                next_is_list = False
+                for j in range(i + 1, len(lines)):
+                    if lines[j].strip() and not lines[j].strip().startswith('#'):
+                        next_indent = len(lines[j]) - len(lines[j].lstrip())
+                        next_is_list = lines[j].strip().startswith('-')
                         break
 
-            # Add item to list
-            if isinstance(current_dict, list):
-                if value:
-                    current_dict.append(value.strip('"\''))
+                if next_is_list:
+                    # Next line is a list
+                    current_container[key] = []
+                    path_stack.append(current_container[key])
                 else:
-                    # New dict item in list
-                    new_item = {}
-                    current_dict.append(new_item)
-                    dict_stack.append(new_item)
-                    indent_stack.append(indent)
+                    # Next line is a dict
+                    current_container[key] = {}
+                    path_stack.append(current_container[key])
+
+                indent_stack.append(indent)
+                last_key_stack.append(key)
+
+        i += 1
 
     return result
+
+
+def parse_value(value: str) -> Any:
+    """Parse a YAML value string into appropriate Python type"""
+    if not value:
+        return ""
+
+    value = value.strip('"\'')
+
+    if value.lower() == 'true':
+        return True
+    elif value.lower() == 'false':
+        return False
+
+    # Try parsing as number
+    try:
+        if '.' in value:
+            return float(value)
+        else:
+            return int(value)
+    except ValueError:
+        pass
+
+    return value
 
 
 def extract_frontmatter(content: str) -> Tuple[Optional[Dict[str, Any]], str]:
