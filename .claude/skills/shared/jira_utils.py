@@ -173,6 +173,72 @@ def remove_labels(server, user, token, issue_key, labels):
     api_call_with_retry(server, path, user, token, body=body, method="PUT")
 
 
+def search_jql(server, user, token, jql, fields=None, max_results=100):
+    """Search for issues using JQL with cursor-based pagination.
+
+    POST /rest/api/3/search/jql (Jira Cloud v3 API)
+
+    Args:
+        server: Jira server URL
+        user: Jira username/email
+        token: Jira API token
+        jql: JQL query string
+        fields: List of fields to return (default: all standard fields)
+        max_results: Results per page (default: 100, max: 100)
+
+    Returns:
+        List of all issues matching the JQL query
+
+    Example:
+        bugs = search_jql(
+            server, user, token,
+            jql='project = RHOAIENG AND priority in (Blocker, Critical)',
+            fields=['key', 'summary', 'status', 'priority', 'labels']
+        )
+    """
+    if fields is None:
+        fields = [
+            "key", "summary", "status", "priority", "components",
+            "fixVersions", "labels", "issuetype", "created", "updated"
+        ]
+
+    body = {
+        "jql": jql,
+        "fields": fields,
+        "maxResults": min(max_results, 100)  # Jira max is 100
+    }
+
+    all_issues = []
+    is_last = False
+    next_page_token = None
+    page = 1
+
+    while not is_last:
+        if next_page_token:
+            body["nextPageToken"] = next_page_token
+
+        print(f"  Fetching page {page}...")
+        response = api_call_with_retry(
+            server, "/search/jql", user, token,
+            body=body, method="POST"
+        )
+
+        issues = response.get("issues", [])
+        all_issues.extend(issues)
+
+        is_last = response.get("isLast", True)
+        next_page_token = response.get("nextPageToken")
+
+        if not is_last and not next_page_token:
+            print(f"  Warning: isLast=False but no nextPageToken provided. Stopping pagination.")
+            break
+
+        page += 1
+
+    print(f"  Fetched {len(all_issues)} issues total")
+    return all_issues
+
+
 # ─── ADF Helpers ──────────────────────────────────────────────────────────────
 
 def _adf_doc(content):
