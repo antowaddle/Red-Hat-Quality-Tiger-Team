@@ -19,7 +19,7 @@ The aggregator automatically categorizes repositories as:
 - **Downstream**: `red-hat-data-services` organization  
 - **External**: Other organizations (ray-project, kubernetes-sigs, etc.)
 
-Currently analyzing **45+ repositories** automatically discovered from `architecture-context/architecture/rhoai-3.4-ea.2/`.
+Currently analyzing **45+ repositories** automatically discovered from `architecture-context/architecture/newest/` (latest RHOAI version).
 
 ## Quick Start
 
@@ -303,7 +303,8 @@ The tool reads component information from:
 ```
 architecture-context/
 └── architecture/
-    └── rhoai-3.4-ea.2/        # Latest version (auto-detected)
+    ├── newest -> rhoai-3.4/   # Symlink to latest version
+    └── rhoai-3.4/             # Latest version (auto-detected)
         ├── kserve.md
         ├── odh-dashboard.md
         ├── notebooks.md

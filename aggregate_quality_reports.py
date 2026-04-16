@@ -139,18 +139,22 @@ class ArchitectureContextLoader:
         """Extract repository information from architecture context files"""
         repos = []
 
-        # Find latest RHOAI version directory
-        version_dirs = sorted(
-            [d for d in (self.arch_context_dir / "architecture").glob("rhoai-*") if d.is_dir()],
-            reverse=True
-        )
-
-        if not version_dirs:
-            print(f"Warning: No RHOAI version directories found in {self.arch_context_dir}/architecture")
-            return []
-
-        latest_version = version_dirs[0]
-        print(f"Loading repositories from {latest_version.name}")
+        # Use 'newest' symlink to get latest version, fall back to sorting if not available
+        newest_link = self.arch_context_dir / "architecture" / "newest"
+        if newest_link.exists():
+            latest_version = newest_link.resolve()
+            print(f"Loading repositories from {latest_version.name} (via 'newest' link)")
+        else:
+            # Fallback: Find latest RHOAI version directory by sorting
+            version_dirs = sorted(
+                [d for d in (self.arch_context_dir / "architecture").glob("rhoai-*") if d.is_dir()],
+                reverse=True
+            )
+            if not version_dirs:
+                print(f"Warning: No RHOAI version directories found in {self.arch_context_dir}/architecture")
+                return []
+            latest_version = version_dirs[0]
+            print(f"Loading repositories from {latest_version.name}")
 
         # Read component markdown files
         for md_file in latest_version.glob("*.md"):
