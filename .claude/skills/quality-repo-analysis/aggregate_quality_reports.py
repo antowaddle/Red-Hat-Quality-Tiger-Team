@@ -207,7 +207,8 @@ class QualityReportAggregator:
     """Aggregates quality reports across multiple repositories"""
 
     def __init__(self, arch_context_dir: Path = None):
-        self.arch_context_dir = arch_context_dir or Path(__file__).parent / "architecture-context"
+        # Default to repo root's architecture-context (script is in .claude/skills/quality-repo-analysis/)
+        self.arch_context_dir = arch_context_dir or Path(__file__).parent.parent.parent.parent / "architecture-context"
         self.loader = ArchitectureContextLoader(self.arch_context_dir)
         self.parser = QualityReportParser()
 
