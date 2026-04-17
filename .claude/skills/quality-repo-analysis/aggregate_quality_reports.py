@@ -65,7 +65,7 @@ class QualityReportParser:
         # More specific pattern: only match tables in Quality Scorecard section
         # Matches: | Dimension | Score/10 | Status |
         self.score_pattern = re.compile(r'\|\s*\*?\*?(.+?)\*?\*?\s*\|\s*(\d+(?:\.\d+)?)/10\s*\|\s*(.+?)\s*\|')
-        self.overall_score_pattern = re.compile(r'Overall Score:\s*(\d+(?:\.\d+)?)/10')
+        self.overall_score_pattern = re.compile(r'\*?\*?Overall Score:?\*?\*?\s*(\d+(?:\.\d+)?)/10')
         self.frontmatter_pattern = re.compile(r'^---\s*\n(.*?)\n---', re.MULTILINE | re.DOTALL)
 
     def extract_repo_url_from_report(self, report_path: Path) -> Optional[str]:
@@ -132,11 +132,14 @@ class QualityReportParser:
             scorecard_section = re.search(r'## Quality Scorecard.*?(?=\n##|\Z)', content, re.DOTALL)
             if scorecard_section:
                 scorecard_text = scorecard_section.group(0)
-                for match in self.score_pattern.finditer(scorecard_text):
-                    dimension = match.group(1).strip()
-                    score = float(match.group(2))
-                    status = match.group(3).strip()
-                    scores.append(QualityScore(dimension, score, status))
+                # Match line-by-line to avoid matching across header separator
+                for line in scorecard_text.split('\n'):
+                    match = self.score_pattern.search(line)
+                    if match:
+                        dimension = match.group(1).strip()
+                        score = float(match.group(2))
+                        status = match.group(3).strip()
+                        scores.append(QualityScore(dimension, score, status))
 
             # Extract critical gaps
             critical_gaps = self._extract_section(content, "## Critical Gaps")
