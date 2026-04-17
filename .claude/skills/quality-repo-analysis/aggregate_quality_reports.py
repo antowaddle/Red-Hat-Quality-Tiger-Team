@@ -25,6 +25,12 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 import subprocess
 import sys
+from html import escape
+try:
+    import yaml
+    YAML_AVAILABLE = True
+except ImportError:
+    YAML_AVAILABLE = False
 
 
 @dataclass
@@ -56,8 +62,44 @@ class QualityReportParser:
     """Parser for markdown quality analysis reports"""
 
     def __init__(self):
-        self.score_pattern = re.compile(r'\|\s*(.+?)\s*\|\s*(\d+(?:\.\d+)?)/10\s*\|\s*(.+?)\s*\|')
+        # More specific pattern: only match tables in Quality Scorecard section
+        # Matches: | Dimension | Score/10 | Status |
+        self.score_pattern = re.compile(r'\|\s*\*?\*?(.+?)\*?\*?\s*\|\s*(\d+(?:\.\d+)?)/10\s*\|\s*(.+?)\s*\|')
         self.overall_score_pattern = re.compile(r'Overall Score:\s*(\d+(?:\.\d+)?)/10')
+        self.frontmatter_pattern = re.compile(r'^---\s*\n(.*?)\n---', re.MULTILINE | re.DOTALL)
+
+    def extract_repo_url_from_report(self, report_path: Path) -> Optional[str]:
+        """Extract repository URL from report frontmatter or content"""
+        try:
+            content = report_path.read_text()
+
+            # Try YAML frontmatter first
+            frontmatter_match = self.frontmatter_pattern.search(content)
+            if frontmatter_match and YAML_AVAILABLE:
+                try:
+                    frontmatter = yaml.safe_load(frontmatter_match.group(1))
+                    if isinstance(frontmatter, dict):
+                        # Try different field names
+                        repo_field = frontmatter.get('repository') or frontmatter.get('url')
+                        if repo_field:
+                            # Handle "owner/repo-name" format
+                            if '/' in repo_field and 'github.com' not in repo_field:
+                                return f"https://github.com/{repo_field}"
+                            return repo_field
+                except yaml.YAMLError:
+                    pass
+
+            # Fallback: look for GitHub URL in content
+            url_match = re.search(r'https://github\.com/([^/\s]+)/([^/\s\)]+)', content)
+            if url_match:
+                org = url_match.group(1)
+                repo = url_match.group(2).rstrip('.,;)').removesuffix('.git')
+                return f"https://github.com/{org}/{repo}"
+
+            return None
+        except Exception as e:
+            print(f"Error extracting URL from {report_path}: {e}")
+            return None
 
     def parse_report(self, report_path: Path, repo_name: str, repo_url: str,
                      org: str, source_type: str) -> Optional[RepositoryQuality]:
@@ -65,17 +107,36 @@ class QualityReportParser:
         try:
             content = report_path.read_text()
 
+            # Extract analyzed date from frontmatter if available
+            analyzed_date = None
+            frontmatter_match = self.frontmatter_pattern.search(content)
+            if frontmatter_match and YAML_AVAILABLE:
+                try:
+                    frontmatter = yaml.safe_load(frontmatter_match.group(1))
+                    if isinstance(frontmatter, dict):
+                        analyzed_date = frontmatter.get('analyzed_date') or frontmatter.get('date')
+                except yaml.YAMLError:
+                    pass
+
+            # Fallback to current time if not in frontmatter
+            if not analyzed_date:
+                analyzed_date = datetime.now().isoformat()
+
             # Extract overall score
             overall_match = self.overall_score_pattern.search(content)
             overall_score = float(overall_match.group(1)) if overall_match else 0.0
 
-            # Extract dimension scores
+            # Extract dimension scores from Quality Scorecard section only
             scores = []
-            for match in self.score_pattern.finditer(content):
-                dimension = match.group(1).strip()
-                score = float(match.group(2))
-                status = match.group(3).strip()
-                scores.append(QualityScore(dimension, score, status))
+            # Find the Quality Scorecard section
+            scorecard_section = re.search(r'## Quality Scorecard.*?(?=\n##|\Z)', content, re.DOTALL)
+            if scorecard_section:
+                scorecard_text = scorecard_section.group(0)
+                for match in self.score_pattern.finditer(scorecard_text):
+                    dimension = match.group(1).strip()
+                    score = float(match.group(2))
+                    status = match.group(3).strip()
+                    scores.append(QualityScore(dimension, score, status))
 
             # Extract critical gaps
             critical_gaps = self._extract_section(content, "## Critical Gaps")
@@ -100,7 +161,7 @@ class QualityReportParser:
                 critical_gaps=critical_gaps,
                 quick_wins=quick_wins,
                 recommendations=recommendations,
-                analyzed_date=datetime.now().isoformat(),
+                analyzed_date=analyzed_date,
                 report_file=str(report_path)
             )
 
@@ -182,7 +243,7 @@ class ArchitectureContextLoader:
             match = re.search(pattern, content)
             if match:
                 org = match.group(1)
-                repo = match.group(2).rstrip('.,;)').replace('.git', '')
+                repo = match.group(2).rstrip('.,;)').removesuffix('.git')
 
                 # Determine source type
                 if org == 'opendatahub-io':
@@ -217,18 +278,38 @@ class QualityReportAggregator:
         return self.loader.get_repositories()
 
     def process_reports(self, reports_dir: Path) -> List[RepositoryQuality]:
-        """Process all reports in a directory"""
+        """Process all reports in a directory
+
+        Matches reports to repositories by parsing the repository URL from each report file,
+        making this filename-agnostic and more reliable.
+        """
         results = []
         repos = self.get_all_repositories()
 
+        # Create a mapping of normalized URLs to repo metadata
+        repo_map = {}
         for repo in repos:
-            # Look for report file (assuming pattern: {repo_name}_quality_report.md)
-            report_files = list(reports_dir.glob(f"{repo['name']}*.md"))
-            if not report_files:
-                report_files = list(reports_dir.glob(f"*{repo['name']}*.md"))
+            # Normalize URL (remove .git suffix if present)
+            normalized_url = repo['url'].removesuffix('.git')
+            repo_map[normalized_url] = repo
 
-            if report_files:
-                report_file = report_files[0]  # Use first match
+        # Process all markdown files in the reports directory
+        report_files = list(reports_dir.glob("*.md"))
+        matched_urls = set()
+
+        for report_file in report_files:
+            # Extract repository URL from report
+            report_url = self.parser.extract_repo_url_from_report(report_file)
+            if not report_url:
+                print(f"Warning: Could not extract repository URL from {report_file.name}")
+                continue
+
+            # Normalize URL
+            normalized_url = report_url.removesuffix('.git')
+
+            # Match against architecture-context repos
+            if normalized_url in repo_map:
+                repo = repo_map[normalized_url]
                 result = self.parser.parse_report(
                     report_file,
                     repo['name'],
@@ -238,7 +319,13 @@ class QualityReportAggregator:
                 )
                 if result:
                     results.append(result)
+                    matched_urls.add(normalized_url)
             else:
+                print(f"Warning: Report for {normalized_url} not found in architecture-context")
+
+        # Report which repos from architecture-context don't have reports
+        for url, repo in repo_map.items():
+            if url not in matched_urls:
                 print(f"Warning: No report found for {repo['name']}")
 
         return results
@@ -523,12 +610,12 @@ class QualityReportAggregator:
                 <div class="stat-card">
                     <div class="stat-value" style="color: {self._get_score_color(max_repo.overall_score)};">{max_repo.overall_score:.1f}/10</div>
                     <div class="stat-label">Highest Score</div>
-                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">{max_repo.name}</div>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">{escape(max_repo.name)}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" style="color: {self._get_score_color(min_repo.overall_score)};">{min_repo.overall_score:.1f}/10</div>
                     <div class="stat-label">Lowest Score</div>
-                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">{min_repo.name}</div>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">{escape(min_repo.name)}</div>
                 </div>
             </div>
 
@@ -594,8 +681,8 @@ class QualityReportAggregator:
 
             row = f'''
                 <tr>
-                    <td><a href="{r.url}" class="repo-link" target="_blank">{r.name}</a></td>
-                    <td><span class="source-badge">{r.source_type.title()}</span></td>
+                    <td><a href="{escape(r.url)}" class="repo-link" target="_blank">{escape(r.name)}</a></td>
+                    <td><span class="source-badge">{escape(r.source_type.title())}</span></td>
                     <td><span class="score-badge {self._get_score_class(r.overall_score)}">{r.overall_score:.1f}/10</span></td>
                     <td><span class="score-badge {self._get_score_class(unit_tests)}">{unit_tests:.1f}/10</span></td>
                     <td><span class="score-badge {self._get_score_class(integration)}">{integration:.1f}/10</span></td>
@@ -621,7 +708,7 @@ class QualityReportAggregator:
 
             section = f'''
             <div class="section">
-                <h2 class="section-title">{source_type.title()} Repositories</h2>
+                <h2 class="section-title">{escape(source_type.title())} Repositories</h2>
                 <p style="margin-bottom: 1rem;">
                     <strong>{len(repos)}</strong> repositories |
                     Average: <span class="score-badge {self._get_score_class(avg)}">{avg:.2f}/10</span> |
