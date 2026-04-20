@@ -64,8 +64,8 @@ class QualityReportParser:
     def __init__(self):
         # More specific pattern: only match tables in Quality Scorecard section
         # Matches: | Dimension | Score/10 | Status |
-        self.score_pattern = re.compile(r'\|\s*\*?\*?(.+?)\*?\*?\s*\|\s*(\d+(?:\.\d+)?)/10\s*\|\s*(.+?)\s*\|')
-        self.overall_score_pattern = re.compile(r'\*?\*?Overall Score:?\*?\*?\s*(\d+(?:\.\d+)?)/10')
+        self.score_pattern = re.compile(r'\|\s*\*{0,2}(.+?)\*{0,2}\s*\|\s*(\d+(?:\.\d+)?)/10\s*\|\s*(.+?)\s*\|')
+        self.overall_score_pattern = re.compile(r'\*{0,2}Overall Score:?\*{0,2}\s*(\d+(?:\.\d+)?)/10')
         self.frontmatter_pattern = re.compile(r'^---\s*\n(.*?)\n---', re.MULTILINE | re.DOTALL)
 
     def extract_repo_url_from_report(self, report_path: Path) -> Optional[str]:
@@ -349,13 +349,21 @@ class QualityReportAggregator:
         max_score_repo = max(results, key=lambda r: r.overall_score) if results else None
         min_score_repo = min(results, key=lambda r: r.overall_score) if results else None
 
+        # Dynamically discover all dimensions across all reports
+        all_dimensions = sorted({s.dimension for r in results for s in r.scores})
+
+        # Build table header dynamically
+        header_cols = ["Repository", "Source", "Overall Score"] + all_dimensions
+        header = "| " + " | ".join(header_cols) + " |"
+        separator = "|" + "|".join(["------------"] * len(header_cols)) + "|"
+
         report_lines.extend([
             f"- **Average Quality Score**: {avg_score:.2f}/10",
             f"- **Highest Score**: {max_score_repo.name} ({max_score_repo.overall_score:.1f}/10)" if max_score_repo else "",
             f"- **Lowest Score**: {min_score_repo.name} ({min_score_repo.overall_score:.1f}/10)" if min_score_repo else "",
             "\n## Quality Scorecard by Repository\n",
-            "| Repository | Source | Overall Score | Unit Tests | Integration/E2E | Image Testing | Coverage | CI/CD |",
-            "|------------|--------|---------------|------------|-----------------|---------------|----------|-------|"
+            header,
+            separator
         ])
 
         # Add repository scores
@@ -363,8 +371,8 @@ class QualityReportAggregator:
             scores_dict = {s.dimension: s.score for s in result.scores}
             row = f"| [{result.name}]({result.url}) | {result.source_type.title()} | {result.overall_score:.1f}/10 |"
 
-            # Add common dimensions (handle missing gracefully)
-            for dim in ["Unit Tests", "Integration/E2E", "Image Testing", "Coverage Tracking", "CI/CD Automation"]:
+            # Add all dimensions dynamically
+            for dim in all_dimensions:
                 score = scores_dict.get(dim, 0)
                 row += f" {score:.1f}/10 |"
 
@@ -429,17 +437,20 @@ class QualityReportAggregator:
         max_repo = max(results, key=lambda r: r.overall_score)
         min_repo = min(results, key=lambda r: r.overall_score)
 
+        # Dynamically discover all dimensions across all reports
+        all_dimensions = sorted({s.dimension for r in results for s in r.scores})
+
         # Sort by score
         sorted_results = sorted(results, key=lambda r: r.overall_score, reverse=True)
 
         # Generate HTML
-        html = self._generate_aggregated_html(sorted_results, avg_score, max_repo, min_repo)
+        html = self._generate_aggregated_html(sorted_results, avg_score, max_repo, min_repo, all_dimensions)
         output_path.write_text(html)
         print(f"HTML report written to: {output_path}")
 
     def _generate_aggregated_html(self, results: List[RepositoryQuality],
                                    avg_score: float, max_repo: RepositoryQuality,
-                                   min_repo: RepositoryQuality) -> str:
+                                   min_repo: RepositoryQuality, all_dimensions: List[str]) -> str:
         """Generate HTML for aggregated quality report"""
 
         # Calculate color based on average score
@@ -630,14 +641,11 @@ class QualityReportAggregator:
                             <th>Repository</th>
                             <th>Source</th>
                             <th>Overall</th>
-                            <th>Unit Tests</th>
-                            <th>Integration/E2E</th>
-                            <th>Coverage</th>
-                            <th>CI/CD</th>
+                            {''.join(f'<th>{escape(dim)}</th>' for dim in all_dimensions)}
                         </tr>
                     </thead>
                     <tbody>
-                        {self._generate_table_rows(results)}
+                        {self._generate_table_rows(results, all_dimensions)}
                     </tbody>
                 </table>
             </div>
@@ -670,27 +678,27 @@ class QualityReportAggregator:
         else:
             return 'score-poor'
 
-    def _generate_table_rows(self, results: List[RepositoryQuality]) -> str:
+    def _generate_table_rows(self, results: List[RepositoryQuality], all_dimensions: List[str]) -> str:
         """Generate table rows for repositories"""
         rows = []
         for r in results:
             scores_dict = {s.dimension: s.score for s in r.scores}
 
-            # Get common dimensions
-            unit_tests = scores_dict.get("Unit Tests", scores_dict.get("| Unit Tests", 0))
-            integration = scores_dict.get("Integration/E2E", 0)
-            coverage = scores_dict.get("Coverage Tracking", 0)
-            cicd = scores_dict.get("CI/CD Automation", 0)
+            # Build row with dynamic dimensions
+            cells = [
+                f'<td><a href="{escape(r.url)}" class="repo-link" target="_blank">{escape(r.name)}</a></td>',
+                f'<td><span class="source-badge">{escape(r.source_type.title())}</span></td>',
+                f'<td><span class="score-badge {self._get_score_class(r.overall_score)}">{r.overall_score:.1f}/10</span></td>'
+            ]
+
+            # Add score cells for all dimensions dynamically
+            for dim in all_dimensions:
+                score = scores_dict.get(dim, 0)
+                cells.append(f'<td><span class="score-badge {self._get_score_class(score)}">{score:.1f}/10</span></td>')
 
             row = f'''
                 <tr>
-                    <td><a href="{escape(r.url)}" class="repo-link" target="_blank">{escape(r.name)}</a></td>
-                    <td><span class="source-badge">{escape(r.source_type.title())}</span></td>
-                    <td><span class="score-badge {self._get_score_class(r.overall_score)}">{r.overall_score:.1f}/10</span></td>
-                    <td><span class="score-badge {self._get_score_class(unit_tests)}">{unit_tests:.1f}/10</span></td>
-                    <td><span class="score-badge {self._get_score_class(integration)}">{integration:.1f}/10</span></td>
-                    <td><span class="score-badge {self._get_score_class(coverage)}">{coverage:.1f}/10</span></td>
-                    <td><span class="score-badge {self._get_score_class(cicd)}">{cicd:.1f}/10</span></td>
+                    {''.join(cells)}
                 </tr>'''
             rows.append(row)
 
