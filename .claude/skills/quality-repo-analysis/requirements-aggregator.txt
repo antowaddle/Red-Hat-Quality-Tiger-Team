@@ -1,0 +1,2 @@
+# Python dependencies for Quality Report Aggregator
+pyyaml>=6.0

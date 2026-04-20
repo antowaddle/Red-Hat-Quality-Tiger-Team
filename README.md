@@ -73,6 +73,34 @@ Generates Mermaid diagrams visualizing software development workflows and proces
 - PNG renderings of diagrams
 - Documentation of workflow processes
 
+### 5. Quality Report Aggregator (`/aggregate_quality_reports.py`)
+
+Aggregates quality analysis reports across multiple repositories and generates combined reports with statistics.
+
+**Usage:**
+```bash
+# Generate analysis commands for all configured repos
+python aggregate_quality_reports.py --generate-commands
+
+# Process existing reports and create combined report
+python aggregate_quality_reports.py --reports-dir ./quality_reports \
+  --output-md combined_report.md \
+  --output-json summary.json
+```
+
+**Outputs:**
+- Combined markdown report with cross-repo statistics
+- JSON export for programmatic analysis
+- Analysis command lists for batch processing
+
+**Features:**
+- Analyzes 20+ RHOAI component repositories
+- Supports Upstream (opendatahub-io), Downstream (RHODS), and External repos
+- Identifies common gaps and quick wins
+- Tracks quality trends across repository groups
+
+See [AGGREGATOR_README.md](./AGGREGATOR_README.md) for detailed documentation.
+
 ## Repository Structure
 
 ```
@@ -95,6 +123,11 @@ Generates Mermaid diagrams visualizing software development workflows and proces
 │           └── jira_utils.py
 ├── docs/
 │   └── diagrams/
+├── aggregate_quality_reports.py   # Report aggregation tool
+├── repos_config.yaml               # Repository configuration
+├── run_batch_analysis.sh          # Batch analysis helper
+├── AGGREGATOR_README.md           # Aggregator documentation
+├── WORKFLOW.md                    # Analysis workflow guide
 └── README.md
 ```
 
@@ -157,6 +190,7 @@ This is a Red Hat internal repository. For questions or contributions, contact t
 - ✅ Konflux Build Simulator: Production Ready
 - ✅ Test Rules Generator: Production Ready
 - ✅ Workflow Diagram Generator: Production Ready
+- ✅ Quality Report Aggregator: Production Ready
 
 ## License
 
