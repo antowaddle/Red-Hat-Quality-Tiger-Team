@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture Impact - PR #489</title>
+    <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 40px;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header .meta {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 1.5em;
+            margin: 30px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        h3 {
+            color: #374151;
+            font-size: 1.2em;
+            margin: 20px 0 10px 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .badge.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge.warning {
+            background: #fed7aa;
+            color: #92400e;
+        }
+
+        .badge.danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge.info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .card {
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .risk-item, .finding-item {
+            background: #f9fafb;
+            border-left: 4px solid;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .risk-item.critical, .finding-item.critical {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .risk-item.high, .finding-item.high {
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .risk-item.medium, .finding-item.medium {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .risk-item.low, .finding-item.low {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .risk-item h4, .finding-item h4 {
+            margin: 0 0 10px 0;
+            color: #111827;
+        }
+
+        .risk-item p, .finding-item p {
+            margin: 5px 0;
+            color: #4b5563;
+        }
+
+        .file-ref {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        table th,
+        table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        table th {
+            background: #f3f4f6;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        table tr:hover {
+            background: #f9fafb;
+        }
+
+        ul, ol {
+            margin: 10px 0 10px 30px;
+        }
+
+        li {
+            margin: 5px 0;
+        }
+
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        .footer {
+            background: #f9fafb;
+            padding: 20px 40px;
+            text-align: center;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .stat-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stat-box {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .stat-box .label {
+            font-size: 0.85em;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-box .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 5px 0;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏗️ Architecture Impact Assessment</h1>
+            <div class="meta">
+                <strong>Repository:</strong> unknown<br>
+                <strong>PR #489</strong>
+            </div>
+        </div>
+
+        <div class="content">
+            <a href="pr-489-analysis.html" class="back-link">← Back to Full Analysis</a>
+
+            <h2>Impact Summary</h2>
+            <div class="card">
+                <h3>Component: model-registry-operator</h3>
+                <div class="stat-row">
+                    <div class="stat-box">
+                        <div class="label">Blast Radius</div>
+                        <div class="value">High</div>
+                        <span class="badge danger">High</span>
+                    </div>
+                    <div class="stat-box">
+                        <div class="label">Affected Components</div>
+                        <div class="value">2</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="label">Breaking Changes</div>
+                        <div class="value">Yes</div>
+                        <span class="badge danger">⚠️</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="risk-item critical"><h4>🚨 KUBERNETES RESOURCE RENAME DETECTED</h4><p><strong>CONFIGMAP:</strong> <code>model-catalog-default-sources</code> → <code>default-catalog-sources</code></p><p style="margin-top: 10px;"><strong>Cross-Repo References Found:</strong></p><ul><li>odh-dashboard: 13 references (CRITICAL)</li></ul></div>
+
+            <h2>Affected Components (2)</h2>
+            <div class="card">
+                <ul><li><code>{'name': 'model-registry-operator', 'impact': 'high', 'reason': 'Primary component making the K8s ConfigMap rename'}</code></li><li><code>{'name': 'odh-dashboard', 'impact': 'critical', 'reason': 'Hardcoded references in Go client and Cypress E2E tests will break at runtime'}</code></li></ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>🤖 Generated by Agentic SDLC Quality Framework</strong></p>
+            <p>Impact Analysis powered by Claude Sonnet 4.5</p>
+        </div>
+    </div>
+</body>
+</html>
