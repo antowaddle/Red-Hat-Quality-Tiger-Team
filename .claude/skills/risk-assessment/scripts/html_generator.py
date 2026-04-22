@@ -162,6 +162,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             margin: 10px 0;
         }}
 
+        .stat-card .value.high-risk {{
+            color: #dc2626;
+        }}
+
+        .stat-card .value.medium-risk {{
+            color: #f59e0b;
+        }}
+
+        .stat-card .value.low-risk {{
+            color: #10b981;
+        }}
+
         .stat-card .status {{
             font-size: 0.9em;
             color: #6b7280;
@@ -408,6 +420,17 @@ def generate_stat_cards(risk_fm: dict, test_fm: dict, impact_fm: dict, crossrepo
     blast_radius = impact_fm.get("blast_radius", "unknown")
     affected = len(impact_fm.get("affected_components", []))
 
+    # Determine blast radius color class
+    blast_radius_lower = blast_radius.lower()
+    if blast_radius_lower == "high":
+        blast_radius_class = "high-risk"
+    elif blast_radius_lower == "medium":
+        blast_radius_class = "medium-risk"
+    elif blast_radius_lower == "low":
+        blast_radius_class = "low-risk"
+    else:
+        blast_radius_class = ""
+
     # Breaking tests card
     breaking_tests = len(crossrepo_fm.get("breaking_tests", []))
     requires_updates = crossrepo_fm.get("requires_test_updates", False)
@@ -419,7 +442,7 @@ def generate_stat_cards(risk_fm: dict, test_fm: dict, impact_fm: dict, crossrepo
 
     return f"""
                     <div class="stat-card">
-                        <div class="label">Risk Assessment</div>
+                        <div class="label">Security & Risk</div>
                         <div class="value">{risk_score}/100</div>
                         <div class="status">{risk_label}</div>
                     </div>
@@ -430,7 +453,7 @@ def generate_stat_cards(risk_fm: dict, test_fm: dict, impact_fm: dict, crossrepo
                     </div>
                     <div class="stat-card">
                         <div class="label">Blast Radius</div>
-                        <div class="value">{blast_radius.title()}</div>
+                        <div class="value {blast_radius_class}">{blast_radius.title()}</div>
                         <div class="status">{affected} components affected</div>
                     </div>
                     <div class="stat-card">
