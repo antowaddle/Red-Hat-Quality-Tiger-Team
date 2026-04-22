@@ -29,6 +29,17 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 
 ### What Gets Validated
 
+#### Phase 0: Early Static Checks (P0 - New!)
+- ✅ **Hermetic lockfile validation** - Validates package-lock.json for Hermeto/Cachi2 compatibility
+  - Detects unsupported dependency protocols (git+, github:, file:)
+  - Ensures all dependencies have resolved URLs
+  - Verifies go.sum exists for all go.mod files
+  - Runs go mod verify if Go is available
+- ✅ **Workspace dependency validation** - Ensures Dockerfiles COPY all referenced packages
+  - Detects @odh-dashboard/* imports in source code
+  - Cross-references with COPY commands in Dockerfiles
+  - Prevents "package not found" build failures
+
 #### Phase 1: Docker Build Validation
 - ✅ Builds Docker image with production build mode (RHOAI, etc.)
 - ✅ Tests multi-stage build (builder + runtime)
@@ -62,12 +73,19 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 
 ## Key Features
 
+- **Hermetic Build Validation** (P0): Validates lockfiles for downstream RHOAI hermetic builds
+  - Catches Hermeto/Cachi2 incompatibilities early (git+, github:, file: protocols)
+  - Verifies Go module checksums
+  - Runs in <30 seconds before Docker build
+- **Workspace Dependency Validation** (P0): Prevents missing COPY failures in monorepos
+  - Cross-references package imports with Dockerfile COPY commands
+  - Detects missing workspace packages before build
 - **Konflux-Like Environment**: Simulates production build environment
 - **Fast Feedback**: Runs in 10-20 minutes on PRs
 - **Comprehensive**: Catches most common build failures before merge
 - **Automated**: No manual intervention needed
 - **Documented**: Clear failure messages and logs
-- **Skippable**: Add `[skip konflux-sim]` to PR title or commit message to skip
+- **Skippable**: Add `[skip konflux-sim]` to PR title to skip
 
 ## Repository Type Detection
 
@@ -101,6 +119,8 @@ The skill automatically detects repository type and generates appropriate valida
 - ✅ Faster development cycle
 
 ### Comprehensive Coverage
+- ✅ **Hermetic build failures** (P0) - Catches issues before downstream RHOAI builds
+- ✅ **Workspace dependency issues** (P0) - Prevents missing package errors
 - ✅ Docker build failures (any stage)
 - ✅ Module Federation issues
 - ✅ Operator packaging problems

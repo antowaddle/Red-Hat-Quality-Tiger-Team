@@ -87,6 +87,103 @@ find . -name "*_crd.yaml" -o -name "*crd.yaml"
 find manifests -type d -name "overlays"
 ```
 
+#### Step 1.5: Analyze Lockfiles for Hermetic Build Compatibility (P0 Priority)
+
+**Context:** Downstream RHOAI builds use Hermeto/Cachi2 for hermetic builds (no network access during build). Package lockfiles must be compatible with pre-fetching.
+
+```bash
+# Check for npm lockfiles
+LOCKFILES=$(find . -name "package-lock.json")
+
+for lockfile in $LOCKFILES; do
+  echo "Analyzing $lockfile for Hermeto compatibility..."
+  
+  # Check for unsupported dependency protocols
+  # git+, github:, file: protocols break Hermeto prefetch
+  if grep -q '"resolved".*\(git+\|github:\|file:\)' "$lockfile"; then
+    echo "⚠️  Found unsupported dependency protocol in $lockfile"
+    echo "   Hermeto/Cachi2 cannot prefetch git+, github:, or file: dependencies"
+    grep '"resolved".*\(git+\|github:\|file:\)' "$lockfile" | head -5
+  fi
+  
+  # Check for missing resolved URLs
+  # All dependencies must have resolved field for prefetch
+  if grep -q '"version":' "$lockfile" && ! grep -q '"resolved":' "$lockfile"; then
+    echo "⚠️  Missing resolved URLs in $lockfile"
+  fi
+done
+
+# Check for Go modules
+if [ -f "go.mod" ]; then
+  echo "✅ Found go.mod"
+  
+  # Verify go.sum exists
+  if [ ! -f "go.sum" ]; then
+    echo "❌ go.mod exists but go.sum is missing"
+    echo "   Required for hermetic builds"
+  else
+    echo "✅ go.sum present"
+  fi
+  
+  # Check for multiple go.mod files (monorepo BFFs)
+  GO_MODS=$(find packages -name "go.mod" 2>/dev/null || true)
+  for gomod in $GO_MODS; do
+    gosum="${gomod%%.mod}.sum"
+    if [ ! -f "$gosum" ]; then
+      echo "❌ $gomod exists but $gosum is missing"
+    else
+      echo "✅ $gomod has corresponding go.sum"
+    fi
+  done
+fi
+```
+
+#### Step 1.6: Analyze Workspace Dependencies (P0 Priority - Monorepo Only)
+
+**Context:** Monorepo modules often import workspace packages (e.g., @odh-dashboard/kserve). The Dockerfile must COPY all referenced workspace packages or the build fails.
+
+```bash
+# Only for monorepos with workspace packages
+if [ -d "packages" ]; then
+  echo "Analyzing workspace dependencies..."
+  
+  # Find all Dockerfile.workspace files
+  WORKSPACE_DOCKERFILES=$(find packages -name "Dockerfile.workspace" -o -name "Dockerfile")
+  
+  for dockerfile in $WORKSPACE_DOCKERFILES; do
+    module=$(dirname "$dockerfile")
+    echo "Checking $dockerfile..."
+    
+    # Extract COPY commands that reference packages/
+    COPIED_PACKAGES=$(grep "^COPY.*packages/" "$dockerfile" | sed 's/.*COPY.*\(packages\/[^\/]*\).*/\1/' | sort -u)
+    
+    # Find package.json for this module
+    PKG_JSON="$module/package.json"
+    if [ -f "$PKG_JSON" ]; then
+      # Extract workspace dependencies (@odh-dashboard/* or workspace:*)
+      WORKSPACE_DEPS=$(grep -o '"@odh-dashboard/[^"]*"' "$PKG_JSON" | tr -d '"' | sed 's/@odh-dashboard\//packages\//' || true)
+      WORKSPACE_DEPS+=$(grep -o '"workspace:[^"]*"' "$PKG_JSON" || true)
+      
+      # Check source code for imports
+      SRC_IMPORTS=$(find "$module" -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | \
+        xargs grep -h "from '@odh-dashboard/" 2>/dev/null | \
+        sed "s/.*from '@odh-dashboard\/\([^'\"]*\).*/packages\/\1/" | \
+        sort -u || true)
+      
+      # Cross-reference
+      ALL_DEPS=$(echo -e "$WORKSPACE_DEPS\n$SRC_IMPORTS" | sort -u | grep -v "^$")
+      
+      for dep in $ALL_DEPS; do
+        if ! echo "$COPIED_PACKAGES" | grep -q "$dep"; then
+          echo "⚠️  $dockerfile: imports $dep but does not COPY it"
+          echo "   Add: COPY $dep/ /path/to/$dep/"
+        fi
+      done
+    fi
+  done
+fi
+```
+
 ### Phase 2: Generate Build Validation Workflow
 
 #### Step 2.1: Create Base Workflow Template
@@ -113,14 +210,166 @@ env:
   IMAGE_NAME: ${{ github.repository }}:pr-${{ github.event.pull_request.number }}
 
 jobs:
+  # P0: Early lockfile validation (runs in <30s)
+  lockfile-check:
+    name: Validate Lockfiles for Hermetic Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: |
+      !contains(github.event.pull_request.title, '[skip konflux-sim]')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Validate NPM Lockfiles
+        run: |
+          # Check all package-lock.json files for Hermeto/Cachi2 compatibility
+          LOCKFILES=$(find . -name "package-lock.json")
+          ISSUES=0
+          
+          for lockfile in $LOCKFILES; do
+            echo "Checking $lockfile..."
+            
+            # Check for unsupported protocols (git+, github:, file:)
+            if grep -q '"resolved".*\(git+\|github:\|file:\)' "$lockfile"; then
+              echo "❌ $lockfile contains unsupported dependency protocols"
+              echo "   Hermeto/Cachi2 cannot prefetch git+, github:, or file: dependencies"
+              echo "   Affected dependencies:"
+              grep '"resolved".*\(git+\|github:\|file:\)' "$lockfile" | head -5
+              ISSUES=$((ISSUES + 1))
+            fi
+            
+            # Check for missing resolved URLs
+            PKG_COUNT=$(grep -c '"version":' "$lockfile" || true)
+            RESOLVED_COUNT=$(grep -c '"resolved":' "$lockfile" || true)
+            
+            if [ $PKG_COUNT -gt 0 ] && [ $RESOLVED_COUNT -eq 0 ]; then
+              echo "⚠️  $lockfile is missing resolved URLs"
+              echo "   This may cause issues with hermetic builds"
+              ISSUES=$((ISSUES + 1))
+            fi
+          done
+          
+          if [ $ISSUES -gt 0 ]; then
+            echo ""
+            echo "❌ Lockfile validation failed with $ISSUES issue(s)"
+            echo "   Downstream hermetic builds (RHOAI) will fail"
+            echo ""
+            echo "How to fix:"
+            echo "  1. Run 'npm install' to regenerate package-lock.json"
+            echo "  2. Replace git+/github:/file: dependencies with npm registry versions"
+            echo "  3. Ensure all dependencies have 'resolved' URLs"
+            exit 1
+          else
+            echo "✅ All lockfiles are hermetic build compatible"
+          fi
+      
+      - name: Validate Go Modules
+        if: hashFiles('go.mod') != ''
+        run: |
+          ISSUES=0
+          
+          # Check root go.mod
+          if [ -f "go.mod" ]; then
+            if [ ! -f "go.sum" ]; then
+              echo "❌ go.mod exists but go.sum is missing"
+              ISSUES=$((ISSUES + 1))
+            else
+              echo "✅ Root go.mod/go.sum present"
+              
+              # Verify checksums if Go is available
+              if command -v go &> /dev/null; then
+                echo "Verifying Go module checksums..."
+                go mod verify || {
+                  echo "❌ go mod verify failed"
+                  ISSUES=$((ISSUES + 1))
+                }
+              fi
+            fi
+          fi
+          
+          # Check for BFF go.mod files in packages/*/bff
+          for gomod in $(find packages -name "go.mod" 2>/dev/null || true); do
+            gosum="${gomod%%.mod}.sum"
+            if [ ! -f "$gosum" ]; then
+              echo "❌ $gomod exists but $gosum is missing"
+              ISSUES=$((ISSUES + 1))
+            else
+              echo "✅ $gomod has corresponding go.sum"
+              
+              # Verify if Go is available
+              if command -v go &> /dev/null; then
+                DIR=$(dirname "$gomod")
+                (cd "$DIR" && go mod verify) || {
+                  echo "❌ go mod verify failed for $gomod"
+                  ISSUES=$((ISSUES + 1))
+                }
+              fi
+            fi
+          done
+          
+          if [ $ISSUES -gt 0 ]; then
+            echo ""
+            echo "❌ Go module validation failed"
+            echo ""
+            echo "How to fix:"
+            echo "  1. Run 'go mod tidy' in directories with go.mod"
+            echo "  2. Commit the updated go.sum file"
+            exit 1
+          else
+            echo "✅ All Go modules validated"
+          fi
+      
+      - name: Validate Workspace Dependencies
+        if: hashFiles('packages/*/package.json') != ''
+        run: |
+          # Workspace COPY cross-reference for monorepos
+          ISSUES=0
+          
+          for dockerfile in $(find packages -name "Dockerfile.workspace" -o -name "Dockerfile" | grep -v node_modules); do
+            MODULE=$(dirname "$dockerfile")
+            echo "Checking $dockerfile..."
+            
+            # Extract packages that are COPY'd
+            COPIED=$(grep "^COPY.*packages/" "$dockerfile" | sed 's/.*COPY.*\(packages\/[^\/]*\).*/\1/' | sort -u || true)
+            
+            # Check package.json for workspace deps
+            PKG_JSON="$MODULE/package.json"
+            if [ -f "$PKG_JSON" ]; then
+              # Find @odh-dashboard/* dependencies
+              DEPS=$(grep -o '"@odh-dashboard/[^"]*"' "$PKG_JSON" | tr -d '"' | sed 's/@odh-dashboard\//packages\//' | sort -u || true)
+              
+              # Cross-reference
+              for dep in $DEPS; do
+                if ! echo "$COPIED" | grep -q "^$dep$"; then
+                  echo "⚠️  $dockerfile imports $dep but does not COPY it"
+                  echo "   This will cause Docker build to fail"
+                  echo "   Add: COPY $dep/ /path/to/destination/"
+                  ISSUES=$((ISSUES + 1))
+                fi
+              done
+              
+              if [ $ISSUES -eq 0 ]; then
+                echo "✅ All workspace dependencies are COPY'd"
+              fi
+            fi
+          done
+          
+          if [ $ISSUES -gt 0 ]; then
+            echo ""
+            echo "❌ Workspace dependency validation found $ISSUES issue(s)"
+            exit 1
+          fi
+
   build-validation:
     name: Validate Build
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Skip if [skip konflux-sim] is in PR title or commit message
+    needs: lockfile-check  # P0: Run after lockfile validation
+    # Skip if [skip konflux-sim] is in PR title
     if: |
-      !contains(github.event.pull_request.title, '[skip konflux-sim]') &&
-      !contains(github.event.head_commit.message, '[skip konflux-sim]')
+      !contains(github.event.pull_request.title, '[skip konflux-sim]')
 
     steps:
       - name: Checkout code
@@ -407,8 +656,125 @@ IMAGE_NAME=${1:-"test-image:pr"}
 BUILD_MODE=${2:-"RHOAI"}
 DOCKERFILE=${3:-"Dockerfile"}
 
+# P0: Hermetic lockfile validation function
+validate_lockfiles() {
+  echo ""
+  echo "=== Validating Lockfiles for Hermetic Build ==="
+  
+  local issues=0
+  
+  # Check NPM lockfiles
+  while IFS= read -r lockfile; do
+    [ -z "$lockfile" ] && continue
+    echo "Checking $lockfile..."
+    
+    # Check for unsupported protocols
+    if grep -q '"resolved".*\(git+\|github:\|file:\)' "$lockfile"; then
+      echo "❌ $lockfile contains unsupported dependency protocols"
+      echo "   Hermeto/Cachi2 cannot prefetch git+, github:, or file: dependencies"
+      grep '"resolved".*\(git+\|github:\|file:\)' "$lockfile" | head -5
+      issues=$((issues + 1))
+    fi
+    
+    # Check for missing resolved URLs
+    pkg_count=$(grep -c '"version":' "$lockfile" || true)
+    resolved_count=$(grep -c '"resolved":' "$lockfile" || true)
+    
+    if [ $pkg_count -gt 0 ] && [ $resolved_count -eq 0 ]; then
+      echo "⚠️  $lockfile is missing resolved URLs"
+      issues=$((issues + 1))
+    fi
+  done < <(find . -name "package-lock.json")
+  
+  # Check Go modules
+  if [ -f "go.mod" ]; then
+    if [ ! -f "go.sum" ]; then
+      echo "❌ go.mod exists but go.sum is missing"
+      issues=$((issues + 1))
+    else
+      echo "✅ Root go.mod/go.sum present"
+      if command -v go &> /dev/null; then
+        go mod verify || issues=$((issues + 1))
+      fi
+    fi
+  fi
+  
+  # Check BFF modules
+  while IFS= read -r gomod; do
+    [ -z "$gomod" ] && continue
+    gosum="${gomod%%.mod}.sum"
+    if [ ! -f "$gosum" ]; then
+      echo "❌ $gomod exists but $gosum is missing"
+      issues=$((issues + 1))
+    else
+      echo "✅ $gomod has corresponding go.sum"
+      if command -v go &> /dev/null; then
+        (cd "$(dirname "$gomod")" && go mod verify) || issues=$((issues + 1))
+      fi
+    fi
+  done < <(find packages -name "go.mod" 2>/dev/null || true)
+  
+  if [ $issues -gt 0 ]; then
+    echo "❌ Lockfile validation failed with $issues issue(s)"
+    return 1
+  fi
+  
+  echo "✅ All lockfiles validated"
+  return 0
+}
+
+# P0: Workspace COPY cross-reference validation function
+validate_workspace_copies() {
+  echo ""
+  echo "=== Validating Workspace Dependencies ==="
+  
+  # Only for monorepos
+  [ ! -d "packages" ] && { echo "Not a monorepo, skipping"; return 0; }
+  
+  local issues=0
+  
+  while IFS= read -r dockerfile; do
+    [ -z "$dockerfile" ] && continue
+    module=$(dirname "$dockerfile")
+    echo "Checking $dockerfile..."
+    
+    # Extract COPY'd packages
+    copied=$(grep "^COPY.*packages/" "$dockerfile" | sed 's/.*COPY.*\(packages\/[^\/]*\).*/\1/' | sort -u || true)
+    
+    # Check package.json
+    pkg_json="$module/package.json"
+    if [ -f "$pkg_json" ]; then
+      # Find workspace dependencies
+      deps=$(grep -o '"@odh-dashboard/[^"]*"' "$pkg_json" | tr -d '"' | sed 's/@odh-dashboard\//packages\//' | sort -u || true)
+      
+      # Cross-reference
+      for dep in $deps; do
+        if ! echo "$copied" | grep -q "^$dep$"; then
+          echo "⚠️  $dockerfile imports $dep but does not COPY it"
+          echo "   Add: COPY $dep/ /path/to/destination/"
+          issues=$((issues + 1))
+        fi
+      done
+    fi
+  done < <(find packages -name "Dockerfile.workspace" -o -name "Dockerfile" | grep -v node_modules || true)
+  
+  if [ $issues -gt 0 ]; then
+    echo "❌ Workspace validation found $issues issue(s)"
+    return 1
+  fi
+  
+  echo "✅ All workspace dependencies validated"
+  return 0
+}
+
+# P0: Run early validations
+validate_lockfiles
+validate_workspace_copies
+
 # Build
-echo "Building Docker image with BUILD_MODE=$BUILD_MODE..."
+echo ""
+echo "=== Building Docker Image ==="
+echo "Building with BUILD_MODE=$BUILD_MODE..."
 docker build \
   --build-arg BUILD_MODE=$BUILD_MODE \
   --tag $IMAGE_NAME \
@@ -416,7 +782,8 @@ docker build \
   .
 
 # Test startup
-echo "Testing container startup..."
+echo ""
+echo "=== Testing Container Startup ==="
 docker run -d --name test-build -p 8080:8080 $IMAGE_NAME
 
 # Wait for health
@@ -435,6 +802,7 @@ docker logs test-build | tail -20
 # Cleanup
 docker rm -f test-build
 
+echo ""
 echo "✅ Build validation passed"
 ```
 
@@ -449,6 +817,8 @@ This repository uses automated PR build validation to catch build failures befor
 
 ## What's Validated
 
+- ✅ **Hermetic lockfile compatibility** (P0) - Validates package-lock.json and go.sum for downstream RHOAI builds
+- ✅ **Workspace dependencies** (P0) - Ensures Dockerfiles COPY all referenced workspace packages
 - ✅ Docker build with production configuration
 - ✅ Container startup and health checks
 - ✅ Module Federation (if applicable)
@@ -463,6 +833,30 @@ This repository uses automated PR build validation to catch build failures befor
 4. Feedback on PR
 
 ## Troubleshooting
+
+### Lockfile Validation Fails (P0)
+
+**Error:** Unsupported dependency protocols (git+, github:, file:)
+
+**Fix:**
+1. Run `npm install` to regenerate package-lock.json
+2. Replace git+/github:/file: dependencies with npm registry versions
+3. Update package.json to use published packages instead of git references
+
+**Error:** Missing go.sum file
+
+**Fix:**
+1. Run `go mod tidy` in the directory with go.mod
+2. Commit the generated go.sum file
+
+### Workspace Dependency Validation Fails (P0)
+
+**Error:** Dockerfile imports package but does not COPY it
+
+**Fix:**
+1. Identify which workspace package is imported (e.g., @odh-dashboard/kserve)
+2. Add COPY command to Dockerfile: `COPY packages/kserve/ /path/to/kserve/`
+3. Ensure COPY happens before the build step that needs it
 
 ### Build Fails
 
