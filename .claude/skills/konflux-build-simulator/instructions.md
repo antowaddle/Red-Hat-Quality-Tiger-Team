@@ -87,7 +87,7 @@ find . -name "*_crd.yaml" -o -name "*crd.yaml"
 find manifests -type d -name "overlays"
 ```
 
-#### Step 1.5: Analyze Lockfiles for Hermetic Build Compatibility (P0 Priority)
+#### Step 1.5: Analyze Lockfiles for Hermetic Build Compatibility
 
 **Context:** Downstream RHOAI builds use Hermeto/Cachi2 for hermetic builds (no network access during build). Package lockfiles must be compatible with pre-fetching.
 
@@ -138,7 +138,7 @@ if [ -f "go.mod" ]; then
 fi
 ```
 
-#### Step 1.6: Analyze Workspace Dependencies (P0 Priority - Monorepo Only)
+#### Step 1.6: Analyze Workspace Dependencies (Monorepo Only)
 
 **Context:** Monorepo modules often import workspace packages. The Dockerfile must COPY all referenced workspace packages or the build fails.
 
@@ -266,6 +266,45 @@ else
 fi
 ```
 
+#### Step 1.7: Analyze FIPS Compliance (RHOAI Specific)
+
+**Context:** RHOAI downstream builds require FIPS-compatible cryptography. This means esbuild (which contains non-FIPS crypto) must be removed, and Go binaries must use FIPS-validated crypto libraries.
+
+```bash
+# Check main Dockerfile for esbuild removal
+if [ -f "Dockerfile" ]; then
+  echo "Checking FIPS compliance in Dockerfile..."
+  
+  # Verify esbuild is removed (required for FIPS)
+  if ! grep -q "rm -rf.*node_modules/esbuild" Dockerfile; then
+    echo "⚠️  Dockerfile does not remove node_modules/esbuild"
+    echo "   RHOAI FIPS builds require: RUN rm -rf node_modules/esbuild"
+    echo "   This blocks product release for FIPS compliance"
+  else
+    echo "✅ esbuild removal found (FIPS compliant)"
+  fi
+fi
+
+# Check Dockerfile.workspace files for Go FIPS build tags
+WORKSPACE_DOCKERFILES=$(find . -name "Dockerfile.workspace" 2>/dev/null || true)
+
+for dockerfile in $WORKSPACE_DOCKERFILES; do
+  echo "Checking $dockerfile for FIPS compliance..."
+  
+  # Check if this Dockerfile builds a Go binary (has bff-builder stage)
+  if grep -q "FROM.*bff-builder" "$dockerfile" || grep -q "go build" "$dockerfile"; then
+    # Verify -tags strictfipsruntime is used
+    if ! grep -q "\-tags.*strictfipsruntime" "$dockerfile"; then
+      echo "⚠️  $dockerfile builds Go binary without -tags strictfipsruntime"
+      echo "   RHOAI FIPS builds require: go build -tags strictfipsruntime"
+      echo "   Add to go build command in bff-builder stage"
+    else
+      echo "✅ strictfipsruntime tag found (FIPS compliant)"
+    fi
+  fi
+done
+```
+
 ### Phase 2: Generate Build Validation Workflow
 
 #### Step 2.1: Create Base Workflow Template
@@ -292,9 +331,9 @@ env:
   IMAGE_NAME: ${{ github.repository }}:pr-${{ github.event.pull_request.number }}
 
 jobs:
-  # P0: Early lockfile validation (runs in <30s)
-  lockfile-check:
-    name: Validate Lockfiles for Hermetic Build
+  # Early validation checks (run in <30s before Docker build)
+  validation-checks:
+    name: Static Validation Checks
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: |
@@ -443,15 +482,142 @@ jobs:
             echo "❌ Workspace dependency validation found $ISSUES issue(s)"
             exit 1
           fi
+      
+      - name: Validate FIPS Compliance
+        run: |
+          # FIPS compliance checks for RHOAI downstream builds
+          ISSUES=0
+          
+          # Check main Dockerfile for esbuild removal
+          if [ -f "Dockerfile" ]; then
+            if ! grep -q "rm -rf.*node_modules/esbuild" Dockerfile; then
+              echo "⚠️  Dockerfile does not remove node_modules/esbuild"
+              echo "   RHOAI FIPS builds require: RUN rm -rf node_modules/esbuild"
+              echo "   This blocks product release for FIPS compliance"
+              ISSUES=$((ISSUES + 1))
+            else
+              echo "✅ esbuild removal found in Dockerfile (FIPS compliant)"
+            fi
+          fi
+          
+          # Check Dockerfile.workspace files for Go FIPS build tags
+          for dockerfile in $(find . -name "Dockerfile.workspace" 2>/dev/null || true); do
+            # Check if this Dockerfile builds a Go binary (has bff-builder stage)
+            if grep -q "FROM.*bff-builder" "$dockerfile" || grep -q "go build" "$dockerfile"; then
+              # Verify -tags strictfipsruntime is used
+              if ! grep -q "\-tags.*strictfipsruntime" "$dockerfile"; then
+                echo "⚠️  $dockerfile builds Go binary without -tags strictfipsruntime"
+                echo "   RHOAI FIPS builds require: go build -tags strictfipsruntime"
+                ISSUES=$((ISSUES + 1))
+              else
+                echo "✅ $dockerfile has strictfipsruntime tag (FIPS compliant)"
+              fi
+            fi
+          done
+          
+          if [ $ISSUES -gt 0 ]; then
+            echo ""
+            echo "⚠️  FIPS compliance validation found $ISSUES issue(s)"
+            echo "   These are warnings for RHOAI downstream builds"
+            echo "   They will block product release if not fixed"
+            # Don't exit 1 - these are warnings, not hard failures
+          else
+            echo "✅ All FIPS compliance checks passed"
+          fi
+
+  hermetic-preflight:
+    name: Hermetic Build Preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: validation-checks
+    if: |
+      !contains(github.event.pull_request.title, '[skip konflux-sim]') &&
+      hashFiles('package-lock.json') != ''
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test Hermetic NPM Install (Root)
+        run: |
+          # Simulate hermetic build - no network access
+          # This tests if package-lock.json is in sync without building full image
+          
+          # Create minimal Dockerfile for npm ci test
+          cat > Dockerfile.hermetic-test <<'EOF'
+          FROM registry.access.redhat.com/ubi9/nodejs-20:latest
+          WORKDIR /test
+          COPY package.json package-lock.json ./
+          RUN npm ci --ignore-scripts
+          EOF
+          
+          echo "Testing hermetic npm install (--network=none)..."
+          if docker build --network=none -f Dockerfile.hermetic-test -t hermetic-test:root . 2>&1 | tee /tmp/hermetic-build.log; then
+            echo "✅ Root package-lock.json is hermetic build compatible"
+          else
+            echo "❌ Hermetic build failed for root package-lock.json"
+            echo ""
+            echo "This means the lockfile is out of sync or has dependencies"
+            echo "that cannot be resolved without network access."
+            echo ""
+            echo "How to fix:"
+            echo "  1. Run 'npm install' to regenerate package-lock.json"
+            echo "  2. Ensure no git+, github:, or file: dependencies"
+            echo "  3. Commit the updated lockfile"
+            exit 1
+          fi
+      
+      - name: Test Hermetic NPM Install (Modules)
+        if: hashFiles('packages/*/frontend/package-lock.json') != ''
+        run: |
+          # Test each module's lockfile
+          FAILED_MODULES=""
+          
+          for module_dir in packages/*/frontend; do
+            if [ -f "$module_dir/package-lock.json" ]; then
+              module_name=$(basename $(dirname "$module_dir"))
+              echo ""
+              echo "Testing $module_name hermetic build..."
+              
+              # Create test Dockerfile for this module
+              cat > Dockerfile.hermetic-test-module <<EOF
+          FROM registry.access.redhat.com/ubi9/nodejs-20:latest
+          WORKDIR /test
+          COPY $module_dir/package.json $module_dir/package-lock.json ./
+          RUN npm ci --ignore-scripts
+          EOF
+              
+              if docker build --network=none -f Dockerfile.hermetic-test-module -t hermetic-test:$module_name . 2>&1; then
+                echo "✅ $module_name: hermetic build compatible"
+              else
+                echo "❌ $module_name: hermetic build failed"
+                FAILED_MODULES="$FAILED_MODULES $module_name"
+              fi
+            fi
+          done
+          
+          if [ -n "$FAILED_MODULES" ]; then
+            echo ""
+            echo "❌ Hermetic build failed for modules:$FAILED_MODULES"
+            echo ""
+            echo "Run 'npm install' in each failed module's frontend directory"
+            echo "and commit the updated package-lock.json files"
+            exit 1
+          else
+            echo ""
+            echo "✅ All module lockfiles are hermetic build compatible"
+          fi
 
   build-validation:
     name: Validate Build
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: lockfile-check  # P0: Run after lockfile validation
-    # Skip if [skip konflux-sim] is in PR title
+    needs: [validation-checks, hermetic-preflight]
     if: |
-      !contains(github.event.pull_request.title, '[skip konflux-sim]')
+      always() &&
+      !contains(github.event.pull_request.title, '[skip konflux-sim]') &&
+      needs.validation-checks.result == 'success' &&
+      (needs.hermetic-preflight.result == 'success' || needs.hermetic-preflight.result == 'skipped')
 
     steps:
       - name: Checkout code
