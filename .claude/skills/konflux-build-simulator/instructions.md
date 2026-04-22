@@ -140,46 +140,128 @@ fi
 
 #### Step 1.6: Analyze Workspace Dependencies (P0 Priority - Monorepo Only)
 
-**Context:** Monorepo modules often import workspace packages (e.g., @odh-dashboard/kserve). The Dockerfile must COPY all referenced workspace packages or the build fails.
+**Context:** Monorepo modules often import workspace packages. The Dockerfile must COPY all referenced workspace packages or the build fails.
 
 ```bash
-# Only for monorepos with workspace packages
-if [ -d "packages" ]; then
-  echo "Analyzing workspace dependencies..."
+# Detect workspace configuration from root package.json
+WORKSPACE_SCOPE=""
+WORKSPACE_DIRS=()
+
+if [ -f "package.json" ]; then
+  # Detect workspace scope from package name (e.g., @odh-dashboard/foo -> @odh-dashboard)
+  WORKSPACE_SCOPE=$(grep -o '"name"[[:space:]]*:[[:space:]]*"@[^/]*' package.json | sed 's/.*"@/@/' || true)
   
-  # Find all Dockerfile.workspace files
-  WORKSPACE_DOCKERFILES=$(find packages -name "Dockerfile.workspace" -o -name "Dockerfile")
+  # Detect workspace directories from workspaces field
+  # Common patterns: packages/*, apps/*, libs/*
+  if grep -q '"workspaces"' package.json; then
+    WORKSPACE_PATTERNS=$(grep -A 10 '"workspaces"' package.json | grep -o '"[^"]*\/\*"' | tr -d '"' | sed 's/\/\*//' || true)
+    
+    for pattern in $WORKSPACE_PATTERNS; do
+      if [ -d "$pattern" ]; then
+        WORKSPACE_DIRS+=("$pattern")
+      fi
+    done
+  fi
+  
+  # Fallback: check common workspace directories
+  if [ ${#WORKSPACE_DIRS[@]} -eq 0 ]; then
+    for dir in packages apps libs modules components; do
+      if [ -d "$dir" ]; then
+        WORKSPACE_DIRS+=("$dir")
+      fi
+    done
+  fi
+fi
+
+if [ ${#WORKSPACE_DIRS[@]} -eq 0 ]; then
+  echo "Not a workspace monorepo, skipping workspace validation"
+else
+  echo "Analyzing workspace dependencies..."
+  echo "Workspace scope: ${WORKSPACE_SCOPE:-<none>}"
+  echo "Workspace directories: ${WORKSPACE_DIRS[@]}"
+  
+  # Find all Dockerfile.workspace files in workspace directories
+  WORKSPACE_DOCKERFILES=""
+  for wsdir in "${WORKSPACE_DIRS[@]}"; do
+    WORKSPACE_DOCKERFILES+=$(find "$wsdir" -name "Dockerfile.workspace" -o -name "Dockerfile" 2>/dev/null || true)
+    WORKSPACE_DOCKERFILES+=$'\n'
+  done
   
   for dockerfile in $WORKSPACE_DOCKERFILES; do
+    [ -z "$dockerfile" ] && continue
+    
     module=$(dirname "$dockerfile")
     echo "Checking $dockerfile..."
     
-    # Extract COPY commands that reference packages/
-    COPIED_PACKAGES=$(grep "^COPY.*packages/" "$dockerfile" | sed 's/.*COPY.*\(packages\/[^\/]*\).*/\1/' | sort -u)
+    # Extract COPY commands that reference workspace directories
+    COPIED_PACKAGES=""
+    for wsdir in "${WORKSPACE_DIRS[@]}"; do
+      COPIED=$(grep "^COPY.*$wsdir/" "$dockerfile" | sed "s/.*COPY.*\($wsdir\/[^\/]*\).*/\1/" | sort -u || true)
+      COPIED_PACKAGES+="$COPIED"$'\n'
+    done
+    COPIED_PACKAGES=$(echo "$COPIED_PACKAGES" | sort -u | grep -v "^$")
     
     # Find package.json for this module
     PKG_JSON="$module/package.json"
-    if [ -f "$PKG_JSON" ]; then
-      # Extract workspace dependencies (@odh-dashboard/* or workspace:*)
-      WORKSPACE_DEPS=$(grep -o '"@odh-dashboard/[^"]*"' "$PKG_JSON" | tr -d '"' | sed 's/@odh-dashboard\//packages\//' || true)
-      WORKSPACE_DEPS+=$(grep -o '"workspace:[^"]*"' "$PKG_JSON" || true)
-      
-      # Check source code for imports
-      SRC_IMPORTS=$(find "$module" -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | \
-        xargs grep -h "from '@odh-dashboard/" 2>/dev/null | \
-        sed "s/.*from '@odh-dashboard\/\([^'\"]*\).*/packages\/\1/" | \
-        sort -u || true)
-      
-      # Cross-reference
-      ALL_DEPS=$(echo -e "$WORKSPACE_DEPS\n$SRC_IMPORTS" | sort -u | grep -v "^$")
-      
-      for dep in $ALL_DEPS; do
-        if ! echo "$COPIED_PACKAGES" | grep -q "$dep"; then
-          echo "⚠️  $dockerfile: imports $dep but does not COPY it"
-          echo "   Add: COPY $dep/ /path/to/$dep/"
-        fi
+    if [ ! -f "$PKG_JSON" ]; then
+      echo "  No package.json found, skipping"
+      continue
+    fi
+    
+    # Extract workspace dependencies
+    WORKSPACE_DEPS=""
+    
+    # Pattern 1: Scoped packages (@scope/*)
+    if [ -n "$WORKSPACE_SCOPE" ]; then
+      SCOPED_DEPS=$(grep -o "\"$WORKSPACE_SCOPE/[^\"]*\"" "$PKG_JSON" | tr -d '"' || true)
+      for dep in $SCOPED_DEPS; do
+        # Convert @scope/name to workspace/name
+        pkg_name=${dep#$WORKSPACE_SCOPE/}
+        for wsdir in "${WORKSPACE_DIRS[@]}"; do
+          if [ -d "$wsdir/$pkg_name" ]; then
+            WORKSPACE_DEPS+="$wsdir/$pkg_name"$'\n'
+            break
+          fi
+        done
       done
     fi
+    
+    # Pattern 2: workspace:* protocol
+    WORKSPACE_PROTOCOL_DEPS=$(grep -o '"workspace:[^"]*"' "$PKG_JSON" || true)
+    # These are harder to resolve without parsing, just warn about them
+    
+    # Pattern 3: Check source code for imports if scope is known
+    if [ -n "$WORKSPACE_SCOPE" ]; then
+      SRC_IMPORTS=$(find "$module" -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" 2>/dev/null | \
+        xargs grep -h "from '$WORKSPACE_SCOPE/" 2>/dev/null | \
+        sed "s/.*from '$WORKSPACE_SCOPE\/\([^'\"]*\).*/\1/" | \
+        sort -u || true)
+      
+      for imp in $SRC_IMPORTS; do
+        for wsdir in "${WORKSPACE_DIRS[@]}"; do
+          if [ -d "$wsdir/$imp" ]; then
+            WORKSPACE_DEPS+="$wsdir/$imp"$'\n'
+            break
+          fi
+        done
+      done
+    fi
+    
+    WORKSPACE_DEPS=$(echo "$WORKSPACE_DEPS" | sort -u | grep -v "^$")
+    
+    # Cross-reference dependencies vs COPY commands
+    for dep in $WORKSPACE_DEPS; do
+      if ! echo "$COPIED_PACKAGES" | grep -q "^$dep$"; then
+        # Check if it's a runtime dependency (not devDependency)
+        dep_name=$(basename "$dep")
+        if grep -A 50 '"dependencies"' "$PKG_JSON" | grep -q "\"$dep_name\""; then
+          echo "⚠️  $dockerfile: imports $dep (runtime dependency) but does not COPY it"
+          echo "   Add: COPY $dep/ /path/to/destination/"
+        else
+          echo "ℹ️  $dockerfile: references $dep (devDependency, may not need COPY)"
+        fi
+      fi
+    done
   done
 fi
 ```
@@ -728,35 +810,109 @@ validate_workspace_copies() {
   echo ""
   echo "=== Validating Workspace Dependencies ==="
   
-  # Only for monorepos
-  [ ! -d "packages" ] && { echo "Not a monorepo, skipping"; return 0; }
+  # Detect workspace configuration
+  local workspace_scope=""
+  local workspace_dirs=()
+  
+  if [ -f "package.json" ]; then
+    # Detect workspace scope from package name
+    workspace_scope=$(grep -o '"name"[[:space:]]*:[[:space:]]*"@[^/]*' package.json | sed 's/.*"@/@/' || true)
+    
+    # Detect workspace directories from workspaces field
+    if grep -q '"workspaces"' package.json; then
+      local patterns=$(grep -A 10 '"workspaces"' package.json | grep -o '"[^"]*\/\*"' | tr -d '"' | sed 's/\/\*//' || true)
+      for pattern in $patterns; do
+        [ -d "$pattern" ] && workspace_dirs+=("$pattern")
+      done
+    fi
+    
+    # Fallback: check common workspace directories
+    if [ ${#workspace_dirs[@]} -eq 0 ]; then
+      for dir in packages apps libs modules components; do
+        [ -d "$dir" ] && workspace_dirs+=("$dir")
+      done
+    fi
+  fi
+  
+  if [ ${#workspace_dirs[@]} -eq 0 ]; then
+    echo "Not a workspace monorepo, skipping"
+    return 0
+  fi
+  
+  echo "Workspace scope: ${workspace_scope:-<none>}"
+  echo "Workspace directories: ${workspace_dirs[*]}"
   
   local issues=0
   
-  while IFS= read -r dockerfile; do
-    [ -z "$dockerfile" ] && continue
-    module=$(dirname "$dockerfile")
-    echo "Checking $dockerfile..."
-    
-    # Extract COPY'd packages
-    copied=$(grep "^COPY.*packages/" "$dockerfile" | sed 's/.*COPY.*\(packages\/[^\/]*\).*/\1/' | sort -u || true)
-    
-    # Check package.json
-    pkg_json="$module/package.json"
-    if [ -f "$pkg_json" ]; then
-      # Find workspace dependencies
-      deps=$(grep -o '"@odh-dashboard/[^"]*"' "$pkg_json" | tr -d '"' | sed 's/@odh-dashboard\//packages\//' | sort -u || true)
+  # Find all Dockerfile.workspace files
+  for wsdir in "${workspace_dirs[@]}"; do
+    while IFS= read -r dockerfile; do
+      [ -z "$dockerfile" ] && continue
+      
+      local module=$(dirname "$dockerfile")
+      echo "Checking $dockerfile..."
+      
+      # Extract COPY'd workspace packages
+      local copied=""
+      for ws in "${workspace_dirs[@]}"; do
+        local pkg=$(grep "^COPY.*$ws/" "$dockerfile" | sed "s/.*COPY.*\($ws\/[^\/]*\).*/\1/" | sort -u || true)
+        copied+="$pkg"$'\n'
+      done
+      copied=$(echo "$copied" | sort -u | grep -v "^$")
+      
+      # Check package.json
+      local pkg_json="$module/package.json"
+      [ ! -f "$pkg_json" ] && continue
+      
+      # Extract workspace dependencies
+      local deps=""
+      
+      # Pattern 1: Scoped packages
+      if [ -n "$workspace_scope" ]; then
+        local scoped=$(grep -o "\"$workspace_scope/[^\"]*\"" "$pkg_json" | tr -d '"' || true)
+        for dep in $scoped; do
+          local pkg_name=${dep#$workspace_scope/}
+          for ws in "${workspace_dirs[@]}"; do
+            if [ -d "$ws/$pkg_name" ]; then
+              deps+="$ws/$pkg_name"$'\n'
+              break
+            fi
+          done
+        done
+      fi
+      
+      # Pattern 2: Check source for imports
+      if [ -n "$workspace_scope" ]; then
+        local imports=$(find "$module" -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" 2>/dev/null | \
+          xargs grep -h "from '$workspace_scope/" 2>/dev/null | \
+          sed "s/.*from '$workspace_scope\/\([^'\"]*\).*/\1/" | sort -u || true)
+        
+        for imp in $imports; do
+          for ws in "${workspace_dirs[@]}"; do
+            if [ -d "$ws/$imp" ]; then
+              deps+="$ws/$imp"$'\n'
+              break
+            fi
+          done
+        done
+      fi
+      
+      deps=$(echo "$deps" | sort -u | grep -v "^$")
       
       # Cross-reference
       for dep in $deps; do
         if ! echo "$copied" | grep -q "^$dep$"; then
-          echo "⚠️  $dockerfile imports $dep but does not COPY it"
-          echo "   Add: COPY $dep/ /path/to/destination/"
-          issues=$((issues + 1))
+          # Check if it's a runtime dependency
+          local dep_name=$(basename "$dep")
+          if grep -A 50 '"dependencies"' "$pkg_json" | grep -q "\"$dep_name\""; then
+            echo "⚠️  $dockerfile imports $dep (runtime) but does not COPY it"
+            echo "   Add: COPY $dep/ /path/to/destination/"
+            issues=$((issues + 1))
+          fi
         fi
       done
-    fi
-  done < <(find packages -name "Dockerfile.workspace" -o -name "Dockerfile" | grep -v node_modules || true)
+    done < <(find "$wsdir" -name "Dockerfile.workspace" -o -name "Dockerfile" | grep -v node_modules || true)
+  done
   
   if [ $issues -gt 0 ]; then
     echo "❌ Workspace validation found $issues issue(s)"
