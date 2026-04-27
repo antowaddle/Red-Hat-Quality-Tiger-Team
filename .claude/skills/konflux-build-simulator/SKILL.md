@@ -62,6 +62,14 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 - ✅ Tests non-root user runtime (catches permission issues)
 - ✅ Waits for health check
 - ✅ Validates endpoints
+- ✅ **Tests critical API endpoints** - Catches fastify v5 regressions
+  - Tests PATCH with `application/merge-patch+json` (415 error in Fastify 5)
+  - Tests PATCH with `application/json-patch+json` (breaks 28+ operations)
+  - Prevents PR #6727 style regressions
+- ✅ **Tests WebSocket compatibility** - Catches connection crashes
+  - Validates WebSocket endpoints don't crash the pod
+  - Catches @fastify/websocket v11 regression (SocketStream removal)
+  - Prevents non-admin user crashes (exit 1/OOMKill 137)
 - ✅ Monitors container stability
 
 #### Phase 3: Module Federation Validation (if applicable)
@@ -152,9 +160,11 @@ The skill automatically detects repository type and generates appropriate valida
 - ✅ **Workspace dependency issues** - Prevents missing package errors
 - ✅ **FIPS compliance violations** - Warns about release blockers
 - ✅ **Dependency regressions** - Detects crashloops from breaking changes (e.g., fastify v4→v5)
+- ✅ **WebSocket crashes** - Catches @fastify/websocket v11 pod crashes (PR #6727, #7387)
+- ✅ **API content-type rejections** - Detects 415 errors on PATCH operations (PR #6727, #7387)
 - ✅ **Permission issues** - Tests non-root user runtime
 - ✅ Docker build failures (any stage)
-- ✅ Module Federation issues (including missing chunks)
+- ✅ Module Federation issues (including missing chunks, slow loads)
 - ✅ Operator packaging problems
 - ✅ Manifest generation errors
 - ✅ Runtime crashes (immediate and delayed)

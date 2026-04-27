@@ -724,6 +724,101 @@ jobs:
 
           echo "✅ Health check passed"
       
+      - name: Test Critical API Endpoints
+        run: |
+          # Test endpoints that broke in fastify v4→v5 upgrade (PR #7387)
+          echo "Testing critical API endpoint compatibility..."
+          
+          # Test 1: PATCH with application/merge-patch+json (broke in Fastify 5)
+          # Fastify 5 rejects this content-type with 415 FST_ERR_CTP_INVALID_MEDIA_TYPE
+          echo "Testing PATCH with merge-patch+json content-type..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X PATCH \
+            -H "Content-Type: application/merge-patch+json" \
+            -d '{"test": true}' \
+            http://localhost:8080/api/config 2>/dev/null || echo "000")
+          
+          # We expect 401/403 (auth required) or 404 (endpoint doesn't exist)
+          # We do NOT expect 415 (unsupported media type)
+          if [ "$HTTP_CODE" = "415" ]; then
+            echo "❌ PATCH with merge-patch+json returned 415 Unsupported Media Type"
+            echo "   This indicates Fastify 5 content-type regression (PR #6727)"
+            echo "   Breaks 28+ operations: notebooks, model serving, pipelines, RBAC"
+            exit 1
+          else
+            echo "✅ PATCH with merge-patch+json: $HTTP_CODE (not 415)"
+          fi
+          
+          # Test 2: PATCH with application/json-patch+json
+          echo "Testing PATCH with json-patch+json content-type..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X PATCH \
+            -H "Content-Type: application/json-patch+json" \
+            -d '[{"op": "add", "path": "/test", "value": true}]' \
+            http://localhost:8080/api/config 2>/dev/null || echo "000")
+          
+          if [ "$HTTP_CODE" = "415" ]; then
+            echo "❌ PATCH with json-patch+json returned 415 Unsupported Media Type"
+            echo "   This indicates Fastify 5 content-type regression (PR #6727)"
+            exit 1
+          else
+            echo "✅ PATCH with json-patch+json: $HTTP_CODE (not 415)"
+          fi
+          
+          echo ""
+          echo "✅ Critical API endpoint validation passed"
+      
+      - name: Test WebSocket Compatibility
+        run: |
+          # Test WebSocket connections (broke in @fastify/websocket v8→v11, PR #6727)
+          # v11 removed SocketStream, causing connection.socket to return undefined
+          # Non-admin users trigger 403 on WS upgrade → unhandled error → pod crash
+          echo "Testing WebSocket endpoint compatibility..."
+          
+          # Install websocat if not available (for WS testing)
+          if ! command -v websocat &> /dev/null; then
+            echo "Installing websocat for WebSocket testing..."
+            # Use wscat via npx as fallback
+            if ! command -v npx &> /dev/null; then
+              echo "⚠️  Cannot test WebSocket (no websocat or npx available)"
+              echo "   Skipping WebSocket validation"
+              exit 0
+            fi
+            WS_CLIENT="npx -y wscat"
+          else
+            WS_CLIENT="websocat"
+          fi
+          
+          # Check if container is still running before WS test
+          if ! docker ps | grep -q test-container; then
+            echo "❌ Container not running before WebSocket test"
+            echo "   Container may have crashed from earlier tests"
+            docker logs test-container
+            exit 1
+          fi
+          
+          # Attempt WebSocket connection
+          # We expect connection attempt (may fail auth, but shouldn't crash pod)
+          echo "Attempting WebSocket connection..."
+          timeout 5 $WS_CLIENT ws://localhost:8080/api/terminal 2>&1 | head -10 || true
+          
+          # Wait a moment for any crash to occur
+          sleep 3
+          
+          # Check if container is still running after WS attempt
+          if ! docker ps | grep -q test-container; then
+            echo "❌ Container CRASHED after WebSocket connection attempt"
+            echo "   This indicates @fastify/websocket v11 regression (PR #6727)"
+            echo "   Issue: SocketStream removed, connection.socket returns undefined"
+            echo "   Impact: Non-admin users cause pod crash (exit 1 or OOMKill 137)"
+            echo ""
+            echo "Container logs:"
+            docker logs test-container | tail -50
+            exit 1
+          fi
+          
+          echo "✅ WebSocket test passed (container did not crash)"
+      
       - name: Test Non-Root User Runtime
         run: |
           # Test running as non-root user (catches permission issues like fastify v4→v5 regression)
