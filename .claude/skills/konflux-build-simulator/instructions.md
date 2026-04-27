@@ -729,21 +729,70 @@ jobs:
           # This validates the BUILD created the assets, not runtime proxy endpoints
 
           docker run --rm ${{ env.IMAGE_NAME }} sh -c '
+            ISSUES=0
+            
             for module in {DETECTED_MODULES}; do
               # Check if module has MF config first
               if [ -f "/opt/app-root/src/packages/${module}/package.json" ]; then
                 if grep -q "module-federation" "/opt/app-root/src/packages/${module}/package.json"; then
-                  # Validate remoteEntry.js was generated in dist or build output
-                  if [ ! -f "/opt/app-root/src/packages/${module}/frontend/dist/remoteEntry.js" ] &&
-                     [ ! -f "/opt/app-root/src/packages/${module}/dist/remoteEntry.js" ]; then
-                    echo "ERROR: remoteEntry.js not found for ${module}"
-                    exit 1
+                  echo "Validating $module Module Federation output..."
+                  
+                  # Find dist directory
+                  DIST_DIR=""
+                  if [ -d "/opt/app-root/src/packages/${module}/frontend/dist" ]; then
+                    DIST_DIR="/opt/app-root/src/packages/${module}/frontend/dist"
+                  elif [ -d "/opt/app-root/src/packages/${module}/dist" ]; then
+                    DIST_DIR="/opt/app-root/src/packages/${module}/dist"
+                  fi
+                  
+                  if [ -z "$DIST_DIR" ]; then
+                    echo "❌ $module: No dist directory found"
+                    ISSUES=$((ISSUES + 1))
+                    continue
+                  fi
+                  
+                  # Validate remoteEntry.js exists
+                  if [ ! -f "$DIST_DIR/remoteEntry.js" ]; then
+                    echo "❌ $module: remoteEntry.js not found"
+                    ISSUES=$((ISSUES + 1))
+                    continue
+                  fi
+                  
+                  echo "✅ $module: remoteEntry.js exists"
+                  
+                  # Enhanced: Check for webpack chunks
+                  # This catches ChunkLoadError issues (missing bundle files)
+                  CHUNK_COUNT=$(find "$DIST_DIR" -name "*.bundle.js" -o -name "*.chunk.js" | wc -l)
+                  
+                  if [ $CHUNK_COUNT -eq 0 ]; then
+                    echo "⚠️  $module: No webpack chunks found (may cause ChunkLoadError at runtime)"
+                    echo "   Expected: *.bundle.js or *.chunk.js files"
+                    ISSUES=$((ISSUES + 1))
                   else
-                    echo "✅ $module: remoteEntry.js generated successfully"
+                    echo "✅ $module: Found $CHUNK_COUNT webpack chunks"
+                    
+                    # List sample chunks for verification
+                    echo "   Sample chunks:"
+                    find "$DIST_DIR" -name "*.bundle.js" -o -name "*.chunk.js" | head -3 | while read chunk; do
+                      echo "     - $(basename $chunk)"
+                    done
+                  fi
+                  
+                  # Check for common assets
+                  if [ ! -f "$DIST_DIR/remoteEntry.js.LICENSE.txt" ] && [ -f "$DIST_DIR/remoteEntry.js" ]; then
+                    echo "ℹ️  $module: No license file (may be expected)"
                   fi
                 fi
               fi
             done
+            
+            if [ $ISSUES -gt 0 ]; then
+              echo ""
+              echo "❌ Module Federation validation failed with $ISSUES issue(s)"
+              exit 1
+            fi
+            
+            echo ""
             echo "✅ All Module Federation remotes built successfully"
           ' || {
             echo "❌ Module Federation build validation failed"

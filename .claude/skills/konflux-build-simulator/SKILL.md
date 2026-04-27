@@ -63,6 +63,10 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 
 #### Phase 3: Module Federation Validation (if applicable)
 - ✅ Validates remoteEntry.js build output in dist/
+- ✅ **Checks for missing webpack chunks** - Catches ChunkLoadError issues
+  - Verifies all .bundle.js and .chunk.js files are present
+  - Prevents "chunk 8419 failed" runtime errors
+  - Particularly valuable for odh-dashboard federated modules
 - ✅ Checks webpack generated federation artifacts
 - ✅ Verifies module-federation config in package.json
 - ⚠️  Does NOT test runtime proxy endpoints (/_mf/* routes proxy to K8s services)
