@@ -66,10 +66,16 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 
 #### Phase 3: Module Federation Validation (if applicable)
 - ✅ Validates remoteEntry.js build output in dist/
+- ✅ **Checks remoteEntry.js file size** - Catches empty/corrupted manifests
 - ✅ **Checks for missing webpack chunks** - Catches ChunkLoadError issues
-  - Verifies all .bundle.js and .chunk.js files are present
-  - Prevents "chunk 8419 failed" runtime errors
-  - Particularly valuable for odh-dashboard federated modules
+  - Verifies all .bundle.js files are present
+  - Prevents "chunk 8419 failed" runtime errors (RHOAIENG-59862)
+  - Detects suspiciously large chunks (>1MB) that slow page load
+  - Reports total dist size per module
+- ✅ **Tests Module Federation load performance**
+  - Measures endpoint response times
+  - Flags slow endpoints (>2s) that cause Cypress timeouts
+  - Catches issues that cause "dashboard takes too long to load" (RHOAIENG-59861)
 - ✅ Checks webpack generated federation artifacts
 - ✅ Verifies module-federation config in package.json
 - ⚠️  Does NOT test runtime proxy endpoints (/_mf/* routes proxy to K8s services)

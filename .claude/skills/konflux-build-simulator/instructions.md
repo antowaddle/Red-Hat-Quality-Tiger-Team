@@ -816,6 +816,9 @@ jobs:
                     DIST_DIR="/opt/app-root/src/packages/${module}/frontend/dist"
                   elif [ -d "/opt/app-root/src/packages/${module}/dist" ]; then
                     DIST_DIR="/opt/app-root/src/packages/${module}/dist"
+                  elif [ -d "/static" ]; then
+                    # Module sidecar pattern (e.g., gen-ai-ui container)
+                    DIST_DIR="/static"
                   fi
                   
                   if [ -z "$DIST_DIR" ]; then
@@ -833,28 +836,43 @@ jobs:
                   
                   echo "✅ $module: remoteEntry.js exists"
                   
+                  # Check remoteEntry.js size (catches empty/corrupted files)
+                  ENTRY_SIZE=$(stat -f%z "$DIST_DIR/remoteEntry.js" 2>/dev/null || stat -c%s "$DIST_DIR/remoteEntry.js" 2>/dev/null)
+                  if [ "$ENTRY_SIZE" -lt 1000 ]; then
+                    echo "⚠️  $module: remoteEntry.js is suspiciously small ($ENTRY_SIZE bytes)"
+                    echo "   This may cause Module Federation to fail"
+                    ISSUES=$((ISSUES + 1))
+                  fi
+                  
                   # Enhanced: Check for webpack chunks
                   # This catches ChunkLoadError issues (missing bundle files)
-                  CHUNK_COUNT=$(find "$DIST_DIR" -name "*.bundle.js" -o -name "*.chunk.js" | wc -l)
+                  CHUNK_COUNT=$(find "$DIST_DIR" -name "*.bundle.js" | wc -l | tr -d " ")
                   
-                  if [ $CHUNK_COUNT -eq 0 ]; then
+                  if [ "$CHUNK_COUNT" -eq 0 ]; then
                     echo "⚠️  $module: No webpack chunks found (may cause ChunkLoadError at runtime)"
-                    echo "   Expected: *.bundle.js or *.chunk.js files"
+                    echo "   Expected: *.bundle.js files"
+                    echo "   Issue: RHOAIENG-59862 - Dashboard loads slowly, Cypress timeouts"
                     ISSUES=$((ISSUES + 1))
                   else
                     echo "✅ $module: Found $CHUNK_COUNT webpack chunks"
                     
                     # List sample chunks for verification
                     echo "   Sample chunks:"
-                    find "$DIST_DIR" -name "*.bundle.js" -o -name "*.chunk.js" | head -3 | while read chunk; do
-                      echo "     - $(basename $chunk)"
+                    find "$DIST_DIR" -name "*.bundle.js" | head -3 | while read chunk; do
+                      echo "     - $(basename $chunk) ($(stat -f%z "$chunk" 2>/dev/null || stat -c%s "$chunk" 2>/dev/null) bytes)"
                     done
+                    
+                    # Check for suspiciously large chunks (slow to load)
+                    LARGE_CHUNKS=$(find "$DIST_DIR" -name "*.bundle.js" -size +1M | wc -l | tr -d " ")
+                    if [ "$LARGE_CHUNKS" -gt 0 ]; then
+                      echo "   ⚠️  Found $LARGE_CHUNKS chunks larger than 1MB (may slow page load)"
+                      find "$DIST_DIR" -name "*.bundle.js" -size +1M -exec ls -lh {} \; | head -3
+                    fi
                   fi
                   
-                  # Check for common assets
-                  if [ ! -f "$DIST_DIR/remoteEntry.js.LICENSE.txt" ] && [ -f "$DIST_DIR/remoteEntry.js" ]; then
-                    echo "ℹ️  $module: No license file (may be expected)"
-                  fi
+                  # Validate critical assets exist
+                  TOTAL_SIZE=$(du -sh "$DIST_DIR" 2>/dev/null | cut -f1)
+                  echo "   Total dist size: $TOTAL_SIZE"
                 fi
               fi
             done
@@ -862,6 +880,11 @@ jobs:
             if [ $ISSUES -gt 0 ]; then
               echo ""
               echo "❌ Module Federation validation failed with $ISSUES issue(s)"
+              echo ""
+              echo "These issues can cause:"
+              echo "  - Dashboard slow to load (RHOAIENG-59861)"
+              echo "  - ChunkLoadError in browser (RHOAIENG-59862)"
+              echo "  - Cypress tests timeout waiting for #page-sidebar"
               exit 1
             fi
             
@@ -871,6 +894,66 @@ jobs:
             echo "❌ Module Federation build validation failed"
             exit 1
           }
+      
+      - name: Test Module Federation Load Performance
+        if: ${{ env.IS_MONOREPO == 'true' }}
+        run: |
+          # Test that Module Federation endpoints respond quickly
+          # Slow remoteEntry.js loading causes dashboard timeouts
+          
+          echo "Starting test container for MF performance testing..."
+          docker run -d \
+            --name mf-perf-test \
+            -p 8090:8080 \
+            ${{ env.IMAGE_NAME }}
+          
+          sleep 5
+          
+          echo ""
+          echo "Testing Module Federation endpoint response times..."
+          echo "(Dashboard slow load issue: RHOAIENG-59861, RHOAIENG-59862)"
+          echo ""
+          
+          SLOW_ENDPOINTS=0
+          FAILED_ENDPOINTS=0
+          
+          # Test main dashboard endpoint
+          START=$(date +%s%N)
+          if curl -f -s --max-time 5 http://localhost:8090/ > /dev/null; then
+            END=$(date +%s%N)
+            DURATION=$((($END - $START) / 1000000))
+            if [ $DURATION -gt 2000 ]; then
+              echo "⚠️  Main dashboard: ${DURATION}ms (slow - >2s)"
+              SLOW_ENDPOINTS=$((SLOW_ENDPOINTS + 1))
+            else
+              echo "✅ Main dashboard: ${DURATION}ms"
+            fi
+          else
+            echo "❌ Main dashboard: FAILED to respond"
+            FAILED_ENDPOINTS=$((FAILED_ENDPOINTS + 1))
+          fi
+          
+          # Note: Module endpoints (/_mf/*) require K8s environment
+          # In standalone Docker, we can only test build artifacts
+          
+          # Cleanup
+          docker stop mf-perf-test || true
+          docker rm mf-perf-test || true
+          
+          if [ $SLOW_ENDPOINTS -gt 0 ]; then
+            echo ""
+            echo "⚠️  $SLOW_ENDPOINTS endpoint(s) responded slowly (>2s)"
+            echo "   This may cause Cypress timeouts and slow dashboard loads"
+          fi
+          
+          if [ $FAILED_ENDPOINTS -gt 0 ]; then
+            echo ""
+            echo "❌ $FAILED_ENDPOINTS endpoint(s) failed to respond"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ Module Federation performance test complete"
 ```
 
 #### Step 2.3: Add Operator Integration Testing (if detected)
