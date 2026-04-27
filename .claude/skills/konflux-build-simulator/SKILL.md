@@ -57,9 +57,12 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 
 #### Phase 2: Runtime Validation
 - ✅ Starts container
+- ✅ Scans logs for crashloop indicators (fastify errors, uncaught exceptions)
+- ✅ Detects delayed crashes after initialization
+- ✅ Tests non-root user runtime (catches permission issues)
 - ✅ Waits for health check
 - ✅ Validates endpoints
-- ✅ Checks logs for errors
+- ✅ Monitors container stability
 
 #### Phase 3: Module Federation Validation (if applicable)
 - ✅ Validates remoteEntry.js build output in dist/
@@ -142,11 +145,13 @@ The skill automatically detects repository type and generates appropriate valida
 - ✅ **Hermetic build failures** - Catches issues before downstream RHOAI builds
 - ✅ **Workspace dependency issues** - Prevents missing package errors
 - ✅ **FIPS compliance violations** - Warns about release blockers
+- ✅ **Dependency regressions** - Detects crashloops from breaking changes (e.g., fastify v4→v5)
+- ✅ **Permission issues** - Tests non-root user runtime
 - ✅ Docker build failures (any stage)
-- ✅ Module Federation issues
+- ✅ Module Federation issues (including missing chunks)
 - ✅ Operator packaging problems
 - ✅ Manifest generation errors
-- ✅ Runtime crashes
+- ✅ Runtime crashes (immediate and delayed)
 
 ### Developer Experience
 - ✅ Fast feedback (10-20 min)

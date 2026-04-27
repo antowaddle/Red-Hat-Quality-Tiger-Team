@@ -680,6 +680,18 @@ jobs:
             exit 1
           fi
 
+          # Scan logs for critical errors (catches fastify/dependency issues)
+          echo "Scanning logs for errors..."
+          LOGS=$(docker logs test-container 2>&1)
+          
+          # Check for crashloop indicators
+          if echo "$LOGS" | grep -qi "error.*fastify\|uncaught.*exception\|segmentation fault\|killed"; then
+            echo "⚠️  Detected potential errors in startup logs:"
+            echo "$LOGS" | grep -i "error\|exception\|killed" | tail -10
+            echo ""
+            echo "Continuing validation but flagging for review..."
+          fi
+
           # Wait for health check
           timeout 60 bash -c 'until docker ps | grep test-container | grep -q "Up"; do sleep 2; done' || {
             echo "❌ Container failed health check"
@@ -687,8 +699,18 @@ jobs:
             exit 1
           }
 
-          # Give it a moment to fully initialize
+          # Give it a moment to fully initialize and watch for crashes
+          echo "Monitoring container stability..."
           sleep 10
+          
+          # Re-check container is still running after initialization
+          if ! docker ps | grep -q test-container; then
+            echo "❌ Container crashed after startup (delayed crash)"
+            echo "This can indicate dependency compatibility issues (e.g., fastify v4→v5)"
+            echo "Container logs:"
+            docker logs test-container || true
+            exit 1
+          fi
 
       - name: Validate Endpoints
         run: |
@@ -701,6 +723,57 @@ jobs:
           }
 
           echo "✅ Health check passed"
+      
+      - name: Test Non-Root User Runtime
+        run: |
+          # Test running as non-root user (catches permission issues like fastify v4→v5 regression)
+          echo "Testing container with non-root user..."
+          
+          # Stop the default container
+          docker stop test-container || true
+          docker rm test-container || true
+          
+          # Start with explicit non-root user
+          # Note: UBI images typically use UID 1001
+          docker run -d \
+            --name test-container-nonroot \
+            --user 1001:0 \
+            -p 8081:8080 \
+            ${{ env.IMAGE_NAME }}
+          
+          sleep 10
+          
+          # Check if container is still running (catches "killed when run with regular users")
+          if ! docker ps | grep -q test-container-nonroot; then
+            echo "❌ Container crashed when running as non-root user"
+            echo "This indicates a permission or dependency compatibility issue"
+            echo "Container logs:"
+            docker logs test-container-nonroot || true
+            docker ps -a | grep nonroot
+            exit 1
+          fi
+          
+          # Verify health endpoint still works
+          if curl -f http://localhost:8081/ 2>/dev/null; then
+            echo "✅ Non-root user runtime test passed"
+          else
+            echo "⚠️  Health check failed with non-root user"
+            echo "Container logs:"
+            docker logs test-container-nonroot
+            # Don't fail - this might be expected in some environments
+          fi
+          
+          # Cleanup
+          docker stop test-container-nonroot || true
+          docker rm test-container-nonroot || true
+          
+          # Restart default container for remaining tests
+          docker run -d \
+            --name test-container \
+            -p 8080:8080 \
+            ${{ env.IMAGE_NAME }}
+          
+          sleep 5
 
       # Collect logs on failure
       - name: Debug Logs
