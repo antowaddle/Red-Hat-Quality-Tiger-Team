@@ -448,6 +448,24 @@ jobs:
           # Workspace COPY cross-reference for monorepos
           ISSUES=0
           
+          # Detect workspace scope dynamically
+          WORKSPACE_SCOPE=""
+          if [ -f "package.json" ]; then
+            WORKSPACE_SCOPE=$(grep -o '"name"[[:space:]]*:[[:space:]]*"@[^/]*' package.json | sed 's/.*"@/@/' || true)
+          fi
+          
+          # If no scope at root, detect from first workspace package
+          if [ -z "$WORKSPACE_SCOPE" ]; then
+            for pkg in packages/*/package.json; do
+              if [ -f "$pkg" ]; then
+                WORKSPACE_SCOPE=$(grep -o '"name"[[:space:]]*:[[:space:]]*"@[^/]*' "$pkg" | sed 's/.*"@/@/' | head -1 || true)
+                [ -n "$WORKSPACE_SCOPE" ] && break
+              fi
+            done
+          fi
+          
+          echo "Detected workspace scope: ${WORKSPACE_SCOPE:-<none>}"
+          
           for dockerfile in $(find packages -name "Dockerfile.workspace" -o -name "Dockerfile" | grep -v node_modules); do
             MODULE=$(dirname "$dockerfile")
             echo "Checking $dockerfile..."
@@ -457,17 +475,22 @@ jobs:
             
             # Check package.json for workspace deps
             PKG_JSON="$MODULE/package.json"
-            if [ -f "$PKG_JSON" ]; then
-              # Find @odh-dashboard/* dependencies
-              DEPS=$(grep -o '"@odh-dashboard/[^"]*"' "$PKG_JSON" | tr -d '"' | sed 's/@odh-dashboard\//packages\//' | sort -u || true)
+            if [ -f "$PKG_JSON" ] && [ -n "$WORKSPACE_SCOPE" ]; then
+              # Find workspace dependencies using detected scope
+              DEPS=$(grep -o "\"$WORKSPACE_SCOPE/[^\"]*\"" "$PKG_JSON" | tr -d '"' | sed "s|$WORKSPACE_SCOPE/|packages/|" | sort -u || true)
               
-              # Cross-reference
+              # Cross-reference - check only runtime dependencies
               for dep in $DEPS; do
-                if ! echo "$COPIED" | grep -q "^$dep$"; then
-                  echo "⚠️  $dockerfile imports $dep but does not COPY it"
-                  echo "   This will cause Docker build to fail"
-                  echo "   Add: COPY $dep/ /path/to/destination/"
-                  ISSUES=$((ISSUES + 1))
+                pkg_name=$(basename "$dep")
+                
+                # Check if it's a runtime dependency (not devDependency)
+                if grep -A 50 '"dependencies"' "$PKG_JSON" | grep -q "\"$WORKSPACE_SCOPE/$pkg_name\""; then
+                  if ! echo "$COPIED" | grep -q "^$dep$"; then
+                    echo "⚠️  $dockerfile imports $dep (runtime dependency) but does not COPY it"
+                    echo "   This will cause Docker build to fail"
+                    echo "   Add: COPY --chown=default:root $dep/ ./$dep/"
+                    ISSUES=$((ISSUES + 1))
+                  fi
                 fi
               done
               
