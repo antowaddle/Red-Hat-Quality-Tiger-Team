@@ -1,0 +1,107 @@
+{
+  "evaluations": [
+    {
+      "name": "odh-dashboard-critical-bugs",
+      "description": "Analyze recent critical bugs in ODH Dashboard and assess test coverage",
+      "input": {
+        "jql": "project = RHOAIENG AND component = 'AI Core Dashboard' AND priority = Critical AND created >= -90d",
+        "repo": "/path/to/odh-dashboard",
+        "expected_test_count": ">300",
+        "expected_frameworks": ["jest", "cypress"]
+      },
+      "expected_output": {
+        "min_bugs": 5,
+        "max_bugs": 100,
+        "min_covered_percent": 5,
+        "max_covered_percent": 20,
+        "min_gap_percent": 60,
+        "report_format": "html",
+        "required_sections": [
+          "Summary Dashboard",
+          "Bug Analysis Table",
+          "E2E Breakdown",
+          "Recommendations"
+        ]
+      },
+      "success_criteria": {
+        "html_report_generated": true,
+        "all_bugs_have_coverage_status": true,
+        "all_bugs_have_test_level": true,
+        "confidence_scores_present": true,
+        "no_xss_vulnerabilities": true,
+        "test_files_shown_for_covered": true
+      },
+      "baseline": {
+        "runtime_minutes": 15,
+        "false_positive_rate": 0.08,
+        "coverage_accuracy": 0.87
+      },
+      "models_to_test": ["haiku", "sonnet", "opus"]
+    },
+    {
+      "name": "model-registry-upgrade-bugs",
+      "description": "Analyze upgrade-related bugs in Model Registry to identify E2E test gaps",
+      "input": {
+        "jql": "project = RHOAIENG AND component = 'Model Registry' AND labels = upgrade-issue AND priority in (Blocker, Critical)",
+        "repo": "/path/to/model-registry",
+        "expected_test_count": ">150",
+        "expected_frameworks": ["pytest", "go-testing"]
+      },
+      "expected_output": {
+        "min_bugs": 3,
+        "max_bugs": 50,
+        "min_upgrade_category_count": 1,
+        "e2e_breakdown_present": true,
+        "upgrade_category_in_breakdown": true
+      },
+      "success_criteria": {
+        "upgrade_bugs_categorized": true,
+        "e2e_level_assigned_for_upgrade": true,
+        "recommendations_include_upgrade_gaps": true,
+        "no_crashes_on_empty_bugs": true
+      },
+      "baseline": {
+        "runtime_minutes": 10,
+        "upgrade_detection_rate": 0.95
+      },
+      "models_to_test": ["sonnet", "opus"]
+    },
+    {
+      "name": "kserve-platform-specific-bugs",
+      "description": "Analyze ARM/Power/s390x platform-specific bugs to validate categorization",
+      "input": {
+        "jql": "project = RHOAIENG AND component = KServe AND (labels in (arm, power, s390x) OR summary ~ 'ARM')",
+        "repo": "/path/to/kserve",
+        "external_tests": "/path/to/opendatahub-tests/kserve",
+        "expected_test_count": ">200",
+        "expected_frameworks": ["pytest", "go-testing", "ginkgo"]
+      },
+      "expected_output": {
+        "min_bugs": 2,
+        "max_bugs": 30,
+        "platform_specific_category_present": true,
+        "e2e_downstream_tests_detected": true
+      },
+      "success_criteria": {
+        "platform_bugs_categorized": true,
+        "external_tests_discovered": true,
+        "e2e_upstream_vs_downstream_distinguished": true,
+        "recommendations_mention_platform_testing": true
+      },
+      "baseline": {
+        "runtime_minutes": 12,
+        "platform_detection_rate": 0.92,
+        "external_test_discovery_rate": 1.0
+      },
+      "models_to_test": ["haiku", "sonnet"]
+    }
+  ],
+  "evaluation_instructions": {
+    "setup": "Replace /path/to/* with actual repository paths. Ensure JIRA credentials are configured in .env file.",
+    "run": "Execute skill with each evaluation's input parameters and compare output against expected_output and success_criteria.",
+    "metrics": "Track runtime, accuracy (manual validation of COVERED bugs), false positive rate, and category detection rates.",
+    "baseline_comparison": "Compare results against baseline metrics. Flag degradations >10%.",
+    "multi_model": "Run each evaluation on all specified models (haiku/sonnet/opus) to verify consistency.",
+    "pass_criteria": "All success_criteria must be true, output within expected ranges, and baselines within 10% variance."
+  }
+}

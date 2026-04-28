@@ -205,15 +205,21 @@ def strict_coverage_search(
                 filename_match_count = sum(1 for e in matched_entities if e.lower() in test_filename_lower)
 
                 # Calculate simple confidence score
+                # Scoring rationale:
+                # - 85%: High confidence - 4+ entities match AND 2+ in filename (strong signal)
+                # - 75%: Good confidence - 3+ entities AND negative test AND scenario (validates failure case)
+                # - 50%: Medium confidence - 2+ entities AND scenario (partial match)
+                # - 30%: Low confidence - any entity match (weak signal, needs review)
+                # Thresholds: 80%+ = COVERED, 60-80% = PARTIAL, <60% = GAP
                 score = 0
                 if len(matched_entities) >= 4 and filename_match_count >= 2:
-                    score = 85
+                    score = 85  # High confidence: multiple entities + filename matches
                 elif len(matched_entities) >= 3 and has_negative_test and has_scenario:
-                    score = 75
+                    score = 75  # Good confidence: entities + validates failure scenario
                 elif len(matched_entities) >= 2 and has_scenario:
-                    score = 50
+                    score = 50  # Medium confidence: some entities + scenario keywords
                 elif matched_entities:
-                    score = 30
+                    score = 30  # Low confidence: entity match only, needs manual review
 
                 if score > 0:
                     matches_with_confidence.append((
@@ -224,6 +230,8 @@ def strict_coverage_search(
                     ))
 
         except Exception as e:
+            # Log file read errors but continue processing other files
+            print(f"⚠️  Warning: Could not read test file {test_file.path}: {e}")
             continue
 
     # Determine coverage status based on confidence scores
@@ -1043,8 +1051,10 @@ def main():
                 repo_url = repo_url.replace(':', '/').replace('git@', 'https://')
             if repo_url.endswith('.git'):
                 repo_url = repo_url[:-4]
-    except:
-        pass
+    except subprocess.TimeoutExpired:
+        print(f"⚠️  Warning: Git remote URL detection timed out for {repo_path}")
+    except Exception as e:
+        print(f"⚠️  Warning: Could not detect git remote URL for {repo_path}: {e}")
 
     if not repo_url:
         repo_url = f"<repository-url>/{repo_name}"

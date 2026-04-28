@@ -95,7 +95,7 @@ def generate_bug_coverage_report(bugs: List[Dict], metadata: Dict[str, Any]) -> 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bug Coverage Report - {metadata['repoName']}</title>
+    <title>Bug Coverage Report - {_escape_html(metadata['repoName'])}</title>
     {_generate_css()}
 </head>
 <body>
@@ -473,11 +473,11 @@ def _generate_header(metadata: Dict) -> str:
     return f"""<header>
         <h1>🐛 Historical Bug Test Coverage Analysis</h1>
         <div class="metadata">
-            <p><strong>Component:</strong> {metadata['repoName']}</p>
-            <p><strong>Repository:</strong> <a href="{metadata['repoUrl']}" target="_blank">{metadata['repoUrl']}</a></p>
-            <p><strong>Generated:</strong> {formatted_time}</p>
-            <p><strong>JQL:</strong> <code>{metadata['jql']}</code></p>
-            <p><strong>Total Bugs Analyzed:</strong> {metadata['totalCount']}</p>
+            <p><strong>Component:</strong> {_escape_html(metadata['repoName'])}</p>
+            <p><strong>Repository:</strong> <a href="{_escape_html(metadata['repoUrl'])}" target="_blank">{_escape_html(metadata['repoUrl'])}</a></p>
+            <p><strong>Generated:</strong> {_escape_html(formatted_time)}</p>
+            <p><strong>JQL:</strong> <code>{_escape_html(metadata['jql'])}</code></p>
+            <p><strong>Total Bugs Analyzed:</strong> {_escape_html(str(metadata['totalCount']))}</p>
         </div>
     </header>"""
 
@@ -630,7 +630,7 @@ def _generate_recommendations(bugs: List[Dict], stats: Dict) -> str:
 
     critical_gap_items = ""
     for bug in critical_gaps[:10]:  # Top 10
-        critical_gap_items += f'<li><a href="{bug["jiraUrl"]}" target="_blank">{bug["key"]}</a>: {bug["summary"]} (Recommend: {bug["testLevel"]} test)</li>\n'
+        critical_gap_items += f'<li><a href="{_escape_html(bug["jiraUrl"])}" target="_blank">{_escape_html(bug["key"])}</a>: {_escape_html(bug["summary"])} (Recommend: {_escape_html(bug["testLevel"])} test)</li>\n'
 
     if not critical_gap_items:
         critical_gap_items = "<li>✅ No critical gaps found! All blocker/critical bugs have test coverage.</li>"
@@ -642,7 +642,7 @@ def _generate_recommendations(bugs: List[Dict], stats: Dict) -> str:
         if category != "functional":
             gap_count = len([b for b in bugs if category in b.get("categories", []) and b.get("coverage") == "GAP"])
             if gap_count > 0:
-                category_items += f"<li><strong>{category.title()}:</strong> {gap_count} of {count} bugs lack coverage</li>\n"
+                category_items += f"<li><strong>{_escape_html(category.title())}:</strong> {gap_count} of {count} bugs lack coverage</li>\n"
 
     if not category_items:
         category_items = "<li>✅ Good coverage across all non-functional categories</li>"
@@ -662,7 +662,7 @@ def _generate_recommendations(bugs: List[Dict], stats: Dict) -> str:
 
         <h3>Test Creation Guidance</h3>
         <p>✅ Use existing test rules: <code>.claude/rules/</code></p>
-        <p>⚙️ Or generate new rules: <code>/test-rules-generator {bugs[0].get('jiraUrl', '').split('/browse/')[0].replace('/rest/api/3', '')}</code></p>
+        <p>⚙️ Or generate new rules: <code>/test-rules-generator {_escape_html(bugs[0].get('jiraUrl', '').split('/browse/')[0].replace('/rest/api/3', '')) if bugs else 'JIRA_SERVER'}</code></p>
         <p>📚 Follow the test pyramid: Unit &gt; Mock &gt; E2E</p>
     </section>"""
 

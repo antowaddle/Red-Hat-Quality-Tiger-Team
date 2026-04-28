@@ -36,7 +36,7 @@ def test_jira_connection():
 
     print(f"✅ Jira server: {server}")
     print(f"✅ Jira user: {user}")
-    print(f"✅ Token configured: {token[:20]}...")
+    print(f"✅ Token configured: {len(token)} characters")
 
     # Test JQL search - fetch recent ODH Dashboard critical bugs
     jql = 'project = RHOAIENG AND component = "AI Core Dashboard" AND priority = Critical AND created >= -90d'
@@ -154,8 +154,8 @@ def test_report_generation():
         assert 'odh-dashboard' in html, "Missing repo name"
         assert 'RHOAIENG-12345' in html, "Missing bug key"
 
-        # Write to file
-        output_file = "/Users/acoughli/qualityTigerTeam/test-bug-coverage-report.html"
+        # Write to file in current directory
+        output_file = os.path.join(os.getcwd(), "test-bug-coverage-report.html")
         with open(output_file, 'w') as f:
             f.write(html)
 
