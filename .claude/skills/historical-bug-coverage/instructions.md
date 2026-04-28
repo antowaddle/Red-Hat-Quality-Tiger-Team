@@ -1,5 +1,26 @@
 # Historical Bug Test Coverage Analysis - Agent Instructions
 
+## Table of Contents
+
+- [Objective](#objective)
+- [Inputs](#inputs)
+- [Key Principles](#key-principles)
+- [Execution Workflow](#execution-workflow)
+  - [Step 1: Repository Test Discovery](#step-1-repository-test-discovery)
+  - [Step 2: Environment Validation](#step-2-environment-validation)
+  - [Step 3: Fetch Bugs from Jira](#step-3-fetch-bugs-from-jira)
+  - [Step 4: Strict Coverage Analysis](#step-4-strict-coverage-analysis-with-deep-test-analysis)
+  - [Step 5: Test Level Classification](#step-5-test-level-classification)
+  - [Step 6: Generate HTML Report](#step-6-generate-html-report)
+- [Deep Test Analysis](#deep-test-analysis)
+- [Security](#security)
+- [Output](#output)
+- [Error Handling](#error-handling)
+- [Example Output](#example-output)
+- [Quality Checks](#quality-checks)
+- [Performance](#performance)
+- [Success Criteria](#success-criteria)
+
 ## Objective
 
 Analyze historical blocking and critical bugs from Jira, assess test coverage with deep test analysis, and generate a comprehensive HTML report with confidence scores.
@@ -22,6 +43,14 @@ Analyze historical blocking and critical bugs from Jira, assess test coverage wi
 5. **Distinguish E2E upstream vs downstream** tests
 
 ## Execution Workflow
+
+Copy this checklist and track your progress:
+- [ ] Step 1: Repository test discovery
+- [ ] Step 2: Environment validation
+- [ ] Step 3: Fetch bugs from Jira
+- [ ] Step 4: Strict coverage analysis
+- [ ] Step 5: Test level classification
+- [ ] Step 6: Generate HTML report
 
 ### Step 1: Repository Test Discovery
 
