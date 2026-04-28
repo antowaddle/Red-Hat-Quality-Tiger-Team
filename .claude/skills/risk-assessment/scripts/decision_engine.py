@@ -28,7 +28,7 @@ def aggregate_risk_score(
     test_data: dict,
     impact_data: dict,
     crossrepo_data: dict
-) -> int:
+) -> tuple[int, dict]:
     """
     Calculate overall risk score (0-100).
 
@@ -43,7 +43,7 @@ def aggregate_risk_score(
     escalate breaking_risk to 90-95 to properly reflect the incident pattern.
 
     Returns:
-        Overall risk score 0-100
+        (overall_risk_score, breakdown_dict) where breakdown contains individual scores used
     """
     # Extract risk scores
     risk_score = risk_data.get("overall_risk", 50)
@@ -119,7 +119,15 @@ def aggregate_risk_score(
 
         overall = max(overall, min_risk_floor)
 
-    return int(round(overall))
+    # Return overall score and breakdown for accurate reporting
+    breakdown = {
+        "risk_score": risk_score,
+        "test_risk": test_risk,
+        "impact_risk": impact_risk,
+        "crossrepo_risk": crossrepo_risk
+    }
+
+    return int(round(overall)), breakdown
 
 
 def make_decision(overall_risk: int) -> str:
@@ -156,7 +164,7 @@ def generate_pr_analysis(
     Returns:
         (frontmatter_dict, body_markdown)
     """
-    overall_risk = aggregate_risk_score(risk_data, test_data, impact_data, crossrepo_data)
+    overall_risk, risk_breakdown = aggregate_risk_score(risk_data, test_data, impact_data, crossrepo_data)
     decision = make_decision(overall_risk)
 
     # Extract key findings
@@ -233,10 +241,10 @@ def generate_pr_analysis(
 
 | Category | Score | Weight | Contribution |
 |----------|-------|--------|--------------|
-| Security & Risk | {risk_data.get('overall_risk', 50)}/100 | 40% | {risk_data.get('overall_risk', 50) * 0.4:.1f} |
-| Test Coverage | {100 - test_data.get('coverage_percent', 50)}/100 (inverse) | 30% | {(100 - test_data.get('coverage_percent', 50)) * 0.3:.1f} |
-| Architecture Impact | {_blast_radius_to_score(impact_data.get('blast_radius', 'medium'))}/100 | 20% | {_blast_radius_to_score(impact_data.get('blast_radius', 'medium')) * 0.2:.1f} |
-| Cross-Repo Impact | {'70' if crossrepo_data.get('requires_test_updates') else '30'}/100 | 10% | {(70 if crossrepo_data.get('requires_test_updates') else 30) * 0.1:.1f} |
+| Security & Risk | {risk_breakdown['risk_score']}/100 | 40% | {risk_breakdown['risk_score'] * 0.4:.1f} |
+| Test Coverage | {risk_breakdown['test_risk']}/100 (inverse) | 30% | {risk_breakdown['test_risk'] * 0.3:.1f} |
+| Architecture Impact | {risk_breakdown['impact_risk']}/100 | 20% | {risk_breakdown['impact_risk'] * 0.2:.1f} |
+| Cross-Repo Impact | {risk_breakdown['crossrepo_risk']}/100 | 10% | {risk_breakdown['crossrepo_risk'] * 0.1:.1f} |
 | **Overall** | **{overall_risk}/100** | **100%** | **{overall_risk:.1f}** |
 
 ---

@@ -157,7 +157,13 @@ risk-assessment/
 - JIRA_TOKEN env var (for Jira epic/story context)
 
 ### Python Packages
-No external packages required - uses Python standard library only.
+```bash
+pip3 install -r requirements.txt
+```
+
+Dependencies:
+- PyYAML>=6.0
+- requests>=2.31.0
 
 ---
 
@@ -183,15 +189,17 @@ export JIRA_TOKEN="your-token"
 
 ## Configuration
 
-The skill works out-of-the-box, but you can customize context repositories in `scripts/fetch-context.sh`:
+The skill works out-of-the-box, but you can customize cross-repo search targets by editing `DEFAULT_REPOS` in `scripts/search_cross_repo_refs.py`:
 
-```bash
-CONTEXT_REPOS=(
-    "opendatahub-io/odh-dashboard"
-    "opendatahub-io/kserve"
-    "opendatahub-io/notebooks"
+```python
+DEFAULT_REPOS = [
+    "odh-dashboard",
+    "kserve",
+    "notebooks",
+    "model-registry",
+    "data-science-pipelines-operator"
     # Add your repos here
-)
+]
 ```
 
 ---

@@ -18,67 +18,15 @@ Your job is to coordinate the analysis of a GitHub PR by:
 
 ---
 
-## Step 0: Parse Arguments
+## Step 0: Verify Dependencies & Parse Arguments
 
-Parse `$ARGUMENTS` for:
-- PR number (required, first positional argument)
-- `--repo <owner/name>` (required)
-- `--headless` (optional, suppress interactive output)
-- `--dry-run` (optional, skip GitHub publishing)
-
-Example invocations:
-```
-/risk-assessment 7292 --repo opendatahub-io/odh-dashboard
-/risk-assessment 7292 --repo opendatahub-io/odh-dashboard --dry-run
-/risk-assessment 7292 --repo opendatahub-io/odh-dashboard --headless
-```
-
-Initialize state (survives context compression):
+Verify Python dependencies, parse arguments, and initialize state:
 
 ```bash
-# Extract arguments
-ARGS="$ARGUMENTS"
-
-# Parse PR number (first positional arg)
-PR_NUMBER=$(echo "$ARGS" | awk '{print $1}')
-
-# Parse repo (required --repo flag)
-REPO=$(echo "$ARGS" | grep -o '\--repo [^ ]*' | awk '{print $2}')
-
-# Parse flags
-HEADLESS=false
-DRY_RUN=false
-
-if echo "$ARGS" | grep -q '\--headless'; then
-  HEADLESS=true
-fi
-
-if echo "$ARGS" | grep -q '\--dry-run'; then
-  DRY_RUN=true
-fi
-
-# Validate required arguments
-if [[ -z "$PR_NUMBER" ]]; then
-  echo "❌ Error: PR number required"
-  echo "Usage: /risk-assessment <pr_number> --repo <owner/name> [--headless] [--dry-run]"
-  exit 1
-fi
-
-if [[ -z "$REPO" ]]; then
-  echo "❌ Error: --repo required"
-  echo "Usage: /risk-assessment <pr_number> --repo <owner/name> [--headless] [--dry-run]"
-  exit 1
-fi
-
-# Initialize state
-python3 scripts/state.py init tmp/qc-config.yaml \
-  pr_number=$PR_NUMBER \
-  repo=$REPO \
-  headless=$HEADLESS \
-  dry_run=$DRY_RUN
-
-echo "🚀 Starting risk assessment for PR #$PR_NUMBER in $REPO"
+source scripts/parse_args.sh "$ARGUMENTS"
 ```
+
+This sets: `PR_NUMBER`, `REPO`, `HEADLESS`, `DRY_RUN` and initializes `tmp/qc-config.yaml`
 
 ---
 
@@ -87,20 +35,7 @@ echo "🚀 Starting risk assessment for PR #$PR_NUMBER in $REPO"
 Extract PR data using gh CLI:
 
 ```bash
-echo "📥 Extracting PR metadata..."
-
-PR_NUMBER=$(python3 scripts/state.py get tmp/qc-config.yaml pr_number)
-REPO=$(python3 scripts/state.py get tmp/qc-config.yaml repo)
-
-# Extract PR metadata, diff, files, commits
-python3 scripts/pr_extractor.py $PR_NUMBER $REPO --output tmp/pr-${PR_NUMBER}.json
-
-if [[ $? -ne 0 ]]; then
-  echo "❌ Failed to extract PR metadata"
-  exit 1
-fi
-
-echo "✓ PR metadata extracted"
+scripts/extract_pr.sh
 ```
 
 ---
@@ -110,41 +45,7 @@ echo "✓ PR metadata extracted"
 Fetch context repositories and enrich PR with Jira data:
 
 ```bash
-echo "📚 Loading context (architecture, tests, Jira)..."
-
-PR_NUMBER=$(python3 scripts/state.py get tmp/qc-config.yaml pr_number)
-
-# Fetch/update context repositories
-./scripts/fetch-context.sh > tmp/context-paths.json
-
-if [[ $? -ne 0 ]]; then
-  echo "⚠️ Warning: Could not fetch context repositories (continuing with cached)"
-fi
-
-# Enrich PR with Jira context (optional - requires JIRA_TOKEN)
-if [[ -n "$JIRA_TOKEN" ]]; then
-  echo "  Enriching with Jira context..."
-  python3 scripts/jira_utils.py enrich-pr tmp/pr-${PR_NUMBER}.json --output tmp/pr-${PR_NUMBER}-enriched.json
-  
-  if [[ $? -eq 0 ]]; then
-    mv tmp/pr-${PR_NUMBER}-enriched.json tmp/pr-${PR_NUMBER}.json
-    echo "  ✓ Jira context added"
-  else
-    echo "  ⚠️ Jira enrichment failed (continuing without Jira context)"
-  fi
-else
-  echo "  ℹ️ Skipping Jira enrichment (JIRA_TOKEN not set)"
-fi
-
-# Load and slice context for analyzers
-python3 scripts/context_loader.py tmp/pr-${PR_NUMBER}.json tmp/context-paths.json --output-dir tmp/contexts
-
-if [[ $? -ne 0 ]]; then
-  echo "❌ Failed to load context"
-  exit 1
-fi
-
-echo "✓ Context loaded and sliced for analyzers"
+scripts/load_context.sh
 ```
 
 ---
@@ -204,32 +105,8 @@ REPO=${REPO}
 
 After agents complete, verify all output artifacts exist:
 ```bash
-echo "Verifying analyzer outputs..."
-
 PR_NUMBER=$(python3 scripts/state.py get tmp/qc-config.yaml pr_number)
-
-# Check all 4 analyzer outputs exist
-if [[ ! -f "artifacts/risk-findings/risk-${PR_NUMBER}.md" ]]; then
-  echo "❌ Risk analyzer failed"
-  exit 1
-fi
-
-if [[ ! -f "artifacts/test-coverage/test-${PR_NUMBER}.md" ]]; then
-  echo "❌ Test validator failed"
-  exit 1
-fi
-
-if [[ ! -f "artifacts/impact-assessments/impact-${PR_NUMBER}.md" ]]; then
-  echo "❌ Impact analyzer failed"
-  exit 1
-fi
-
-if [[ ! -f "artifacts/crossrepo-intel/crossrepo-${PR_NUMBER}.md" ]]; then
-  echo "❌ Cross-repo analyzer failed"
-  exit 1
-fi
-
-echo "✓ All analyzers completed successfully"
+scripts/verify_outputs.sh $PR_NUMBER
 ```
 
 ---
@@ -239,34 +116,7 @@ echo "✓ All analyzers completed successfully"
 Run decision engine to aggregate analyzer results:
 
 ```bash
-echo "🎯 Aggregating results and calculating decision..."
-
-PR_NUMBER=$(python3 scripts/state.py get tmp/qc-config.yaml pr_number)
-
-# Run decision engine
-python3 scripts/decision_engine.py $PR_NUMBER --output artifacts/pr-analyses/pr-${PR_NUMBER}-analysis.md
-
-if [[ $? -ne 0 ]]; then
-  echo "❌ Decision engine failed"
-  exit 1
-fi
-
-# Validate final analysis
-python3 scripts/frontmatter.py validate pr-analysis artifacts/pr-analyses/pr-${PR_NUMBER}-analysis.md
-
-if [[ $? -ne 0 ]]; then
-  echo "❌ Final analysis validation failed"
-  exit 1
-fi
-
-# Extract decision for state
-DECISION=$(python3 -c "import sys; sys.path.insert(0, 'scripts'); from frontmatter import read; fm, _ = read('artifacts/pr-analyses/pr-${PR_NUMBER}-analysis.md'); print(fm['decision'])")
-OVERALL_RISK=$(python3 -c "import sys; sys.path.insert(0, 'scripts'); from frontmatter import read; fm, _ = read('artifacts/pr-analyses/pr-${PR_NUMBER}-analysis.md'); print(fm['overall_risk'])")
-
-# Update state
-python3 scripts/state.py set tmp/qc-config.yaml decision=$DECISION overall_risk=$OVERALL_RISK
-
-echo "✓ Decision: $DECISION (Risk: $OVERALL_RISK/100)"
+scripts/run_decision.sh
 ```
 
 ---
@@ -293,29 +143,11 @@ fi
 ## Step 6: Report Results
 
 ```bash
-HEADLESS=$(python3 scripts/state.py get tmp/qc-config.yaml headless)
-
-if [[ "$HEADLESS" != "True" ]]; then
-  PR_NUMBER=$(python3 scripts/state.py get tmp/qc-config.yaml pr_number)
-  
-  echo ""
-  echo "✅ Risk assessment complete for PR #$PR_NUMBER"
-  echo ""
-  echo "Results will be available at:"
-  echo "  artifacts/pr-analyses/pr-${PR_NUMBER}-analysis.md"
-fi
+scripts/report_results.sh
 ```
 
 ---
 
 ## Error Handling
 
-If any step fails, clean up state and report error:
-
-```bash
-# On error, clean up
-if [[ $? -ne 0 ]]; then
-  echo "❌ Risk assessment failed"
-  exit 1
-fi
-```
+All utility scripts use `set -euo pipefail` and exit with error codes on failure. The orchestrator will stop on any step failure.
