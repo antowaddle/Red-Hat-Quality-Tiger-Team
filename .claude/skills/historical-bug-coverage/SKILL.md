@@ -1,7 +1,6 @@
 ---
-name: historical-bug-coverage
+name: analyzing-historical-bug-coverage
 description: Analyzes historical blocking and critical bugs from Jira, determines what test coverage exists today with deep test inspection and confidence scoring, and generates standalone HTML reports. Use when assessing test gaps for a repository, analyzing bug coverage quality, or generating coverage reports from Jira data.
-user-invocable: true
 ---
 
 # Historical Bug Test Coverage Analysis
