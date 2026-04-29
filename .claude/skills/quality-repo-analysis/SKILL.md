@@ -1,3 +1,9 @@
+---
+name: quality-repo-analysis
+description: Analyzes a repository's quality practices and provides actionable recommendations for improvement - assesses CI/CD, test coverage, code quality, security, and generates interactive HTML reports
+user-invocable: true
+---
+
 # Quality Repository Analysis Skill
 
 Analyzes a repository's quality practices and provides actionable recommendations for improvement.

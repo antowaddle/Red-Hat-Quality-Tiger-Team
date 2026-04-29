@@ -1,3 +1,9 @@
+---
+name: test-rules-generator
+description: Automatically generates Claude Code agent rules for test creation by analyzing existing test patterns in a repository - extracts unit, mock, E2E, and contract test patterns
+user-invocable: true
+---
+
 # Test Rules Generator Skill
 
 Automatically generates Claude Code agent rules for test creation by analyzing existing test patterns in a repository.

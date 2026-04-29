@@ -1,3 +1,9 @@
+---
+name: konflux-build-simulator
+description: Simulates Konflux build environment on PRs to catch build failures before they reach production - validates Docker builds, Module Federation, operator integration, and FIPS compliance
+user-invocable: true
+---
+
 # Konflux Build Simulator Skill
 
 Simulates Konflux build environment on PRs to catch build failures before they reach production.
