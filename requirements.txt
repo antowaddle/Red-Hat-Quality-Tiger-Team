@@ -1,0 +1,8 @@
+# Claude Code Plugin Dependencies
+# Quality Tiger Team - RHOAI Quality Tooling
+
+pyyaml>=6.0
+requests>=2.31.0
+
+# Optional development dependencies
+# Install with: pip install -r requirements.txt -r requirements-dev.txt
