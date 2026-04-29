@@ -1,0 +1,2377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combined Quality Analysis Report - 21 Repositories</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+
+        .summary {
+            padding: 40px;
+            background: #f8f9fa;
+        }
+
+        .summary h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .repos-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .repos-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .repos-table th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .repos-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .repos-table tbody tr:hover {
+            background: #f5f5f5;
+        }
+
+        .repos-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .score {
+            font-weight: bold;
+            font-size: 1.2em;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .score-excellent { background: #d4edda; color: #155724; }
+        .score-good { background: #d1ecf1; color: #0c5460; }
+        .score-fair { background: #fff3cd; color: #856404; }
+        .score-poor { background: #f8d7da; color: #721c24; }
+
+        .repo-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .repo-link:hover {
+            text-decoration: underline;
+        }
+
+        .repo-details {
+            padding: 40px;
+            border-top: 3px solid #f0f0f0;
+        }
+
+        .repo-section {
+            margin-bottom: 60px;
+        }
+
+        .repo-section h2 {
+            font-size: 2em;
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .repo-section h3 {
+            font-size: 1.5em;
+            color: #764ba2;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        .repo-section h4 {
+            font-size: 1.2em;
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .repo-section ul, .repo-section ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .repo-section li {
+            margin-bottom: 8px;
+        }
+
+        .repo-section code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .repo-section pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .repo-section pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .scorecard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .scorecard-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .scorecard-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .scorecard-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .gap {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .gap-title {
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 5px;
+        }
+
+        .severity {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .severity-high { background: #f8d7da; color: #721c24; }
+        .severity-medium { background: #fff3cd; color: #856404; }
+        .severity-low { background: #d1ecf1; color: #0c5460; }
+
+        footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Quality Analysis Report</h1>
+            <p>21 Repositories Analyzed</p>
+        </header>
+
+        <div class="summary">
+            <h2>Executive Summary</h2>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">21</div>
+                    <div class="stat-label">Repositories</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">7.9</div>
+                    <div class="stat-label">Average Score</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">9.1</div>
+                    <div class="stat-label">Highest Score</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">6.8</div>
+                    <div class="stat-label">Lowest Score</div>
+                </div>
+            </div>
+
+            <table class="repos-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Repository</th>
+                        <th>Overall Score</th>
+                        <th>Top Strength</th>
+                        <th>Top Gap</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td>1</td>
+                        <td><a href="#odh-dashboard" class="repo-link">odh-dashboard</a></td>
+                        <td><span class="score score-excellent">9.1</span></td>
+                        <td>Integration/E2E: 75 E2E tests + 75 mock tests, Cypress-based with smart test ...</td>
+                        <td>No Static Application Security Testing (SAST)</td>
+                    </tr>
+
+                    <tr>
+                        <td>2</td>
+                        <td><a href="#kueue" class="repo-link">kueue</a></td>
+                        <td><span class="score score-excellent">8.7</span></td>
+                        <td>Integration/E2E: Exceptional multi-layer testing: integration tests (singlecl...</td>
+                        <td>Missing AI agent rules for test automation</td>
+                    </tr>
+
+                    <tr>
+                        <td>3</td>
+                        <td><a href="#notebooks" class="repo-link">notebooks</a></td>
+                        <td><span class="score score-excellent">8.7</span></td>
+                        <td>Build Integration: Excellent PR-time build validation with ODH and RHOAI vari...</td>
+                        <td>No dedicated agent rules for test creation patterns</td>
+                    </tr>
+
+                    <tr>
+                        <td>4</td>
+                        <td><a href="#model-registry" class="repo-link">model-registry</a></td>
+                        <td><span class="score score-excellent">8.6</span></td>
+                        <td>Integration/E2E: Outstanding E2E automation with KinD clusters, multi-version...</td>
+                        <td>No root-level .golangci.yaml configuration</td>
+                    </tr>
+
+                    <tr>
+                        <td>5</td>
+                        <td><a href="#rhods-operator" class="repo-link">rhods-operator</a></td>
+                        <td><span class="score score-excellent">8.6</span></td>
+                        <td>Integration/E2E: Comprehensive E2E suite with 49 test files covering all 16+ ...</td>
+                        <td>No blocking coverage thresholds</td>
+                    </tr>
+
+                    <tr>
+                        <td>6</td>
+                        <td><a href="#kserve" class="repo-link">kserve</a></td>
+                        <td><span class="score score-good">8.4</span></td>
+                        <td>Integration/E2E: Exceptional E2E suite with 77 test files, multi-version test...</td>
+                        <td>No agent rules for test automation</td>
+                    </tr>
+
+                    <tr>
+                        <td>7</td>
+                        <td><a href="#spark-operator" class="repo-link">spark-operator</a></td>
+                        <td><span class="score score-good">8.3</span></td>
+                        <td>Integration/E2E: Exceptional multi-layer E2E testing: Helm-based, Kustomize-b...</td>
+                        <td>No Codecov integration for PR coverage tracking</td>
+                    </tr>
+
+                    <tr>
+                        <td>8</td>
+                        <td><a href="#opendatahub-tests" class="repo-link">opendatahub-tests</a></td>
+                        <td><span class="score score-good">8.2</span></td>
+                        <td>Code Quality: Excellent pre-commit hooks: ruff, mypy, flake8, gitleaks, detec...</td>
+                        <td>No coverage tracking or reporting</td>
+                    </tr>
+
+                    <tr>
+                        <td>9</td>
+                        <td><a href="#trainer" class="repo-link">trainer</a></td>
+                        <td><span class="score score-good">8.1</span></td>
+                        <td>Integration/E2E: Exceptional E2E testing with multi-version K8s (1.31-1.34), ...</td>
+                        <td>No AI agent rules for test automation</td>
+                    </tr>
+
+                    <tr>
+                        <td>10</td>
+                        <td><a href="#model-registry-operator" class="repo-link">model-registry-operator</a></td>
+                        <td><span class="score score-good">7.9</span></td>
+                        <td>Integration/E2E: Excellent Kind-based deployment testing validates full opera...</td>
+                        <td>No coverage reporting integration</td>
+                    </tr>
+
+                    <tr>
+                        <td>11</td>
+                        <td><a href="#feast" class="repo-link">feast</a></td>
+                        <td><span class="score score-good">7.8</span></td>
+                        <td>Unit Tests: Comprehensive test coverage with 189 Python test files, 17 Go tes...</td>
+                        <td>No codecov integration or coverage reporting</td>
+                    </tr>
+
+                    <tr>
+                        <td>12</td>
+                        <td><a href="#kuberay" class="repo-link">kuberay</a></td>
+                        <td><span class="score score-good">7.6</span></td>
+                        <td>Integration/E2E: Comprehensive E2E test suite with 51 test files covering Ray...</td>
+                        <td>No coverage tracking or enforcement</td>
+                    </tr>
+
+                    <tr>
+                        <td>13</td>
+                        <td><a href="#mlflow-operator" class="repo-link">mlflow-operator</a></td>
+                        <td><span class="score score-good">7.6</span></td>
+                        <td>Integration/E2E: Exceptional integration testing with comprehensive matrix te...</td>
+                        <td>No coverage tracking or enforcement</td>
+                    </tr>
+
+                    <tr>
+                        <td>14</td>
+                        <td><a href="#training-operator" class="repo-link">training-operator</a></td>
+                        <td><span class="score score-good">7.6</span></td>
+                        <td>Integration/E2E: Comprehensive E2E suite with Kind deployment, multi-schedule...</td>
+                        <td>No coverage tracking or enforcement</td>
+                    </tr>
+
+                    <tr>
+                        <td>15</td>
+                        <td><a href="#trustyai-service-operator" class="repo-link">trustyai-service-operator</a></td>
+                        <td><span class="score score-good">7.6</span></td>
+                        <td>Security Scanning: Trivy and Gosec with SARIF upload, blocking on HIGH/CRITICAL</td>
+                        <td>No coverage tracking or enforcement</td>
+                    </tr>
+
+                    <tr>
+                        <td>16</td>
+                        <td><a href="#models-as-a-service" class="repo-link">models-as-a-service</a></td>
+                        <td><span class="score score-fair">7.4</span></td>
+                        <td>Code Quality Tools: Comprehensive golangci-lint (all linters enabled), 64-rul...</td>
+                        <td>No coverage tracking integration or enforcement</td>
+                    </tr>
+
+                    <tr>
+                        <td>17</td>
+                        <td><a href="#codeflare-operator" class="repo-link">codeflare-operator</a></td>
+                        <td><span class="score score-fair">7.3</span></td>
+                        <td>Integration/E2E: Comprehensive E2E suite with GPU testing, OLM upgrade tests,...</td>
+                        <td>No coverage tracking or PR reporting</td>
+                    </tr>
+
+                    <tr>
+                        <td>18</td>
+                        <td><a href="#odh-model-controller" class="repo-link">odh-model-controller</a></td>
+                        <td><span class="score score-fair">7.3</span></td>
+                        <td>Build Integration: Excellent PR-time build validation with Konflux simulator ...</td>
+                        <td>No coverage tracking or reporting</td>
+                    </tr>
+
+                    <tr>
+                        <td>19</td>
+                        <td><a href="#data-science-pipelines-operator" class="repo-link">data-science-pipelines-operator</a></td>
+                        <td><span class="score score-fair">7.2</span></td>
+                        <td>Integration/E2E: Excellent KinD-based E2E tests with multiple scenarios and u...</td>
+                        <td>No coverage tracking or enforcement</td>
+                    </tr>
+
+                    <tr>
+                        <td>20</td>
+                        <td><a href="#llama-stack-k8s-operator" class="repo-link">llama-stack-k8s-operator</a></td>
+                        <td><span class="score score-fair">7.1</span></td>
+                        <td>Integration/E2E: Comprehensive E2E suite with Kind cluster deployment, operat...</td>
+                        <td>No container image security scanning</td>
+                    </tr>
+
+                    <tr>
+                        <td>21</td>
+                        <td><a href="#model-metadata-collection" class="repo-link">model-metadata-collection</a></td>
+                        <td><span class="score score-fair">6.8</span></td>
+                        <td>Agent Rules: Excellent CLAUDE.md with comprehensive guidance and architecture...</td>
+                        <td>No coverage tracking or enforcement in CI</td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+        <div class="repo-details">
+            <h2>Detailed Repository Analysis</h2>
+
+            <div class="repo-section" id="odh-dashboard">
+                <h2>odh-dashboard - 9.1/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">10.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">10.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">10.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">10.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No Static Application Security Testing (SAST)<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No container image security scanning<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-4 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add CodeQL workflow for SAST <em>(Effort: 2-3 hours, Impact: Automated detection of security vulnerabilities in TypeScript/JavaScript code)</em></li>
+
+                    <li>Add Trivy scanning to Konflux Build Simulator <em>(Effort: 1-2 hours, Impact: Detect vulnerabilities in Docker images during PR validation)</em></li>
+
+                    <li>Increase Codecov patch coverage target to 80% <em>(Effort: 0.5 hours, Impact: Enforce higher coverage standards for new code)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-odh-dashboard.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="kueue">
+                <h2>kueue - 8.7/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">6.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">7.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">0.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">Missing AI agent rules for test automation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage enforcement or PR reporting<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No PR-time container image validation<span class="severity severity-low">LOW</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No runtime container security scanning<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add codecov.io integration for PR coverage reports <em>(Effort: 1-2 hours, Impact: Visualize coverage trends and enforce minimum thresholds on PRs)</em></li>
+
+                    <li>Add Trivy scanning to SBOM workflow or create PR-time scan <em>(Effort: 2-3 hours, Impact: Early detection of CVEs in dependencies and base images)</em></li>
+
+                    <li>Create .claude/rules/unit-tests.md with Ginkgo patterns <em>(Effort: 3-4 hours, Impact: Guide AI agents to generate idiomatic Ginkgo tests with proper matchers and table-driven tests)</em></li>
+
+                    <li>Add PR-time image build smoke test <em>(Effort: 2-3 hours, Impact: Catch Dockerfile issues before merge, validate multi-arch builds)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-kueue.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="notebooks">
+                <h2>notebooks - 8.7/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Scanning</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No dedicated agent rules for test creation patterns<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Limited contract testing for multi-image dependencies<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 8-12 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Create .claude/rules/unit-tests.md for Python test patterns <em>(Effort: 2-3 hours, Impact: Guide AI agents to create pytest tests matching repo patterns (testcontainers, markers, fixtures))</em></li>
+
+                    <li>Add .claude/rules/container-tests.md for image testing patterns <em>(Effort: 2-3 hours, Impact: Document testcontainers patterns, Kubernetes deployment testing, and browser tests)</em></li>
+
+                    <li>Document Playwright test creation patterns in .claude/rules/browser-tests.md <em>(Effort: 1-2 hours, Impact: Enable consistent browser test creation for Code-Server and RStudio workbenches)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-notebooks.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="model-registry">
+                <h2>model-registry - 8.6/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No root-level .golangci.yaml configuration<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing CodeQL/SAST for Go codebase<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1-2 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Limited fuzz testing scope<span class="severity severity-low">LOW</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1 hour</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add root-level .golangci.yaml with strict linters <em>(Effort: 2-3 hours, Impact: Enforce consistent code quality standards across all Go modules (main, controller, catalog))</em></li>
+
+                    <li>Enable CodeQL workflow for Go <em>(Effort: 1-2 hours, Impact: Catch security vulnerabilities and code quality issues through static analysis)</em></li>
+
+                    <li>Add PR-time Trivy scanning <em>(Effort: 1 hour, Impact: Catch vulnerabilities earlier in development cycle instead of weekly scans only)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-model-registry.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="rhods-operator">
+                <h2>rhods-operator - 8.6/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Scanning</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No blocking coverage thresholds<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1-2 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Limited test automation agent rules<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No explicit container runtime validation<span class="severity severity-low">LOW</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Enable coverage thresholds in codecov.yml <em>(Effort: 1 hour, Impact: Prevent coverage regression on PRs with automatic enforcement)</em></li>
+
+                    <li>Create .claude/rules/unit-tests.md for operator test patterns <em>(Effort: 2-3 hours, Impact: Improve AI-generated test quality with envtest, Ginkgo patterns, controller mocking)</em></li>
+
+                    <li>Add explicit image startup smoke test in PR workflow <em>(Effort: 1-2 hours, Impact: Catch basic image startup failures before integration tests)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-rhods-operator.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="kserve">
+                <h2>kserve - 8.4/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">0.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No agent rules for test automation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No codecov or similar external coverage service<span class="severity severity-low">LOW</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add codecov.io integration <em>(Effort: 2-3 hours, Impact: External coverage tracking with historical trends and PR annotations)</em></li>
+
+                    <li>Create basic agent rules for Go unit tests <em>(Effort: 3-4 hours, Impact: Improve AI-generated test quality with repository-specific patterns)</em></li>
+
+                    <li>Add Trivy image scanning to runtime server builds <em>(Effort: 2-3 hours, Impact: Catch container vulnerabilities before E2E tests run)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-kserve.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="spark-operator">
+                <h2>spark-operator - 8.3/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">6.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Practices</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">2.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Konflux Integration</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No Codecov integration for PR coverage tracking<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing agent rules for test automation (.claude/rules/)<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No SAST tools (CodeQL, gosec) for Go vulnerability detection<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add Codecov integration to PR workflow <em>(Effort: 2-3 hours, Impact: Visibility into test coverage trends and PR coverage deltas with minimal setup)</em></li>
+
+                    <li>Add gosec to golangci-lint configuration <em>(Effort: 1 hour, Impact: Detect Go security vulnerabilities (hardcoded credentials, weak crypto, etc.) during lint phase)</em></li>
+
+                    <li>Generate agent rules for unit tests with /test-rules-generator <em>(Effort: 2-3 hours, Impact: Improve AI-generated test quality and consistency with project patterns (Ginkgo/Gomega))</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-spark-operator.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="opendatahub-tests">
+                <h2>opendatahub-tests - 8.2/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">7.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">7.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">3.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Practices</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Documentation</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage tracking or reporting<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No container runtime validation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No CodeQL/SAST scanning<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add pytest-cov integration to generate coverage reports <em>(Effort: 1-2 hours, Impact: Immediate visibility into test coverage with HTML reports)</em></li>
+
+                    <li>Add CodeQL workflow for Python security scanning <em>(Effort: 1 hour, Impact: Automated security vulnerability detection on every PR)</em></li>
+
+                    <li>Add container startup smoke test in verify_build_container.yml <em>(Effort: 2-3 hours, Impact: Catch container runtime issues before merge)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-opendatahub-tests.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="trainer">
+                <h2>trainer - 8.1/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">7.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">0.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No AI agent rules for test automation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing container image vulnerability scanning<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No CodeQL SAST workflow<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1-2 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Python and Rust coverage not tracked<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage enforcement thresholds<span class="severity severity-low">LOW</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1 hour</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add Trivy image scanning to PR workflow <em>(Effort: 2-3 hours, Impact: Detect vulnerabilities in all 7 container images before merge)</em></li>
+
+                    <li>Enable CodeQL for Go and Python <em>(Effort: 1-2 hours, Impact: Automated detection of security vulnerabilities and code quality issues)</em></li>
+
+                    <li>Add Python coverage tracking with pytest-cov <em>(Effort: 2 hours, Impact: Track initializer test coverage alongside Go coverage)</em></li>
+
+                    <li>Create basic agent rules for Ginkgo/Go test patterns <em>(Effort: 3-4 hours, Impact: Improve consistency and quality of AI-generated tests)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-trainer.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="model-registry-operator">
+                <h2>model-registry-operator - 7.9/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">4.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Practices</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">6.5/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage reporting integration<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No dedicated agent test creation rules<span class="severity severity-low">LOW</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing explicit security scanning in PR workflow<span class="severity severity-low">LOW</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1-2 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add codecov.io integration <em>(Effort: 2-3 hours, Impact: Visibility into coverage trends and PR impact on coverage)</em></li>
+
+                    <li>Add Trivy scanning to PR workflow <em>(Effort: 1-2 hours, Impact: Early detection of container image vulnerabilities before merge)</em></li>
+
+                    <li>Create basic .claude/rules/ for test patterns <em>(Effort: 2-3 hours, Impact: Guide AI agents to follow repository test conventions)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-model-registry-operator.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="feast">
+                <h2>feast - 7.8/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">5.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">3.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality Tools</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Practices</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">6.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No codecov integration or coverage reporting<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Konflux builds not automatically tested on PRs<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No container vulnerability scanning (Trivy/Snyk)<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No .claude/rules for test automation patterns<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add codecov integration <em>(Effort: 2-3 hours, Impact: Enable coverage tracking and PR comments, establish coverage baseline for future improvements)</em></li>
+
+                    <li>Add Trivy scanning to docker_smoke_tests workflow <em>(Effort: 2-3 hours, Impact: Catch critical CVEs before images are published, early security vulnerability detection)</em></li>
+
+                    <li>Enable coverage threshold enforcement <em>(Effort: 1-2 hours, Impact: Prevent coverage regression, ensure new code includes tests)</em></li>
+
+                    <li>Create basic .claude/rules for pytest patterns <em>(Effort: 3-4 hours, Impact: Improve AI-generated test quality, consistent test patterns across codebase)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-feast.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="kuberay">
+                <h2>kuberay - 7.6/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">3.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality Tools</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Practices</div>
+                        <div class="scorecard-value">5.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">0.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage tracking or enforcement<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No container image security scanning<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No CodeQL or SAST integration<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing agent rules for test automation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Dashboard has no tests<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 8-12 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add Codecov integration to track coverage trends <em>(Effort: 2-3 hours, Impact: Immediate visibility into test coverage with PR comments and trend tracking)</em></li>
+
+                    <li>Add Trivy scanning to PR workflow <em>(Effort: 2-3 hours, Impact: Early detection of security vulnerabilities in container images)</em></li>
+
+                    <li>Enable CodeQL scanning <em>(Effort: 1-2 hours, Impact: Automated detection of security vulnerabilities and code quality issues)</em></li>
+
+                    <li>Create basic agent rules for Go unit tests <em>(Effort: 3-4 hours, Impact: Improve AI-generated test quality and consistency for operator code)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-kuberay.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="mlflow-operator">
+                <h2>mlflow-operator - 7.6/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">4.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security</div>
+                        <div class="scorecard-value">6.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">1.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage tracking or enforcement<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No pre-commit hooks<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1-2 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing AI agent test automation rules<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No PR-time security scanning<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1-2 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add Codecov integration to track test coverage <em>(Effort: 2-3 hours, Impact: Visibility into coverage trends and ability to enforce minimum thresholds on PRs)</em></li>
+
+                    <li>Add pre-commit hooks for linting and formatting <em>(Effort: 1-2 hours, Impact: Catch code quality issues before commit, reduce CI wait time and failures)</em></li>
+
+                    <li>Add Trivy scanning to PR workflow <em>(Effort: 1-2 hours, Impact: Early detection of security vulnerabilities in base images and Go dependencies)</em></li>
+
+                    <li>Create comprehensive agent rules for test patterns <em>(Effort: 3-4 hours, Impact: Improve AI-generated test quality with structured guidance for unit, integration, and E2E tests)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-mlflow-operator.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="training-operator">
+                <h2>training-operator - 7.6/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">6.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">7.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">4.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Practices</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">0.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage tracking or enforcement<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No container image vulnerability scanning<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1-2 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No agent rules for test automation<span class="severity severity-low">LOW</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Limited PR-time operator runtime validation<span class="severity severity-low">LOW</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add Codecov integration for coverage tracking <em>(Effort: 2-3 hours, Impact: Enable coverage trend tracking and PR comments showing coverage changes)</em></li>
+
+                    <li>Add Trivy scanning to image build workflows <em>(Effort: 1-2 hours, Impact: Early detection of critical CVEs in container images before merge)</em></li>
+
+                    <li>Add basic operator health check in PR workflow <em>(Effort: 1-2 hours, Impact: Verify operator starts successfully after image build in PR workflow)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-training-operator.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="trustyai-service-operator">
+                <h2>trustyai-service-operator - 7.6/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">3.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">7.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Scanning</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">1.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage tracking or enforcement<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing Go linter (golangci-lint)<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No .claude/rules/ for test automation guidance<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">E2E tests not in-repo<span class="severity severity-low">LOW</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: N/A (architectural decision)</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add codecov.yml and GitHub Action integration <em>(Effort: 1-2 hours, Impact: Automatic coverage reporting on PRs with historical tracking)</em></li>
+
+                    <li>Add golangci-lint to PR workflow <em>(Effort: 2-3 hours, Impact: Catch 20+ common Go issues (deadcode, ineffassign, gosimple, staticcheck))</em></li>
+
+                    <li>Create .claude/rules/controller-tests.md <em>(Effort: 2-3 hours, Impact: Guide AI agents to create proper envtest-based controller tests with Ginkgo)</em></li>
+
+                    <li>Add pre-commit hooks configuration <em>(Effort: 1-2 hours, Impact: Run fmt, vet, yamllint locally before commit)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-trustyai-service-operator.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="models-as-a-service">
+                <h2>models-as-a-service - 7.4/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">6.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">5.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality Tools</div>
+                        <div class="scorecard-value">9.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Practices</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">0.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage tracking integration or enforcement<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing container image security scanning<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No AI agent rules or test creation guidance<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No CodeQL SAST integration<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1-2 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No image runtime validation in CI<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add codecov.io integration <em>(Effort: 2-3 hours, Impact: Track coverage trends, enforce minimum thresholds, display coverage badges)</em></li>
+
+                    <li>Add Trivy scanning to PR workflows <em>(Effort: 2-3 hours, Impact: Catch CVEs in dependencies and container images before merge)</em></li>
+
+                    <li>Add CodeQL workflow for Go security scanning <em>(Effort: 1-2 hours, Impact: Automated SAST for security vulnerabilities (SQL injection, XSS, etc.))</em></li>
+
+                    <li>Create basic agent rules for Go unit tests <em>(Effort: 3-4 hours, Impact: Improve consistency and quality of AI-generated unit tests)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-models-as-a-service.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="codeflare-operator">
+                <h2>codeflare-operator - 7.3/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">7.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">5.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">6.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">3.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Scanning</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">0.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage tracking or PR reporting<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing agent rules for test automation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Limited PR-time image validation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No contract testing for webhooks and controllers<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 6-8 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add codecov integration to unit test workflow <em>(Effort: 2-3 hours, Impact: Track coverage trends and prevent coverage regressions on PRs)</em></li>
+
+                    <li>Create basic agent rules for unit test patterns <em>(Effort: 2-3 hours, Impact: Enable AI-assisted test generation following Ginkgo/Gomega patterns)</em></li>
+
+                    <li>Add image startup validation in e2e workflow <em>(Effort: 1-2 hours, Impact: Catch basic runtime issues before merge)</em></li>
+
+                    <li>Add pre-commit hook for test file presence <em>(Effort: 1 hour, Impact: Ensure new controller code includes corresponding tests)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-codeflare-operator.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="odh-model-controller">
+                <h2>odh-model-controller - 7.3/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">6.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">4.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security</div>
+                        <div class="scorecard-value">3.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">0.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage tracking or reporting<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">E2E tests not automated on PRs<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1-2 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No security scanning in CI/CD<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No agent rules for test automation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add codecov integration <em>(Effort: 2-3 hours, Impact: Visibility into test coverage with PR comments and trend tracking)</em></li>
+
+                    <li>Enable E2E tests on PRs <em>(Effort: 1-2 hours, Impact: Catch integration issues before merge; update test-e2e.yml to run on pull_request)</em></li>
+
+                    <li>Add Trivy container scanning <em>(Effort: 1-2 hours, Impact: Detect vulnerabilities in base images and dependencies before deployment)</em></li>
+
+                    <li>Add CodeQL security scanning <em>(Effort: 1 hour, Impact: Static analysis for security vulnerabilities in Go code)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-odh-model-controller.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="data-science-pipelines-operator">
+                <h2>data-science-pipelines-operator - 7.2/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">7.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">6.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">3.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security</div>
+                        <div class="scorecard-value">5.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">0.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage tracking or enforcement<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing security scanning in GitHub workflows<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No container runtime validation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing agent rules for test automation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No CodeQL security analysis<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 1-2 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add Codecov integration to track coverage trends <em>(Effort: 2-4 hours, Impact: Visibility into coverage gaps and trends across PRs)</em></li>
+
+                    <li>Enable CodeQL security scanning <em>(Effort: 1-2 hours, Impact: Automatic detection of security vulnerabilities in Go code)</em></li>
+
+                    <li>Add Trivy scanning to PR workflow <em>(Effort: 2-3 hours, Impact: Early detection of container image vulnerabilities)</em></li>
+
+                    <li>Create basic agent rules for unit test patterns <em>(Effort: 3-4 hours, Impact: Improve consistency and quality of AI-generated tests)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-data-science-pipelines-operator.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="llama-stack-k8s-operator">
+                <h2>llama-stack-k8s-operator - 7.1/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">7.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">6.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security</div>
+                        <div class="scorecard-value">4.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">0.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No container image security scanning<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing codecov integration and coverage enforcement<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No agent rules for test automation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No SAST tools (CodeQL, gosec)<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add Trivy scanning to PR and main workflows <em>(Effort: 1-2 hours, Impact: Immediate visibility into CVEs in base images and dependencies before merge)</em></li>
+
+                    <li>Integrate codecov for coverage tracking <em>(Effort: 2-3 hours, Impact: Track coverage trends over time and get PR-level coverage reports with diff coverage)</em></li>
+
+                    <li>Add CodeQL workflow for SAST <em>(Effort: 1 hour, Impact: Automated detection of common security vulnerabilities and code quality issues)</em></li>
+
+                    <li>Create basic agent rules for unit test patterns <em>(Effort: 2-3 hours, Impact: Standardize test creation patterns for AI-assisted development)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-llama-stack-k8s-operator.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+            <div class="repo-section" id="model-metadata-collection">
+                <h2>model-metadata-collection - 6.8/10</h2>
+
+                <h3>Quality Scorecard</h3>
+                <div class="scorecard">
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Unit Tests</div>
+                        <div class="scorecard-value">8.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Integration/E2E</div>
+                        <div class="scorecard-value">6.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Build Integration</div>
+                        <div class="scorecard-value">7.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Image Testing</div>
+                        <div class="scorecard-value">5.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Coverage Tracking</div>
+                        <div class="scorecard-value">4.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Code Quality</div>
+                        <div class="scorecard-value">8.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">CI/CD Automation</div>
+                        <div class="scorecard-value">7.5/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Security Practices</div>
+                        <div class="scorecard-value">3.0/10</div>
+                    </div>
+
+                    <div class="scorecard-item">
+                        <div class="scorecard-label">Agent Rules</div>
+                        <div class="scorecard-value">9.0/10</div>
+                    </div>
+
+                </div>
+
+                <h3>Critical Gaps</h3>
+
+                <div class="gap">
+                    <div class="gap-title">No coverage tracking or enforcement in CI<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Integration tests skipped in CI<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No security scanning (CodeQL, Trivy, dependency checks)<span class="severity severity-high">HIGH</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 3-4 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">No container runtime validation<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 4-6 hours</div>
+                </div>
+
+                <div class="gap">
+                    <div class="gap-title">Missing .claude/rules/ for test automation patterns<span class="severity severity-medium">MEDIUM</span></div>
+                    <div style="margin-top: 5px; color: #666; font-size: 0.9em;">Effort: 2-3 hours</div>
+                </div>
+
+                <h3>Quick Wins</h3>
+                <ul>
+
+                    <li>Add Codecov integration to PR workflow <em>(Effort: 1-2 hours, Impact: Automatic coverage reporting and trend tracking on every PR)</em></li>
+
+                    <li>Add Trivy security scanning to build workflow <em>(Effort: 1-2 hours, Impact: Early detection of vulnerabilities in container images and dependencies)</em></li>
+
+                    <li>Enable integration tests in CI with test data mocking <em>(Effort: 2-3 hours, Impact: Catch registry interaction bugs before merge)</em></li>
+
+                    <li>Add basic container startup test <em>(Effort: 1-2 hours, Impact: Verify image runs and data volumes are accessible)</em></li>
+
+                </ul>
+
+                <p style="margin-top: 20px;"><a href="quality-report-model-metadata-collection.html" class="repo-link">→ View Full Detailed Report</a></p>
+            </div>
+
+        </div>
+
+        <footer>
+            <p>Generated by Quality Repository Analysis Skill</p>
+            <p>Report Date: 2026-04-21 11:41:41</p>
+        </footer>
+    </div>
+</body>
+</html>

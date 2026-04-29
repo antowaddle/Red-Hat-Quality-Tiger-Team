@@ -793,13 +793,23 @@ def generate_html(pr_number: int) -> str:
     decision_class = "approve" if decision == "APPROVE" else "warn"
     decision_icon = "✅" if decision == "APPROVE" else "⚠️"
 
-    # Risk styling
-    if overall_risk <= 40:
-        risk_class = "low"
-    elif overall_risk <= 70:
-        risk_class = "medium"
+    # Risk styling - if WARN decision, show at least "medium" (orange) color
+    if decision == "WARN":
+        # WARN decision: use minimum "medium" color even for low numeric scores
+        if overall_risk <= 40:
+            risk_class = "medium"  # Override: show orange for WARN even with low score
+        elif overall_risk <= 70:
+            risk_class = "medium"
+        else:
+            risk_class = "high"
     else:
-        risk_class = "high"
+        # APPROVE decision: use score-based coloring
+        if overall_risk <= 40:
+            risk_class = "low"
+        elif overall_risk <= 70:
+            risk_class = "medium"
+        else:
+            risk_class = "high"
 
     # Extract executive summary
     lines = pr_analysis_body.split("\n")

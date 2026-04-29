@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Coverage Report - odh-dashboard</title>
+    <style>
+        /* CSS Reset & Base */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* CSS Variables for theming */
+        :root {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f8f9fa;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-color: #ddd;
+            --border-light: #eee;
+            --hover-bg: #f8f9fa;
+            --code-bg: #f4f4f4;
+            --accent-color: #007bff;
+            --accent-hover: #0056b3;
+            --shadow: rgba(0,0,0,0.1);
+            --th-bg: #007bff;
+            --th-hover: #0056b3;
+        }
+
+        body.dark-mode {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2a2a2a;
+            --bg-tertiary: #333;
+            --text-primary: #e0e0e0;
+            --text-secondary: #999;
+            --border-color: #444;
+            --border-light: #555;
+            --hover-bg: #3a3a3a;
+            --code-bg: #333;
+            --accent-color: #4a9eff;
+            --accent-hover: #3a8eef;
+            --shadow: rgba(0,0,0,0.3);
+            --th-bg: #2c5aa0;
+            --th-hover: #1e4277;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            padding: 20px;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* Theme toggle button */
+        #theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: 0 2px 8px var(--shadow);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        #theme-toggle:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        #theme-toggle::before {
+            content: '🌙 ';
+        }
+
+        body.dark-mode #theme-toggle::before {
+            content: '☀️ ';
+        }
+
+        /* Layout */
+        header, section {
+            background: var(--bg-secondary);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        h1 { font-size: 2rem; margin-bottom: 10px; }
+        h2 { font-size: 1.5rem; margin-bottom: 15px; border-bottom: 2px solid var(--accent-color); padding-bottom: 5px; }
+        h3 { font-size: 1.2rem; margin: 15px 0 10px; }
+
+        /* Metadata */
+        .metadata p { margin: 5px 0; }
+        .metadata strong { color: var(--accent-color); }
+        .metadata code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: var(--text-primary);
+        }
+
+        /* Dashboard */
+        .dashboard { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .charts { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+        .chart { flex: 0 1 auto; min-width: 300px; text-align: center; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 20px; }
+        .stat {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border-left: 4px solid var(--accent-color);
+        }
+        .stat .label { display: block; font-size: 0.9em; color: var(--text-secondary); margin-bottom: 5px; }
+        .stat .value { display: block; font-size: 2em; font-weight: bold; color: var(--accent-color); }
+
+        /* Filters */
+        .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .filters h2 { flex: 1 0 100%; }
+        .filters input, .filters select {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            flex: 1;
+            min-width: 150px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+        .filters input { min-width: 250px; }
+        .filters input:focus, .filters select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-secondary);
+        }
+
+        th {
+            background: var(--th-bg);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th:hover { background: var(--th-hover); }
+        th::after { content: ' ↕️'; opacity: 0.5; }
+        th.sorted-asc::after { content: ' ↑'; opacity: 1; }
+        th.sorted-desc::after { content: ' ↓'; opacity: 1; }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        tr:hover { background: var(--hover-bg); }
+
+        /* Row color coding by coverage - adjusted for dark mode */
+        tr[data-coverage="COVERED"] { background-color: #d4edda; }
+        tr[data-coverage="PARTIALLY COVERED"] { background-color: #fff3cd; }
+        tr[data-coverage="GAP"] { background-color: #f8d7da; }
+        tr[data-coverage="NOT TESTABLE"] { background-color: #e2e3e5; }
+
+        body.dark-mode tr[data-coverage="COVERED"] { background-color: #1e4620; color: #90ee90; }
+        body.dark-mode tr[data-coverage="PARTIALLY COVERED"] { background-color: #3d3420; color: #ffd700; }
+        body.dark-mode tr[data-coverage="GAP"] { background-color: #4a1f1f; color: #ff9999; }
+        body.dark-mode tr[data-coverage="NOT TESTABLE"] { background-color: #2a2a2a; color: #aaa; }
+
+        /* Border highlighting for E2E */
+        tr[data-level="E2E"] { border-left: 4px solid #ff9800; }
+
+        /* Links */
+        a { color: var(--accent-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+        .badge-blocker { background: #dc3545; color: white; }
+        .badge-critical { background: #fd7e14; color: white; }
+        .badge-unit { background: #28a745; color: white; }
+        .badge-mock { background: #17a2b8; color: white; }
+        .badge-e2e { background: #ff9800; color: white; }
+        .badge-contract { background: #9c27b0; color: white; }
+        .badge-buildci { background: #795548; color: white; }
+        .badge-na { background: #9e9e9e; color: white; }
+        .badge-high { background: #4caf50; color: white; }  /* 80%+ confidence */
+        .badge-medium { background: #ff9800; color: white; }  /* 60-80% confidence */
+        .badge-low { background: #f44336; color: white; }  /* < 60% confidence */
+
+        /* Test file column */
+        .test-file {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 20px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        footer button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        footer button:hover { background: var(--accent-hover); }
+
+        /* Print styles */
+        @media print {
+            body { background: white; padding: 0; }
+            .filters, footer button, #theme-toggle { display: none; }
+            section { box-shadow: none; page-break-inside: avoid; }
+            tr { page-break-inside: avoid; }
+            th { position: static; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard { grid-template-columns: 1fr; }
+            .charts { flex-direction: column; }
+            .filters { flex-direction: column; }
+            .filters input, .filters select { width: 100%; min-width: auto; }
+            #theme-toggle { top: 10px; right: 10px; padding: 8px 16px; font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+    <button id="theme-toggle" aria-label="Toggle dark mode">Dark Mode</button>
+    <header>
+        <h1>🐛 Historical Bug Test Coverage Analysis</h1>
+        <div class="metadata">
+            <p><strong>Component:</strong> odh-dashboard</p>
+            <p><strong>Repository:</strong> <a href="https://github.com/opendatahub-io/odh-dashboard" target="_blank">https://github.com/opendatahub-io/odh-dashboard</a></p>
+            <p><strong>Generated:</strong> 2026-04-29 11:21 UTC</p>
+            <p><strong>JQL:</strong> <code>project = RHOAIENG AND component = &quot;AI Core Dashboard&quot; AND priority = Blocker AND created &gt;= -365d</code></p>
+            <p><strong>Total Bugs Analyzed:</strong> 143</p>
+        </div>
+    </header>
+    <section class="dashboard">
+        <h2>Summary Dashboard</h2>
+        <div class="charts">
+            <div class="chart">
+                <h3>Test Level Distribution</h3>
+                <svg id="test-level-chart" width="300" height="400"></svg>
+            </div>
+            <div class="chart">
+                <h3>Coverage Status</h3>
+                <svg id="coverage-chart" width="300" height="400"></svg>
+            </div>
+        </div>
+        <div class="stats">
+            <div class="stat">
+                <span class="label">Total Bugs</span>
+                <span class="value">143</span>
+            </div>
+            <div class="stat">
+                <span class="label">Already Covered</span>
+                <span class="value">9</span>
+            </div>
+            <div class="stat">
+                <span class="label">True Gaps</span>
+                <span class="value">110</span>
+            </div>
+            <div class="stat">
+                <span class="label">E2E Needed</span>
+                <span class="value">24</span>
+            </div>
+            <div class="stat">
+                <span class="label">Blocker/Critical</span>
+                <span class="value">143</span>
+            </div>
+        </div>
+    </section>
+    <section class="filters">
+        <h2>🔍 Filters</h2>
+        <input type="text" id="search" placeholder="Search across all columns...">
+        <select id="filter-priority">
+            <option value="">All Priorities</option>
+            <option value="Blocker">Blocker</option>
+            <option value="Critical">Critical</option>
+            <option value="Major">Major</option>
+        </select>
+        <select id="filter-coverage">
+            <option value="">All Coverage</option>
+            <option value="COVERED">Covered</option>
+            <option value="PARTIALLY COVERED">Partially Covered</option>
+            <option value="GAP">Gap</option>
+            <option value="NOT TESTABLE">Not Testable</option>
+        </select>
+        <select id="filter-level">
+            <option value="">All Test Levels</option>
+            <option value="Unit">Unit</option>
+            <option value="Mock">Mock/Integration</option>
+            <option value="E2E">E2E</option>
+            <option value="N/A">N/A</option>
+        </select>
+        <select id="filter-category">
+            <option value="">All Categories</option>
+            <option value="functional">Functional</option>
+            <option value="upgrade">Upgrade</option>
+            <option value="platform-specific">Platform-Specific</option>
+            <option value="fips">FIPS</option>
+            <option value="disconnected">Disconnected</option>
+            <option value="performance">Performance</option>
+            <option value="security">Security</option>
+        </select>
+    </section>
+    <section class="bug-table">
+        <h2>📊 Bug Analysis Table</h2>
+        <table id="bugs">
+            <thead>
+                <tr>
+                    <th data-sort="key">Key</th>
+                    <th data-sort="priority">Priority</th>
+                    <th data-sort="summary">Summary</th>
+                    <th data-sort="coverage">Coverage</th>
+                    <th data-sort="testFile">Test File</th>
+                    <th data-sort="confidence">Confidence</th>
+                    <th data-sort="testLevel">Test Level</th>
+                    <th data-sort="categories">Categories</th>
+                    <th data-sort="details">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
+    </section>
+    <section class="e2e-breakdown">
+        <h2>🚀 E2E Test Breakdown</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Count</th>
+                    <th>Examples</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                <td>Auth</td>
+                <td>7</td>
+                <td>RHOAIENG-57842, RHOAIENG-57225, RHOAIENG-45118, ... +4 more</td>
+            </tr><tr>
+                <td>Deployment</td>
+                <td>6</td>
+                <td>RHOAIENG-58435, RHOAIENG-56997, RHOAIENG-50666, ... +3 more</td>
+            </tr><tr>
+                <td>Platform</td>
+                <td>3</td>
+                <td>RHOAIENG-34590, RHOAIENG-28103, RHOAIENG-24700</td>
+            </tr><tr>
+                <td>Upgrade</td>
+                <td>2</td>
+                <td>RHOAIENG-55830, RHOAIENG-55778</td>
+            </tr><tr>
+                <td>Integration</td>
+                <td>6</td>
+                <td>RHOAIENG-58488, RHOAIENG-58289, RHOAIENG-45976, ... +3 more</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+    <section class="recommendations">
+        <h2>💡 Recommendations</h2>
+
+        <h3>Critical Gaps (Blocker/Critical with no coverage)</h3>
+        <ul>
+            <li><a href="https://redhat.atlassian.net/browse/RHOAIENG-59861" target="_blank">RHOAIENG-59861</a>: Some remoteEntry files are taking more than 10 seconds to load (Recommend: Unit test)</li>
+<li><a href="https://redhat.atlassian.net/browse/RHOAIENG-58940" target="_blank">RHOAIENG-58940</a>: Dashboard Pause action on RayJobs has no effect when job uses an existing RayCluster (clusterSelector) (Recommend: Integration test)</li>
+<li><a href="https://redhat.atlassian.net/browse/RHOAIENG-58910" target="_blank">RHOAIENG-58910</a>: Investigate e2e failure testPerformanceFiltersAvailable (Recommend: Mock test)</li>
+<li><a href="https://redhat.atlassian.net/browse/RHOAIENG-58748" target="_blank">RHOAIENG-58748</a>: AutoRAG UI - Feature signoff - TP (Recommend: Unit test)</li>
+<li><a href="https://redhat.atlassian.net/browse/RHOAIENG-58724" target="_blank">RHOAIENG-58724</a>: odh-mod-arch-mlflow-v3-4 build failure (Recommend: Unit test)</li>
+<li><a href="https://redhat.atlassian.net/browse/RHOAIENG-58437" target="_blank">RHOAIENG-58437</a>: Subscription selector in API Keys Create Modal should be smaller and scrollable (Recommend: Unit test)</li>
+<li><a href="https://redhat.atlassian.net/browse/RHOAIENG-58289" target="_blank">RHOAIENG-58289</a>: Subscriptions list filter only searches by resource name, does not match displayName or description (Recommend: E2E test)</li>
+<li><a href="https://redhat.atlassian.net/browse/RHOAIENG-58236" target="_blank">RHOAIENG-58236</a>: Microcopy updates (Recommend: Unit test)</li>
+<li><a href="https://redhat.atlassian.net/browse/RHOAIENG-58235" target="_blank">RHOAIENG-58235</a>: View Subscription should rely on `data.subscription.modelRefs` for table data (Recommend: Mock test)</li>
+<li><a href="https://redhat.atlassian.net/browse/RHOAIENG-58177" target="_blank">RHOAIENG-58177</a>: Crashloop back-off when creating a DSPA (Recommend: Unit test)</li>
+
+        </ul>
+
+        <h3>Non-Functional Coverage Gaps</h3>
+        <ul>
+            <li><strong>Performance:</strong> 3 of 4 bugs lack coverage</li>
+<li><strong>Build-Time:</strong> 1 of 7 bugs lack coverage</li>
+<li><strong>Security:</strong> 5 of 10 bugs lack coverage</li>
+<li><strong>Upgrade:</strong> 8 of 8 bugs lack coverage</li>
+<li><strong>Platform-Specific:</strong> 2 of 3 bugs lack coverage</li>
+
+        </ul>
+
+        <h3>Test Creation Guidance</h3>
+        <p>✅ Use existing test rules: <code>.claude/rules/</code></p>
+        <p>⚙️ Or generate new rules: <code>/test-rules-generator https://redhat.atlassian.net</code></p>
+        <p>📚 Follow the test pyramid: Unit &gt; Mock &gt; E2E</p>
+    </section>
+    <footer>
+        <button onclick="window.print()">📥 Export to PDF</button>
+        <p>Generated by <strong>Quality Tiger Team</strong> - Historical Bug Coverage Analysis</p>
+        <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+            This report is self-contained and can be shared directly. All data is embedded inline.
+        </p>
+    </footer>
+    <script>
+        // Embedded data (XSS-safe)
+        const DATA = {
+            bugs: [{"key": "RHOAIENG-60049", "priority": "Blocker", "summary": "AutoML - New experiment run fails with error 'http: no Host in request URL'", "status": "Resolved", "coverage": "COVERED", "testFile": "frontend/src/api/pipelines/__tests__/custom.spec.ts", "confidence": 88.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Test: custom.spec.ts validates experiment | 1 entity matches; 2 scenarios match; validates error_handling; high-quality test | Confidence: 88% | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-60049"}, {"key": "RHOAIENG-59862", "priority": "Blocker", "summary": "Gen AI studio Tech preview shows randomly and then the Dashboard crashes to a ChunkLoadError", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "frontend/src/utilities/__tests__/useEnableApplication.spec.tsx", "confidence": 77.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Test: useEnableApplication.spec.tsx partially covers dashboard | 2 scenarios match; validates error_handling; high-quality test | Confidence: 77% | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-59862"}, {"key": "RHOAIENG-59861", "priority": "Blocker", "summary": "Some remoteEntry files are taking more than 10 seconds to load", "status": "Review", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Some remoteEntry | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-59861"}, {"key": "RHOAIENG-58940", "priority": "Blocker", "summary": "Dashboard Pause action on RayJobs has no effect when job uses an existing RayCluster (clusterSelector)", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Integration", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Integration (ginkgo) - Repo pattern for general integration tests: ginkgo (5 examples in packages/model-registry/upstream/bff/internal/integrations/kubernetes/tests)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58940"}, {"key": "RHOAIENG-58910", "priority": "Blocker", "summary": "Investigate e2e failure testPerformanceFiltersAvailable", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Mock", "framework": "jest", "categories": ["performance"], "details": "No tests found for: Investigate e2e | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58910"}, {"key": "RHOAIENG-58748", "priority": "Blocker", "summary": "AutoRAG UI - Feature signoff - TP", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58748"}, {"key": "RHOAIENG-58724", "priority": "Blocker", "summary": "odh-mod-arch-mlflow-v3-4 build failure", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["build-time"], "details": "No testable entities identified in bug summary | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58724"}, {"key": "RHOAIENG-58488", "priority": "Blocker", "summary": "Dashboard fails to pause/resume Kueue-managed workloads on Kueue 1.3.x (v1beta2 CEL validation error)", "status": "Testing", "coverage": "COVERED", "testFile": "frontend/src/hooks/__tests__/useZodFormValidation.spec.ts", "confidence": 88.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Test: useZodFormValidation.spec.ts validates validation | 1 entity matches; 2 scenarios match; validates error_handling; high-quality test | Confidence: 88% | Recommend: E2E (cypress) - Repo pattern for utils bugs: cypress e2e tests (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches). Note: Desired mock not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58488"}, {"key": "RHOAIENG-58437", "priority": "Blocker", "summary": "Subscription selector in API Keys Create Modal should be smaller and scrollable", "status": "Resolved", "coverage": "GAP", "testFile": "packages/notebooks/upstream/workspaces/frontend/src/app/hooks/__tests__/useVolumesFormState.spec.tsx", "confidence": 40.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in useVolumesFormState.spec.tsx, but confidence too low (40%) | Recommend: Unit (ginkgo) - Repo pattern for api bugs: ginkgo unit tests (19 examples in packages/model-registry/upstream/bff/internal/api). Note: Desired mock not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58437"}, {"key": "RHOAIENG-58435", "priority": "Blocker", "summary": "[AutoML]: Running an automl experiment on a disconnected cluster fails with error 'ERROR: No matching distribution found for kfp==2.15.2'", "status": "Closed", "coverage": "COVERED", "testFile": "frontend/src/api/pipelines/__tests__/custom.spec.ts", "confidence": 88.0, "testLevel": "E2E", "framework": "cypress", "categories": ["disconnected"], "details": "Test: custom.spec.ts validates experiment | 1 entity matches; 2 scenarios match; validates error_handling; high-quality test | Confidence: 88% | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58435"}, {"key": "RHOAIENG-58289", "priority": "Blocker", "summary": "Subscriptions list filter only searches by resource name, does not match displayName or description", "status": "Resolved", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/resources/resources.cy.ts", "confidence": 40.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Tests for entities exist in resources.cy.ts, but confidence too low (40%) | Recommend: E2E (cypress) - Repo pattern for utils bugs: cypress e2e tests (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches). Note: Desired unit not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58289"}, {"key": "RHOAIENG-58250", "priority": "Blocker", "summary": "LLMInferenserviceConfig deployed as llm-d model in yaml editor", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "packages/model-serving/src/components/deploymentWizard/yaml/__tests__/useYamlResourcesResult.spec.ts", "confidence": 60.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Test: useYamlResourcesResult.spec.ts partially covers yaml, model, editor | 2 entities match; validates permissions | Confidence: 60% | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58250"}, {"key": "RHOAIENG-58236", "priority": "Blocker", "summary": "Microcopy updates", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Microcopy updates | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58236"}, {"key": "RHOAIENG-58235", "priority": "Blocker", "summary": "View Subscription should rely on `data.subscription.modelRefs` for table data", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/utilities/__tests__/useRedirect.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in useRedirect.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58235"}, {"key": "RHOAIENG-58177", "priority": "Blocker", "summary": "Crashloop back-off when creating a DSPA", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Crashloop back | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58177"}, {"key": "RHOAIENG-57842", "priority": "Blocker", "summary": "Follow up - Show a Status for MaaSSubscriptions & MaaSAuthPolicies (Active vs Failed)", "status": "Closed", "coverage": "NOT TESTABLE", "testFile": null, "confidence": 0, "testLevel": "E2E", "framework": "cypress", "categories": ["security"], "details": "Feature request/recommendation, not a bug to test | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57842"}, {"key": "RHOAIENG-57763", "priority": "Blocker", "summary": "[AutoRAG] Button to select evaluation dataset from S3 is not working", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/components/__tests__/ExtendedButton.test.tsx", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in ExtendedButton.test.tsx, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57763"}, {"key": "RHOAIENG-57753", "priority": "Blocker", "summary": "2.16 - ODH fixes branch & RHDS rhoai-2.16", "status": "Testing", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: ODH fixes, 2.16, RHDS rhoai | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57753"}, {"key": "RHOAIENG-57752", "priority": "Blocker", "summary": "2.25 - ODH stable branch", "status": "Testing", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Mock", "framework": "jest", "categories": ["upgrade"], "details": "No tests found for: 2.25, ODH stable | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57752"}, {"key": "RHOAIENG-57751", "priority": "Blocker", "summary": "3.2 - ODH fixes branch & RHDS rhoai-3.2", "status": "Testing", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: ODH fixes, RHDS rhoai | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57751"}, {"key": "RHOAIENG-57750", "priority": "Blocker", "summary": "3.3 - ODH fixes branch & RHDS rhoai-3.3", "status": "Testing", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["upgrade"], "details": "No tests found for: ODH fixes, RHDS rhoai | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57750"}, {"key": "RHOAIENG-57749", "priority": "Blocker", "summary": "3.4 EA 2 - RHDS rhoai-3.4.ea2", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: EA 2, RHDS rhoai, 4.ea2 | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57749"}, {"key": "RHOAIENG-57748", "priority": "Blocker", "summary": "3.4 Stable - ODH main", "status": "Testing", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "No tests found for: ODH main | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57748"}, {"key": "RHOAIENG-57646", "priority": "Blocker", "summary": "[AutoML Timeseries]: Run fails with error message 'ModuleNotFoundError: No module named 'autogluon.timeseries''", "status": "Closed", "coverage": "COVERED", "testFile": "frontend/src/concepts/roleBinding/__tests__/utils.spec.ts", "confidence": 88.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Test: utils.spec.ts validates Run fails | 1 entity matches; 2 scenarios match; validates error_handling; high-quality test | Confidence: 88% | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57646"}, {"key": "RHOAIENG-57631", "priority": "Blocker", "summary": "BFF Update calls clobber non-UI parts of the CR", "status": "Resolved", "coverage": "GAP", "testFile": "packages/model-registry/upstream/frontend/src/app/context/mcpCatalog/__tests__/McpCatalogContext.spec.tsx", "confidence": 30.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in McpCatalogContext.spec.tsx, but confidence too low (30%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57631"}, {"key": "RHOAIENG-57594", "priority": "Blocker", "summary": "Projects view not loading after performing a visitWithLogin('/projects',XXXX)", "status": "Resolved", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/featureStore/featureEntities.cy.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in featureEntities.cy.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57594"}, {"key": "RHOAIENG-57456", "priority": "Blocker", "summary": "Tech Preview - ODH and RHOAI Integrations [AI Core Dashboard - Custom Endpoints]", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 20.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (20%) | Recommend: Unit (ginkgo) - Repo pattern for api bugs: ginkgo unit tests (19 examples in packages/model-registry/upstream/bff/internal/api). Note: Desired integration not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57456"}, {"key": "RHOAIENG-57406", "priority": "Blocker", "summary": "Gen AI - RHOAI 3.4.0 deploying Llamastack version 0.6.0 instead of 0.7.0", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/api/modelRegistry/__tests__/custom.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in custom.spec.ts, but confidence too low (11%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57406"}, {"key": "RHOAIENG-57297", "priority": "Blocker", "summary": "Dashboard resource url's are incorrect", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57297"}, {"key": "RHOAIENG-57288", "priority": "Blocker", "summary": "CLONE - Ensure everything was completed under Tech Preview", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Ensure everything, Tech Preview | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57288"}, {"key": "RHOAIENG-57225", "priority": "Blocker", "summary": "Show a Status for MaaSSubscriptions & MaaSAuthPolicies (Active vs Failed)", "status": "Closed", "coverage": "COVERED", "testFile": "frontend/src/concepts/pipelines/content/__tests__/PipelineDetailsTitle.spec.tsx", "confidence": 99.0, "testLevel": "E2E", "framework": "cypress", "categories": ["security"], "details": "Test: PipelineDetailsTitle.spec.tsx validates status, Status for | 2 entities match; 2 scenarios match; validates error_handling; high-quality test | Confidence: 99% | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57225"}, {"key": "RHOAIENG-57151", "priority": "Blocker", "summary": "MCP Remote Server Not Visible in Catalog", "status": "Resolved", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/applications/externalRedirects.cy.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in externalRedirects.cy.ts, but confidence too low (11%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57151"}, {"key": "RHOAIENG-57149", "priority": "Blocker", "summary": "Gen AI E2E failing tests", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Gen AI | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57149"}, {"key": "RHOAIENG-57078", "priority": "Blocker", "summary": "Gateway Field - Feature signoff - TP", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Gateway Field, Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57078"}, {"key": "RHOAIENG-57010", "priority": "Blocker", "summary": "CLONE - Feature signoff - DP", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57010"}, {"key": "RHOAIENG-56997", "priority": "Blocker", "summary": "vLLM model deployments breaks when using tools or RAG in Gen AI Studio", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/concepts/k8s/__tests__/utils.spec.ts", "confidence": 25.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (25%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-56997"}, {"key": "RHOAIENG-56788", "priority": "Blocker", "summary": "vLLM on MaaS Feature signoff - TP", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-56788"}, {"key": "RHOAIENG-56731", "priority": "Blocker", "summary": "Rework type guards to prevent page crashes if API shifts on us", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/concepts/pipelines/content/tables/__tests__/usePipelineTable.spec.ts", "confidence": 25.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in usePipelineTable.spec.ts, but confidence too low (25%) | Recommend: Unit (ginkgo) - Repo pattern for api bugs: ginkgo unit tests (19 examples in packages/model-registry/upstream/bff/internal/api). Note: Desired mock not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-56731"}, {"key": "RHOAIENG-56723", "priority": "Blocker", "summary": "dashboard redirect pod gets oomkilled", "status": "Resolved", "coverage": "NOT TESTABLE", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["build-time"], "details": "Build/deployment issue - recommend testing with konflux-build-simulator skill | Recommend: Unit (ginkgo) - Repo pattern for operator bugs: ginkgo unit tests (3 examples in packages/notebooks/upstream/workspaces/controller/internal/webhook). Note: Desired integration not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-56723"}, {"key": "RHOAIENG-56344", "priority": "Blocker", "summary": "EvalHub - Feature signoff - TP", "status": "Closed", "coverage": "GAP", "testFile": "packages/eval-hub/frontend/src/app/hooks/__tests__/useFetchEvalHubStatus.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in useFetchEvalHubStatus.spec.ts, but confidence too low (11%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-56344"}, {"key": "RHOAIENG-56269", "priority": "Blocker", "summary": "Built-in RAG responses fail with 500 when external vector store ConfigMaps are absent", "status": "Resolved", "coverage": "PARTIALLY COVERED", "testFile": "frontend/src/api/k8s/__tests__/configMaps.spec.ts", "confidence": 77.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Test: configMaps.spec.ts partially covers ConfigMaps | 2 scenarios match; validates error_handling; high-quality test | Confidence: 77% | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-56269"}, {"key": "RHOAIENG-56220", "priority": "Blocker", "summary": "Update the gen-ai BFF to align with LlamaStack 0.6.x breaking changes", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/api/k8s/__tests__/inferenceServices.spec.ts", "confidence": 30.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in inferenceServices.spec.ts, but confidence too low (30%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-56220"}, {"key": "RHOAIENG-56097", "priority": "Blocker", "summary": "RHAISTRAT-1112 Feature signoff - TP", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-56097"}, {"key": "RHOAIENG-56052", "priority": "Blocker", "summary": "Feature signoff - AAE Custom Endpoints TP", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/screens/spawner/storage/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-56052"}, {"key": "RHOAIENG-55830", "priority": "Blocker", "summary": "GenAI  3.4 <--> Llama Stack 0.7.0 Upgrade", "status": "Closed", "coverage": "GAP", "testFile": "packages/autorag/frontend/src/app/pages/__tests__/AutoragConfigurePage.spec.tsx", "confidence": 11.0, "testLevel": "E2E", "framework": "cypress", "categories": ["upgrade"], "details": "Tests for entities exist in AutoragConfigurePage.spec.tsx, but confidence too low (11%) | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-55830"}, {"key": "RHOAIENG-55778", "priority": "Blocker", "summary": "Sanity check: verify RHOAI 3.4 upgrade path with gen-ai and llamaStack version 0.7.0 migration", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/api/modelRegistry/__tests__/custom.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "cypress", "categories": ["upgrade"], "details": "Tests for entities exist in custom.spec.ts, but confidence too low (11%) | Recommend: E2E (cypress) - Repo pattern for data bugs: cypress e2e tests (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches). Note: Desired e2e not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-55778"}, {"key": "RHOAIENG-54797", "priority": "Blocker", "summary": "[BFF] Playground - Inference with MaaS models using Subscriptions", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/api/k8s/__tests__/inferenceServices.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in inferenceServices.spec.ts, but confidence too low (11%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-54797"}, {"key": "RHOAIENG-54796", "priority": "Blocker", "summary": "Playground - Update MaaS /v1/models endpoint", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/api/__tests__/proxyUtils.spec.ts", "confidence": 30.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in proxyUtils.spec.ts, but confidence too low (30%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-54796"}, {"key": "RHOAIENG-54306", "priority": "Blocker", "summary": "Creating an Evaluation Run is stuck in Pending", "status": "Resolved", "coverage": "GAP", "testFile": "packages/eval-hub/frontend/src/app/pages/__tests__/EvaluationsPage.spec.tsx", "confidence": 50.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in EvaluationsPage.spec.tsx, but confidence too low (50%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-54306"}, {"key": "RHOAIENG-54008", "priority": "Blocker", "summary": "Switch to MaaS from /v1/tokens to /v1/api-keys endpoint in Gen AI Studio", "status": "Resolved", "coverage": "GAP", "testFile": "packages/model-registry/upstream/frontend/src/__tests__/cypress/cypress/tests/mocked/mcpCatalog/mcpServerDetails.cy.ts", "confidence": 20.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in mcpServerDetails.cy.ts, but confidence too low (20%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-54008"}, {"key": "RHOAIENG-53865", "priority": "Blocker", "summary": "[3.3.NEXT] MaaS UI TokenRateLimitPolicy Conflict Bug", "status": "In Progress", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["upgrade"], "details": "No tests found for: 3.NEXT, UI TokenRateLimitPolicy, TokenRateLimitPolicy | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-53865"}, {"key": "RHOAIENG-53410", "priority": "Blocker", "summary": "maas-api CrashLoopBackOff due to missing maas-db-config secret", "status": "Closed", "coverage": "NOT TESTABLE", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["build-time"], "details": "Build/deployment issue - recommend testing with konflux-build-simulator skill | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-53410"}, {"key": "RHOAIENG-53229", "priority": "Blocker", "summary": "odh-mod-arch-model-registry-v3-4-ea-2 build failure.", "status": "Closed", "coverage": "COVERED", "testFile": "frontend/src/api/modelRegistry/__tests__/custom.spec.ts", "confidence": 99.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["build-time"], "details": "Test: custom.spec.ts validates model, registry | 2 entities match; 2 scenarios match; validates error_handling; high-quality test | Confidence: 99% | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-53229"}, {"key": "RHOAIENG-52305", "priority": "Blocker", "summary": "Feature signoff - GA", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-52305"}, {"key": "RHOAIENG-52253", "priority": "Blocker", "summary": "[Verification] Test MaaS 3.4 with AAE page and MaaS models inference", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/concepts/pipelines/apiHooks/__tests__/usePipelineQuery.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in usePipelineQuery.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-52253"}, {"key": "RHOAIENG-52252", "priority": "Blocker", "summary": "[SPIKE] Can LLS forward subscription headers for MaaS", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Can LLS | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-52252"}, {"key": "RHOAIENG-52250", "priority": "Blocker", "summary": "AAE - Update MaaS /v1/models endpoint", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/api/__tests__/proxyUtils.spec.ts", "confidence": 30.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in proxyUtils.spec.ts, but confidence too low (30%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-52250"}, {"key": "RHOAIENG-52248", "priority": "Blocker", "summary": "Refactor AAE and Gen AI Studio to support MaaS subscriptions", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Refactor AAE, Gen AI, Studio to | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-52248"}, {"key": "RHOAIENG-51836", "priority": "Blocker", "summary": "AutoML UI - Feature signoff - TP", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-51836"}, {"key": "RHOAIENG-51580", "priority": "Blocker", "summary": "Dashboard cannot be deployed in 3.4 E.A. 1", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-51580"}, {"key": "RHOAIENG-51359", "priority": "Blocker", "summary": "Feature signoff - GA", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-51359"}, {"key": "RHOAIENG-51348", "priority": "Blocker", "summary": "Feature signoff - GA", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-51348"}, {"key": "RHOAIENG-51012", "priority": "Blocker", "summary": "CLONE - Feature signoff - GA", "status": "New", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-51012"}, {"key": "RHOAIENG-51004", "priority": "Blocker", "summary": "CLONE - Feature signoff - GA", "status": "New", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-51004"}, {"key": "RHOAIENG-50989", "priority": "Blocker", "summary": "Feature signoff - GA", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Feature signoff | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-50989"}, {"key": "RHOAIENG-50915", "priority": "Blocker", "summary": "[RHOAI 2.8RC1] Notebooks spinned up by Jupyter are being created under wrong namespace", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/modelServing/screens/projects/__tests__/utils.spec.ts", "confidence": 33.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (33%) | Recommend: Unit (ginkgo) - Repo pattern for operator bugs: ginkgo unit tests (3 examples in packages/notebooks/upstream/workspaces/controller/internal/webhook). Note: Desired integration not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-50915"}, {"key": "RHOAIENG-50669", "priority": "Blocker", "summary": "[Product bug] Data sources in Feature store doesn't show up ", "status": "Resolved", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/featureStore/featureDataSources.cy.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in featureDataSources.cy.ts, but confidence too low (11%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-50669"}, {"key": "RHOAIENG-50666", "priority": "Blocker", "summary": "[Product bug] Deployment takes time to get in \"Ready\" state after deploying model with S3 object storage connection", "status": "Resolved", "coverage": "PARTIALLY COVERED", "testFile": "packages/cypress/cypress/tests/mocked/mcpCatalog/mcpDeployments.cy.ts", "confidence": 66.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Test: mcpDeployments.cy.ts partially covers deployment, model, state | 2 entities match; validates state_transitions; high-quality test | Confidence: 66% | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-50666"}, {"key": "RHOAIENG-50100", "priority": "Blocker", "summary": "gen-ai-ui container is in CrashLoopBackOff", "status": "Resolved", "coverage": "NOT TESTABLE", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["build-time"], "details": "Build/deployment issue - recommend testing with konflux-build-simulator skill | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-50100"}, {"key": "RHOAIENG-49087", "priority": "Blocker", "summary": "OAuth login fails with 403 after browser idle 15+ min \u2014 CSRF token expired, poor UX and raw HTML error page", "status": "Closed", "coverage": "COVERED", "testFile": "packages/eval-hub/frontend/src/__tests__/cypress/cypress/tests/mocked/createFlow/startEvaluationRun.cy.ts", "confidence": 88.0, "testLevel": "Unit", "framework": "jest", "categories": ["security"], "details": "Test: startEvaluationRun.cy.ts validates page | 1 entity matches; 2 scenarios match; validates error_handling; high-quality test | Confidence: 88% | Recommend: Unit (jest) - Repo pattern for ui bugs: jest unit tests (23 examples in frontend/src/api/k8s/__tests__). Note: Desired e2e not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-49087"}, {"key": "RHOAIENG-48853", "priority": "Blocker", "summary": "Design Document - vLLM on MaaS", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Design Document | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-48853"}, {"key": "RHOAIENG-48747", "priority": "Blocker", "summary": "Dashboard shows broken Gateway URLs for unmigrated 2.x workbenches after upgrade to 3.x", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "jest", "categories": ["upgrade"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Unit (jest) - Repo pattern for ui bugs: jest unit tests (23 examples in frontend/src/api/k8s/__tests__). Note: Desired e2e not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-48747"}, {"key": "RHOAIENG-48526", "priority": "Blocker", "summary": "Upgrade Available button does not show up when switching to the fast-3.x update channel", "status": "Closed", "coverage": "GAP", "testFile": "packages/notebooks/upstream/workspaces/frontend/src/shared/components/__tests__/ToolbarFilter.spec.tsx", "confidence": 33.0, "testLevel": "Unit", "framework": "jest", "categories": ["upgrade"], "details": "Tests for entities exist in ToolbarFilter.spec.tsx, but confidence too low (33%) | Recommend: Unit (jest) - Repo pattern for ui bugs: jest unit tests (23 examples in frontend/src/api/k8s/__tests__). Note: Desired e2e not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-48526"}, {"key": "RHOAIENG-48471", "priority": "Blocker", "summary": "[RHOAI 3.4.0-EA1] Product Sign Off - AI Core Dashboard Team", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-48471"}, {"key": "RHOAIENG-47459", "priority": "Blocker", "summary": "DSC - Not Ready - Dashboard '..no matches for kind \"PersesDashboard\" in version \"perses.dev/v1alpha1'", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/api/modelRegistry/__tests__/custom.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in custom.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-47459"}, {"key": "RHOAIENG-47449", "priority": "Blocker", "summary": "dashboard fails to be ready", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "frontend/config/__tests__/discoverPluginPackages.spec.js", "confidence": 77.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Test: discoverPluginPackages.spec.js partially covers dashboard | 2 scenarios match; validates error_handling; high-quality test | Confidence: 77% | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-47449"}, {"key": "RHOAIENG-45987", "priority": "Blocker", "summary": "Hidden performance filters in Model Catalog", "status": "Resolved", "coverage": "PARTIALLY COVERED", "testFile": "packages/model-registry/upstream/frontend/src/__tests__/cypress/cypress/tests/mocked/modelCatalog/modelCatalog.cy.ts", "confidence": 60.0, "testLevel": "Mock", "framework": "jest", "categories": ["performance"], "details": "Test: modelCatalog.cy.ts partially covers catalog, model, Model Catalog | 3 entities match; 2 scenarios match | Confidence: 60% | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-45987"}, {"key": "RHOAIENG-45977", "priority": "Blocker", "summary": "Catalog: pass targetRPS, latencyProperty, and recommended to /models endpoint in addition to artifacts, when perf view toggle is on", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/concepts/pipelines/content/configurePipelinesServer/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["performance"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-45977"}, {"key": "RHOAIENG-45976", "priority": "Blocker", "summary": "Catalog: RPS filter needs maximum value of 50 instead of using requests_per_second max from filter_options", "status": "Closed", "coverage": "GAP", "testFile": "packages/model-registry/upstream/frontend/src/__tests__/cypress/cypress/tests/mocked/modelCatalogSettings/modelCatalogPerformanceFiltersAlert.cy.ts", "confidence": 44.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Tests for entities exist in modelCatalogPerformanceFiltersAlert.cy.ts, but confidence too low (44%) | Recommend: E2E (cypress) - Repo pattern for utils bugs: cypress e2e tests (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches). Note: Desired unit not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-45976"}, {"key": "RHOAIENG-45854", "priority": "Blocker", "summary": "LLM-D Status Grace Period Should be Longer", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/app/status-provider/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-45854"}, {"key": "RHOAIENG-45495", "priority": "Blocker", "summary": "Remove Valid Tier Information from Model Deployment Hook", "status": "Closed", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/modelsAsAService/maasDeploymentWizard.cy.ts", "confidence": 22.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in maasDeploymentWizard.cy.ts, but confidence too low (22%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-45495"}, {"key": "RHOAIENG-45140", "priority": "Blocker", "summary": "Review CI - PRs Merging with Failed Checks", "status": "Backlog", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Failed Checks, Review CI, Merging with | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-45140"}, {"key": "RHOAIENG-45118", "priority": "Blocker", "summary": "Fix Permission Issue With MaaS (RHOAI) Admin ", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/concepts/permissions/__tests__/PermissionsContext.spec.tsx", "confidence": 55.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Tests for entities exist in PermissionsContext.spec.tsx, but confidence too low (55%) | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-45118"}, {"key": "RHOAIENG-44455", "priority": "Blocker", "summary": "Dashboard does not show model catalog, on enabling the same in model-catalog-sources configmap", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/modelServing/screens/projects/__tests__/utils.spec.ts", "confidence": 22.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (22%) | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-44455"}, {"key": "RHOAIENG-42517", "priority": "Blocker", "summary": "Gen AI Playground shows \"Streaming error occurred\" when asking for contents present int RAG", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "packages/gen-ai/frontend/src/app/Chatbot/hooks/__tests__/useChatbotMessages.spec.ts", "confidence": 77.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Test: useChatbotMessages.spec.ts partially covers Streaming error, Streaming error occurred | 2 scenarios match; validates error_handling; high-quality test | Confidence: 77% | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-42517"}, {"key": "RHOAIENG-42312", "priority": "Blocker", "summary": "Unable to create a Gen AI Playground in RHOAI", "status": "Closed", "coverage": "GAP", "testFile": "packages/automl/bff/internal/api/s3_handler_test.go", "confidence": 30.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in s3_handler_test.go, but confidence too low (30%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-42312"}, {"key": "RHOAIENG-41653", "priority": "Blocker", "summary": "Mlflow UI in ODH attempting to list non-slected workspaces ", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/utilities/__tests__/notebookControllerUtils.spec.tsx", "confidence": 11.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in notebookControllerUtils.spec.tsx, but confidence too low (11%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-41653"}, {"key": "RHOAIENG-41641", "priority": "Blocker", "summary": "Unable to create a Gen AI Playground in RHOAI 3.2 nightly (pod in CrashLoopBackOff state)", "status": "Closed", "coverage": "NOT TESTABLE", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["build-time"], "details": "Build/deployment issue - recommend testing with konflux-build-simulator skill | Recommend: Unit (ginkgo) - Repo pattern for operator bugs: ginkgo unit tests (3 examples in packages/notebooks/upstream/workspaces/controller/internal/webhook). Note: Desired integration not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-41641"}, {"key": "RHOAIENG-40654", "priority": "Blocker", "summary": "500 Internal Error accessing AI Hub - Catalog", "status": "Resolved", "coverage": "PARTIALLY COVERED", "testFile": "frontend/src/concepts/modelRegistry/apiHooks/__tests__/updateTimestamps.test.ts", "confidence": 77.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Test: updateTimestamps.test.ts partially covers catalog | 2 scenarios match; validates error_handling; high-quality test | Confidence: 77% | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-40654"}, {"key": "RHOAIENG-38179", "priority": "Blocker", "summary": "Fix IDP users accessing RHOAI dashboard during E2E", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-38179"}, {"key": "RHOAIENG-38131", "priority": "Blocker", "summary": "Gen-AI playground cannot discover cluster domain when deployed as non-admin user", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/utilities/__tests__/useDetectUser.spec.ts", "confidence": 11.0, "testLevel": "Integration", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in useDetectUser.spec.ts, but confidence too low (11%) | Recommend: Integration (ginkgo) - Repo pattern for general integration tests: ginkgo (5 examples in packages/model-registry/upstream/bff/internal/integrations/kubernetes/tests)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-38131"}, {"key": "RHOAIENG-38130", "priority": "Blocker", "summary": "Error configuring Llama Stack on AI Playground", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "packages/autorag/frontend/src/app/pages/__tests__/AutoragConfigurePage.spec.tsx", "confidence": 60.5, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Test: AutoragConfigurePage.spec.tsx partially covers Llama Stack | 1 scenario matches; validates error_handling; high-quality test | Confidence: 61% | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-38130"}, {"key": "RHOAIENG-38112", "priority": "Blocker", "summary": "Revert RHOAIENG-34910", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Revert RHOAIENG | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-38112"}, {"key": "RHOAIENG-38054", "priority": "Blocker", "summary": "Gen-AI BFF logs expose authentication tokens in plain text", "status": "Closed", "coverage": "GAP", "testFile": "packages/automl/frontend/src/app/hooks/__tests__/usePipelineRuns.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["security"], "details": "Tests for entities exist in usePipelineRuns.spec.ts, but confidence too low (11%) | Recommend: Unit (ginkgo) - Repo pattern for api bugs: ginkgo unit tests (19 examples in packages/model-registry/upstream/bff/internal/api). Note: Desired e2e not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-38054"}, {"key": "RHOAIENG-37998", "priority": "Blocker", "summary": "ODH Dashboard pods are crashing", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Unit (ginkgo) - Repo pattern for operator bugs: ginkgo unit tests (3 examples in packages/notebooks/upstream/workspaces/controller/internal/webhook). Note: Desired integration not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-37998"}, {"key": "RHOAIENG-37883", "priority": "Blocker", "summary": "Regular users cannot list MCP servers in AI Playground due to ConfigMap permissions", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "packages/model-registry/upstream/frontend/src/__tests__/cypress/cypress/tests/mocked/modelCatalog/modelCatalog.cy.ts", "confidence": 60.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Test: modelCatalog.cy.ts partially covers ConfigMap, configmap, list | 2 entities match; validates permissions | Confidence: 60% | Recommend: Unit (ginkgo) - Repo pattern for api bugs: ginkgo unit tests (19 examples in packages/model-registry/upstream/bff/internal/api). Note: Desired e2e not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-37883"}, {"key": "RHOAIENG-37725", "priority": "Blocker", "summary": "Regular users can't seem to use the AI Playground", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: AI Playground, Regular users | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-37725"}, {"key": "RHOAIENG-37017", "priority": "Blocker", "summary": "Enable Gen Ai in CRD", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "No tests found for: Ai in, Enable Gen | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-37017"}, {"key": "RHOAIENG-36926", "priority": "Blocker", "summary": "'Performance Insights' filtering logic duplicates data", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/concepts/hardwareProfiles/__tests__/HardwareProfileSelect.spec.tsx", "confidence": 40.0, "testLevel": "Mock", "framework": "jest", "categories": ["performance"], "details": "Tests for entities exist in HardwareProfileSelect.spec.tsx, but confidence too low (40%) | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-36926"}, {"key": "RHOAIENG-36463", "priority": "Blocker", "summary": "Can't start a pipeline server", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/concepts/pipelines/content/__tests__/ManagePipelineServerModal.spec.tsx", "confidence": 11.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in ManagePipelineServerModal.spec.tsx, but confidence too low (11%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-36463"}, {"key": "RHOAIENG-36462", "priority": "Blocker", "summary": "Cannot patch ModelRegistry CR via dashboard / k8s REST API - spec: Invalid value: \\\"object\\\": Cannot use both oauthProxy and kubeRBACProxy", "status": "Resolved", "coverage": "PARTIALLY COVERED", "testFile": "packages/eval-hub/frontend/src/app/components/__tests__/EvalHubInvalidProject.spec.tsx", "confidence": 60.5, "testLevel": "Unit", "framework": "ginkgo", "categories": ["security"], "details": "Test: EvalHubInvalidProject.spec.tsx partially covers dashboard | 1 scenario matches; validates permissions; high-quality test | Confidence: 61% | Recommend: Unit (ginkgo) - Repo pattern for api bugs: ginkgo unit tests (19 examples in packages/model-registry/upstream/bff/internal/api). Note: Desired e2e not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-36462"}, {"key": "RHOAIENG-36398", "priority": "Blocker", "summary": "In dashboard Model Catalog does not display on 3.0 latest build (TypeError, UI is trying to use `hardware` instead of `hardware_type`)", "status": "Resolved", "coverage": "COVERED", "testFile": "packages/cypress/cypress/tests/mocked/applications/externalRedirects.cy.ts", "confidence": 93.5, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Test: externalRedirects.cy.ts validates Model Catalog, model, catalog | 3 entities match; 1 scenario matches; validates error_handling; high-quality test | Confidence: 94% | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-36398"}, {"key": "RHOAIENG-36213", "priority": "Blocker", "summary": "With latest 3.0 dashboard operator pods are crash looping", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Unit (ginkgo) - Repo pattern for operator bugs: ginkgo unit tests (3 examples in packages/notebooks/upstream/workspaces/controller/internal/webhook). Note: Desired integration not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-36213"}, {"key": "RHOAIENG-35747", "priority": "Blocker", "summary": "With latest 3.0 Rhoai build Red Hat OpenShift AI link is incorrect", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/utilities/__tests__/imageStreamUtils.spec.ts", "confidence": 10.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in imageStreamUtils.spec.ts, but confidence too low (10%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-35747"}, {"key": "RHOAIENG-35106", "priority": "Blocker", "summary": "Merge dashboard fix for CVE-2025-10725 to rhoai-2.25", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["upgrade", "security"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-35106"}, {"key": "RHOAIENG-35104", "priority": "Blocker", "summary": "Merge dashboard fix for CVE-2025-10725 to rhoai-2.24", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["security"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-35104"}, {"key": "RHOAIENG-35083", "priority": "Blocker", "summary": "Broken Modular Architecture MR Build", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Architecture MR, Broken Modular | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-35083"}, {"key": "RHOAIENG-35051", "priority": "Blocker", "summary": "DSC Installation failing due to dashboard manifest issue", "status": "Resolved", "coverage": "PARTIALLY COVERED", "testFile": "frontend/config/__tests__/discoverPluginPackages.spec.js", "confidence": 77.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Test: discoverPluginPackages.spec.js partially covers dashboard | 2 scenarios match; validates error_handling; high-quality test | Confidence: 77% | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-35051"}, {"key": "RHOAIENG-34959", "priority": "Blocker", "summary": "Users are unable to edit cluster storage", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/concepts/pipelines/apiHooks/__tests__/useArtifactStorage.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Tests for entities exist in useArtifactStorage.spec.ts, but confidence too low (11%) | Recommend: E2E (cypress) - Repo pattern for data bugs: cypress e2e tests (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches). Note: Desired integration not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34959"}, {"key": "RHOAIENG-34893", "priority": "Blocker", "summary": "Model Registry & Catalog routes not available in RHOAI", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/api/modelRegistry/__tests__/errorUtils.spec.ts", "confidence": 33.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in errorUtils.spec.ts, but confidence too low (33%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34893"}, {"key": "RHOAIENG-34879", "priority": "Blocker", "summary": "[2.16.NEXT] Migrate Dashboard v2.16 from Node.js 18 (EOL) to Node.js 20", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34879"}, {"key": "RHOAIENG-34837", "priority": "Blocker", "summary": "HardwareProfiles component causes infinite re-render loop with \"Maximum update depth exceeded\" error", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "frontend/src/components/__tests__/ExtendedButton.test.tsx", "confidence": 77.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Test: ExtendedButton.test.tsx partially covers component | 2 scenarios match; validates error_handling; high-quality test | Confidence: 77% | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34837"}, {"key": "RHOAIENG-34792", "priority": "Blocker", "summary": "Cannot Deploy a model directly via Model Catalog view", "status": "Resolved", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/applications/externalRedirects.cy.ts", "confidence": 33.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in externalRedirects.cy.ts, but confidence too low (33%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34792"}, {"key": "RHOAIENG-34590", "priority": "Blocker", "summary": "Dashboard does not come up on ARM", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "cypress", "categories": ["platform-specific"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34590"}, {"key": "RHOAIENG-34509", "priority": "Blocker", "summary": "DSC is stuck in \"Not Ready\" state due to dashboard component", "status": "Resolved", "coverage": "PARTIALLY COVERED", "testFile": "frontend/src/concepts/integrations/__tests__/useIsComponentIntegrationEnabled.spec.ts", "confidence": 60.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Test: useIsComponentIntegrationEnabled.spec.ts partially covers component, state | 2 entities match; validates state_transitions | Confidence: 60% | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34509"}, {"key": "RHOAIENG-34452", "priority": "Blocker", "summary": "Admin user permissions granted via Model Registry Settings have no effect in new KF MR UI", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "packages/cypress/cypress/tests/mocked/modelRegistrySettings/modelRegistrySettings.cy.ts", "confidence": 70.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Test: modelRegistrySettings.cy.ts partially covers Model Registry, user, model | 3 entities match; validates permissions | Confidence: 70% | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34452"}, {"key": "RHOAIENG-34407", "priority": "Blocker", "summary": "MR (KF) Properties tables do not allow adding a property if there are no properties, and does not reload after adding property in some places", "status": "Closed", "coverage": "GAP", "testFile": "packages/feature-store/src/api/__tests__/errorUtils.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in errorUtils.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34407"}, {"key": "RHOAIENG-34392", "priority": "Blocker", "summary": "ODH Dashboard: Could not load component state", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "frontend/src/concepts/integrations/__tests__/useIsComponentIntegrationEnabled.spec.ts", "confidence": 60.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Test: useIsComponentIntegrationEnabled.spec.ts partially covers component, state | 2 entities match; validates state_transitions | Confidence: 60% | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34392"}, {"key": "RHOAIENG-34380", "priority": "Blocker", "summary": "Dashboard does not apply GPU node tolerations on InferenceService in AMD GPU Cluster", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/modelServing/screens/projects/nim/__tests__/nimUtils.spec.ts", "confidence": 22.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in nimUtils.spec.ts, but confidence too low (22%) | Recommend: Unit (ginkgo) - Repo pattern for operator bugs: ginkgo unit tests (3 examples in packages/notebooks/upstream/workspaces/controller/internal/webhook). Note: Desired integration not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34380"}, {"key": "RHOAIENG-34375", "priority": "Blocker", "summary": "Login to Dashboard failure due to \"Unexpected token\" ", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "frontend/config/__tests__/discoverPluginPackages.spec.js", "confidence": 77.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Test: discoverPluginPackages.spec.js partially covers dashboard | 2 scenarios match; validates error_handling; high-quality test | Confidence: 77% | Recommend: Mock (jest) - Repo pattern for general mock tests: jest (9 examples in packages/feature-store/src/apiHooks/__tests__)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34375"}, {"key": "RHOAIENG-34373", "priority": "Blocker", "summary": "ODH failed to lookup object /odh-gateway-class: no matches for kind \"GatewayClass\" in version \"gateway.networking.k8s.io/v1\" on OCP 4.18.13", "status": "Closed", "coverage": "COVERED", "testFile": "frontend/src/api/modelRegistry/__tests__/custom.spec.ts", "confidence": 88.0, "testLevel": "Integration", "framework": "ginkgo", "categories": ["functional"], "details": "Test: custom.spec.ts validates version | 1 entity matches; 2 scenarios match; validates error_handling; high-quality test | Confidence: 88% | Recommend: Integration (ginkgo) - Repo pattern for general integration tests: ginkgo (5 examples in packages/model-registry/upstream/bff/internal/integrations/kubernetes/tests)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34373"}, {"key": "RHOAIENG-34369", "priority": "Blocker", "summary": "Review Quarantined Tests", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: Review Quarantined | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34369"}, {"key": "RHOAIENG-34171", "priority": "Blocker", "summary": "Deploy extension for KF MR needs to support modelmesh + wrong redirect when deploying from MR", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No tests found for: KF MR, Deploy extension | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34171"}, {"key": "RHOAIENG-33476", "priority": "Blocker", "summary": "Standalone workbench resets number of accelerators to 0 on creation", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/utilities/__tests__/useGetNotebookRoute.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in useGetNotebookRoute.spec.ts, but confidence too low (11%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-33476"}, {"key": "RHOAIENG-33128", "priority": "Blocker", "summary": "update icons for new left navigation IA", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "No testable entities identified in bug summary | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-33128"}, {"key": "RHOAIENG-32820", "priority": "Blocker", "summary": "Remove dashboard hardware profiles CRD", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-32820"}, {"key": "RHOAIENG-32615", "priority": "Blocker", "summary": "[Cypress-e2e] Quarantine Workbench test in 2.24", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/utilities/__tests__/useGetNotebookRoute.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in useGetNotebookRoute.spec.ts, but confidence too low (11%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-32615"}, {"key": "RHOAIENG-32479", "priority": "Blocker", "summary": "[Cypress-e2e] Quarantine Authorino tests in 2.24", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "E2E", "framework": "cypress", "categories": ["security"], "details": "No tests found for: Quarantine Authorino, 2.24 | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-32479"}, {"key": "RHOAIENG-32023", "priority": "Blocker", "summary": "[Dashboards] Implement RHOAI 3.0 information architecture and Left Navigation", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "No tests found for: Left Navigation, Implement RHOAI | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-32023"}, {"key": "RHOAIENG-31381", "priority": "Blocker", "summary": "[2.22] Workbench images with incomplete imagestreams are not listed in the Spawn basic workbench odh-dashboard page", "status": "Resolved", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/projects/tabs/workbench.cy.ts", "confidence": 22.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in workbench.cy.ts, but confidence too low (22%) | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-31381"}, {"key": "RHOAIENG-30321", "priority": "Blocker", "summary": "[notebook] Workbench image dropdown showing image streams without the notebook-image label set to true", "status": "Resolved", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/projects/tabs/workbench.cy.ts", "confidence": 30.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in workbench.cy.ts, but confidence too low (30%) | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-30321"}, {"key": "RHOAIENG-30246", "priority": "Blocker", "summary": "Add back the dashboard hardware profiles CRD", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-30246"}, {"key": "RHOAIENG-28103", "priority": "Blocker", "summary": "Default serving runtime for power not available in RHOAI 2.22.", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/api/k8s/__tests__/servingRuntimes.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "cypress", "categories": ["platform-specific"], "details": "Tests for entities exist in servingRuntimes.spec.ts, but confidence too low (11%) | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-28103"}, {"key": "RHOAIENG-27682", "priority": "Blocker", "summary": "Model deployment with token authentication missing SA/secret when resource name is set", "status": "Closed", "coverage": "GAP", "testFile": "packages/automl/frontend/src/app/hooks/__tests__/queries.spec.tsx", "confidence": 44.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["security"], "details": "Tests for entities exist in queries.spec.tsx, but confidence too low (44%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-27682"}, {"key": "RHOAIENG-27176", "priority": "Blocker", "summary": "Change ModelRegistry CR version from v1alpha1 to v1beta1", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/api/modelRegistry/__tests__/custom.spec.ts", "confidence": 22.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in custom.spec.ts, but confidence too low (22%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-27176"}, {"key": "RHOAIENG-26098", "priority": "Blocker", "summary": "Incorrect RBAC propagated to the dashboard admin user", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "packages/observability/src/utils/__tests__/dashboardUtils.spec.ts", "confidence": 66.0, "testLevel": "E2E", "framework": "cypress", "categories": ["security"], "details": "Test: dashboardUtils.spec.ts partially covers user, dashboard | 2 entities match; validates permissions; high-quality test | Confidence: 66% | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-26098"}, {"key": "RHOAIENG-25342", "priority": "Blocker", "summary": "OCI protocol trimmed in model deployment", "status": "Closed", "coverage": "GAP", "testFile": "packages/model-registry/upstream/frontend/src/app/pages/mcpCatalog/utils/__tests__/mcpCatalogUtils.spec.ts", "confidence": 30.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in mcpCatalogUtils.spec.ts, but confidence too low (30%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-25342"}, {"key": "RHOAIENG-25122", "priority": "Blocker", "summary": "Single Serving Platform disabled by default in latest 2.21 build", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/api/k8s/__tests__/servingRuntimes.spec.ts", "confidence": 11.0, "testLevel": "Mock", "framework": "jest", "categories": ["functional"], "details": "Tests for entities exist in servingRuntimes.spec.ts, but confidence too low (11%) | Recommend: Mock (jest) - Repo pattern for ui mock tests: jest (15 examples in packages/notebooks/upstream/workspaces/frontend/src/__tests__/cypress/cypress/tests/mocked/workspaces)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-25122"}, {"key": "RHOAIENG-24967", "priority": "Blocker", "summary": " [2.19.1] InferenceService is fetching the wrong parameter from Dashboard : http instead of oci", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/modelServing/screens/projects/nim/__tests__/nimUtils.spec.ts", "confidence": 22.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in nimUtils.spec.ts, but confidence too low (22%) | Recommend: Unit (ginkgo) - Repo pattern for operator bugs: ginkgo unit tests (3 examples in packages/notebooks/upstream/workspaces/controller/internal/webhook). Note: Desired mock not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-24967"}, {"key": "RHOAIENG-24897", "priority": "Blocker", "summary": "Fix Model catalog icon background to teal instead of orange", "status": "Resolved", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/applications/externalRedirects.cy.ts", "confidence": 22.0, "testLevel": "Unit", "framework": "go-testing", "categories": ["functional"], "details": "Tests for entities exist in externalRedirects.cy.ts, but confidence too low (22%) | Recommend: Unit (go-testing) - Repo pattern for general unit tests: go-testing (6 examples in packages/automl/bff/internal/repositories)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-24897"}, {"key": "RHOAIENG-24894", "priority": "Blocker", "summary": "RHOAI install unable to patch object apiVersion:route.openshift.io/v1", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/utilities/__tests__/useGetNotebookRoute.spec.ts", "confidence": 11.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in useGetNotebookRoute.spec.ts, but confidence too low (11%) | Recommend: Unit (ginkgo) - Repo pattern for api unit tests: ginkgo (19 examples in packages/model-registry/upstream/bff/internal/api)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-24894"}, {"key": "RHOAIENG-24886", "priority": "Blocker", "summary": " InferenceService is fetching the wrong parameter from Dashboard : http instead of oci", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/modelServing/screens/projects/nim/__tests__/nimUtils.spec.ts", "confidence": 22.0, "testLevel": "Unit", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in nimUtils.spec.ts, but confidence too low (22%) | Recommend: Unit (ginkgo) - Repo pattern for operator bugs: ginkgo unit tests (3 examples in packages/notebooks/upstream/workspaces/controller/internal/webhook). Note: Desired mock not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-24886"}, {"key": "RHOAIENG-24700", "priority": "Blocker", "summary": "ODH Dashboard build failure on s390X - ENOMEM", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "frontend/config/__tests__/discoverPluginPackages.spec.js", "confidence": 77.0, "testLevel": "E2E", "framework": "cypress", "categories": ["build-time", "platform-specific"], "details": "Test: discoverPluginPackages.spec.js partially covers dashboard | 2 scenarios match; validates error_handling; high-quality test | Confidence: 77% | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-24700"}],
+            metadata: {"repoName": "odh-dashboard", "repoUrl": "https://github.com/opendatahub-io/odh-dashboard", "timestamp": "2026-04-29T11:21:41.537357Z", "jql": "project = RHOAIENG AND component = \"AI Core Dashboard\" AND priority = Blocker AND created >= -365d", "totalCount": 143, "analysisMode": "STRICT (Evidence-based, Conservative)", "testCapabilities": {"unit": true, "mock": true, "e2e": true, "contract": true, "integration": true}},
+            stats: {"total": 143, "covered": 9, "partialCovered": 19, "gap": 110, "notTestable": 5, "unit": 85, "mock": 31, "e2e": 24, "contract": 0, "buildci": 0, "na": 0, "blocker": 143, "critical": 0, "categories": {"functional": 112, "performance": 4, "build-time": 7, "disconnected": 1, "security": 10, "upgrade": 8, "platform-specific": 3}, "e2eBreakdown": {"auth": [{"key": "RHOAIENG-57842", "priority": "Blocker", "summary": "Follow up - Show a Status for MaaSSubscriptions & MaaSAuthPolicies (Active vs Failed)", "status": "Closed", "coverage": "NOT TESTABLE", "testFile": null, "confidence": 0, "testLevel": "E2E", "framework": "cypress", "categories": ["security"], "details": "Feature request/recommendation, not a bug to test | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57842"}, {"key": "RHOAIENG-57225", "priority": "Blocker", "summary": "Show a Status for MaaSSubscriptions & MaaSAuthPolicies (Active vs Failed)", "status": "Closed", "coverage": "COVERED", "testFile": "frontend/src/concepts/pipelines/content/__tests__/PipelineDetailsTitle.spec.tsx", "confidence": 99.0, "testLevel": "E2E", "framework": "cypress", "categories": ["security"], "details": "Test: PipelineDetailsTitle.spec.tsx validates status, Status for | 2 entities match; 2 scenarios match; validates error_handling; high-quality test | Confidence: 99% | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-57225"}, {"key": "RHOAIENG-45118", "priority": "Blocker", "summary": "Fix Permission Issue With MaaS (RHOAI) Admin ", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/concepts/permissions/__tests__/PermissionsContext.spec.tsx", "confidence": 55.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Tests for entities exist in PermissionsContext.spec.tsx, but confidence too low (55%) | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-45118"}, {"key": "RHOAIENG-34452", "priority": "Blocker", "summary": "Admin user permissions granted via Model Registry Settings have no effect in new KF MR UI", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "packages/cypress/cypress/tests/mocked/modelRegistrySettings/modelRegistrySettings.cy.ts", "confidence": 70.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Test: modelRegistrySettings.cy.ts partially covers Model Registry, user, model | 3 entities match; validates permissions | Confidence: 70% | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34452"}, {"key": "RHOAIENG-32479", "priority": "Blocker", "summary": "[Cypress-e2e] Quarantine Authorino tests in 2.24", "status": "Closed", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "E2E", "framework": "cypress", "categories": ["security"], "details": "No tests found for: Quarantine Authorino, 2.24 | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-32479"}, {"key": "RHOAIENG-27682", "priority": "Blocker", "summary": "Model deployment with token authentication missing SA/secret when resource name is set", "status": "Closed", "coverage": "GAP", "testFile": "packages/automl/frontend/src/app/hooks/__tests__/queries.spec.tsx", "confidence": 44.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["security"], "details": "Tests for entities exist in queries.spec.tsx, but confidence too low (44%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-27682"}, {"key": "RHOAIENG-26098", "priority": "Blocker", "summary": "Incorrect RBAC propagated to the dashboard admin user", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "packages/observability/src/utils/__tests__/dashboardUtils.spec.ts", "confidence": 66.0, "testLevel": "E2E", "framework": "cypress", "categories": ["security"], "details": "Test: dashboardUtils.spec.ts partially covers user, dashboard | 2 entities match; validates permissions; high-quality test | Confidence: 66% | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-26098"}], "deployment": [{"key": "RHOAIENG-58435", "priority": "Blocker", "summary": "[AutoML]: Running an automl experiment on a disconnected cluster fails with error 'ERROR: No matching distribution found for kfp==2.15.2'", "status": "Closed", "coverage": "COVERED", "testFile": "frontend/src/api/pipelines/__tests__/custom.spec.ts", "confidence": 88.0, "testLevel": "E2E", "framework": "cypress", "categories": ["disconnected"], "details": "Test: custom.spec.ts validates experiment | 1 entity matches; 2 scenarios match; validates error_handling; high-quality test | Confidence: 88% | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58435"}, {"key": "RHOAIENG-56997", "priority": "Blocker", "summary": "vLLM model deployments breaks when using tools or RAG in Gen AI Studio", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/concepts/k8s/__tests__/utils.spec.ts", "confidence": 25.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (25%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-56997"}, {"key": "RHOAIENG-50666", "priority": "Blocker", "summary": "[Product bug] Deployment takes time to get in \"Ready\" state after deploying model with S3 object storage connection", "status": "Resolved", "coverage": "PARTIALLY COVERED", "testFile": "packages/cypress/cypress/tests/mocked/mcpCatalog/mcpDeployments.cy.ts", "confidence": 66.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Test: mcpDeployments.cy.ts partially covers deployment, model, state | 2 entities match; validates state_transitions; high-quality test | Confidence: 66% | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-50666"}, {"key": "RHOAIENG-45495", "priority": "Blocker", "summary": "Remove Valid Tier Information from Model Deployment Hook", "status": "Closed", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/modelsAsAService/maasDeploymentWizard.cy.ts", "confidence": 22.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in maasDeploymentWizard.cy.ts, but confidence too low (22%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-45495"}, {"key": "RHOAIENG-34959", "priority": "Blocker", "summary": "Users are unable to edit cluster storage", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/concepts/pipelines/apiHooks/__tests__/useArtifactStorage.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Tests for entities exist in useArtifactStorage.spec.ts, but confidence too low (11%) | Recommend: E2E (cypress) - Repo pattern for data bugs: cypress e2e tests (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches). Note: Desired integration not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34959"}, {"key": "RHOAIENG-25342", "priority": "Blocker", "summary": "OCI protocol trimmed in model deployment", "status": "Closed", "coverage": "GAP", "testFile": "packages/model-registry/upstream/frontend/src/app/pages/mcpCatalog/utils/__tests__/mcpCatalogUtils.spec.ts", "confidence": 30.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in mcpCatalogUtils.spec.ts, but confidence too low (30%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-25342"}], "platform": [{"key": "RHOAIENG-34590", "priority": "Blocker", "summary": "Dashboard does not come up on ARM", "status": "Resolved", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "cypress", "categories": ["platform-specific"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-34590"}, {"key": "RHOAIENG-28103", "priority": "Blocker", "summary": "Default serving runtime for power not available in RHOAI 2.22.", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/api/k8s/__tests__/servingRuntimes.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "cypress", "categories": ["platform-specific"], "details": "Tests for entities exist in servingRuntimes.spec.ts, but confidence too low (11%) | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-28103"}, {"key": "RHOAIENG-24700", "priority": "Blocker", "summary": "ODH Dashboard build failure on s390X - ENOMEM", "status": "Closed", "coverage": "PARTIALLY COVERED", "testFile": "frontend/config/__tests__/discoverPluginPackages.spec.js", "confidence": 77.0, "testLevel": "E2E", "framework": "cypress", "categories": ["build-time", "platform-specific"], "details": "Test: discoverPluginPackages.spec.js partially covers dashboard | 2 scenarios match; validates error_handling; high-quality test | Confidence: 77% | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-24700"}], "upgrade": [{"key": "RHOAIENG-55830", "priority": "Blocker", "summary": "GenAI  3.4 <--> Llama Stack 0.7.0 Upgrade", "status": "Closed", "coverage": "GAP", "testFile": "packages/autorag/frontend/src/app/pages/__tests__/AutoragConfigurePage.spec.tsx", "confidence": 11.0, "testLevel": "E2E", "framework": "cypress", "categories": ["upgrade"], "details": "Tests for entities exist in AutoragConfigurePage.spec.tsx, but confidence too low (11%) | Recommend: E2E (cypress) - Repo pattern for general e2e tests: cypress (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-55830"}, {"key": "RHOAIENG-55778", "priority": "Blocker", "summary": "Sanity check: verify RHOAI 3.4 upgrade path with gen-ai and llamaStack version 0.7.0 migration", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/api/modelRegistry/__tests__/custom.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "cypress", "categories": ["upgrade"], "details": "Tests for entities exist in custom.spec.ts, but confidence too low (11%) | Recommend: E2E (cypress) - Repo pattern for data bugs: cypress e2e tests (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches). Note: Desired e2e not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-55778"}], "integration": [{"key": "RHOAIENG-58488", "priority": "Blocker", "summary": "Dashboard fails to pause/resume Kueue-managed workloads on Kueue 1.3.x (v1beta2 CEL validation error)", "status": "Testing", "coverage": "COVERED", "testFile": "frontend/src/hooks/__tests__/useZodFormValidation.spec.ts", "confidence": 88.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Test: useZodFormValidation.spec.ts validates validation | 1 entity matches; 2 scenarios match; validates error_handling; high-quality test | Confidence: 88% | Recommend: E2E (cypress) - Repo pattern for utils bugs: cypress e2e tests (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches). Note: Desired mock not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58488"}, {"key": "RHOAIENG-58289", "priority": "Blocker", "summary": "Subscriptions list filter only searches by resource name, does not match displayName or description", "status": "Resolved", "coverage": "GAP", "testFile": "packages/cypress/cypress/tests/mocked/resources/resources.cy.ts", "confidence": 40.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Tests for entities exist in resources.cy.ts, but confidence too low (40%) | Recommend: E2E (cypress) - Repo pattern for utils bugs: cypress e2e tests (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches). Note: Desired unit not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-58289"}, {"key": "RHOAIENG-45976", "priority": "Blocker", "summary": "Catalog: RPS filter needs maximum value of 50 instead of using requests_per_second max from filter_options", "status": "Closed", "coverage": "GAP", "testFile": "packages/model-registry/upstream/frontend/src/__tests__/cypress/cypress/tests/mocked/modelCatalogSettings/modelCatalogPerformanceFiltersAlert.cy.ts", "confidence": 44.0, "testLevel": "E2E", "framework": "cypress", "categories": ["functional"], "details": "Tests for entities exist in modelCatalogPerformanceFiltersAlert.cy.ts, but confidence too low (44%) | Recommend: E2E (cypress) - Repo pattern for utils bugs: cypress e2e tests (9 examples in packages/cypress/cypress/tests/e2e/dataScienceProjects/workbenches). Note: Desired unit not available for this area.", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-45976"}, {"key": "RHOAIENG-37017", "priority": "Blocker", "summary": "Enable Gen Ai in CRD", "status": "Resolved", "coverage": "GAP", "testFile": null, "confidence": 0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "No tests found for: Ai in, Enable Gen | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-37017"}, {"key": "RHOAIENG-32820", "priority": "Blocker", "summary": "Remove dashboard hardware profiles CRD", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-32820"}, {"key": "RHOAIENG-30246", "priority": "Blocker", "summary": "Add back the dashboard hardware profiles CRD", "status": "Closed", "coverage": "GAP", "testFile": "frontend/src/pages/projects/projectPermissions/__tests__/utils.spec.ts", "confidence": 11.0, "testLevel": "E2E", "framework": "ginkgo", "categories": ["functional"], "details": "Tests for entities exist in utils.spec.ts, but confidence too low (11%) | Recommend: E2E (ginkgo) - Repo pattern for operator e2e tests: ginkgo (2 examples in packages/notebooks/upstream/workspaces/controller/test/e2e)", "jiraUrl": "https://redhat.atlassian.net/browse/RHOAIENG-30246"}]}}
+        };
+
+        // Chart rendering
+        function createDonutChart(data, elementId) {
+            const svg = document.getElementById(elementId);
+            const centerX = 150;
+            const centerY = 150;
+            const radius = 100;
+            const innerRadius = 60;
+
+            let currentAngle = -90;
+            const total = data.reduce((sum, d) => sum + d.value, 0);
+
+            data.forEach((item, i) => {
+                if (item.value === 0) return;
+
+                const angle = (item.value / total) * 360;
+                const startAngle = currentAngle * Math.PI / 180;
+                const endAngle = (currentAngle + angle) * Math.PI / 180;
+
+                const x1 = centerX + radius * Math.cos(startAngle);
+                const y1 = centerY + radius * Math.sin(startAngle);
+                const x2 = centerX + radius * Math.cos(endAngle);
+                const y2 = centerY + radius * Math.sin(endAngle);
+                const x3 = centerX + innerRadius * Math.cos(endAngle);
+                const y3 = centerY + innerRadius * Math.sin(endAngle);
+                const x4 = centerX + innerRadius * Math.cos(startAngle);
+                const y4 = centerY + innerRadius * Math.sin(startAngle);
+
+                const largeArcFlag = angle > 180 ? 1 : 0;
+
+                const pathData = [
+                    `M ${x1} ${y1}`,
+                    `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+                    `L ${x3} ${y3}`,
+                    `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${x4} ${y4}`,
+                    'Z'
+                ].join(' ');
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathData);
+                path.setAttribute('fill', item.color);
+                path.setAttribute('stroke', 'white');
+                path.setAttribute('stroke-width', '2');
+
+                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                title.textContent = `${item.label}: ${item.value} (${Math.round(item.value / total * 100)}%)`;
+                path.appendChild(title);
+
+                svg.appendChild(path);
+                currentAngle += angle;
+            });
+
+            // Create legend below chart instead of labels on the chart
+            const legendY = 310;
+            const legendX = 30;
+            const lineHeight = 20;
+
+            data.forEach((item, i) => {
+                if (item.value === 0) return;
+
+                const y = legendY + (i * lineHeight);
+
+                // Color box
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', legendX);
+                rect.setAttribute('y', y - 12);
+                rect.setAttribute('width', '15');
+                rect.setAttribute('height', '15');
+                rect.setAttribute('fill', item.color);
+                svg.appendChild(rect);
+
+                // Label text
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', legendX + 20);
+                text.setAttribute('y', y);
+                text.setAttribute('font-size', '14');
+                text.setAttribute('fill', 'var(--text-primary)');
+                const percentage = Math.round(item.value / total * 100);
+                text.textContent = `${item.label}: ${item.value} (${percentage}%)`;
+                svg.appendChild(text);
+            });
+        }
+
+        // Render charts
+        function renderCharts() {
+            const testLevelData = [
+                { label: 'Unit', value: DATA.stats.unit, color: '#28a745' },
+                { label: 'Mock', value: DATA.stats.mock, color: '#17a2b8' },
+                { label: 'E2E', value: DATA.stats.e2e, color: '#ff9800' },
+                { label: 'Contract', value: DATA.stats.contract, color: '#9c27b0' },
+                { label: 'Build/CI', value: DATA.stats.buildci, color: '#795548' },
+                { label: 'N/A', value: DATA.stats.na, color: '#9e9e9e' }
+            ];
+
+            const coverageData = [
+                { label: 'Covered', value: DATA.stats.covered, color: '#28a745' },
+                { label: 'Partial', value: DATA.stats.partialCovered, color: '#ffc107' },
+                { label: 'Gap', value: DATA.stats.gap, color: '#dc3545' },
+                { label: 'Not Testable', value: DATA.stats.notTestable, color: '#6c757d' }
+            ];
+
+            createDonutChart(testLevelData, 'test-level-chart');
+            createDonutChart(coverageData, 'coverage-chart');
+        }
+
+        // Table rendering
+        function renderTable() {
+            const tbody = document.querySelector('#bugs tbody');
+            tbody.innerHTML = '';
+
+            DATA.bugs.forEach(bug => {
+                const row = document.createElement('tr');
+                row.dataset.key = bug.key;
+                row.dataset.priority = bug.priority;
+                row.dataset.summary = bug.summary;
+                row.dataset.coverage = bug.coverage;
+                row.dataset.testLevel = bug.testLevel;
+                row.dataset.categories = bug.categories.join(',');
+                row.dataset.details = bug.details;
+
+                const priorityBadge = bug.priority === 'Blocker' ? 'badge-blocker' :
+                                      bug.priority === 'Critical' ? 'badge-critical' : '';
+                const levelBadge = bug.testLevel === 'Unit' ? 'badge-unit' :
+                                   bug.testLevel === 'Mock' ? 'badge-mock' :
+                                   bug.testLevel === 'E2E' ? 'badge-e2e' :
+                                   bug.testLevel === 'Contract' ? 'badge-contract' :
+                                   bug.testLevel === 'Build/CI' ? 'badge-buildci' : 'badge-na';
+
+                // Distinguish E2E upstream vs downstream
+                let testLevelDisplay = bug.testLevel;
+                if (bug.testLevel === 'E2E' && bug.testFile) {
+                    if (bug.testFile.includes('opendatahub-tests') || bug.testFile.includes('e2e-tests')) {
+                        testLevelDisplay = 'E2E (Downstream)';
+                    } else {
+                        testLevelDisplay = 'E2E (Upstream)';
+                    }
+                }
+
+                // Confidence badge color
+                const confidenceBadge = bug.confidence >= 80 ? 'badge-high' :
+                                       bug.confidence >= 60 ? 'badge-medium' :
+                                       bug.confidence > 0 ? 'badge-low' : '';
+
+                // Escape HTML to prevent XSS
+                const escapeHtml = (text) => {
+                    const div = document.createElement('div');
+                    div.textContent = text || '';
+                    return div.innerHTML;
+                };
+
+                row.innerHTML = `
+                    <td><a href="${escapeHtml(bug.jiraUrl)}" target="_blank">${escapeHtml(bug.key)}</a></td>
+                    <td><span class="badge ${priorityBadge}">${escapeHtml(bug.priority)}</span></td>
+                    <td>${escapeHtml(bug.summary)}</td>
+                    <td>${escapeHtml(bug.coverage)}</td>
+                    <td class="test-file">${escapeHtml(bug.testFile || 'N/A')}</td>
+                    <td>${bug.confidence > 0 ? '<span class="badge ' + confidenceBadge + '">' + bug.confidence + '%</span>' : 'N/A'}</td>
+                    <td><span class="badge ${levelBadge}">${escapeHtml(testLevelDisplay)}</span></td>
+                    <td>${bug.categories.map(c => escapeHtml(c)).join(', ')}</td>
+                    <td>${escapeHtml(bug.details)}</td>
+                `;
+
+                tbody.appendChild(row);
+            });
+        }
+
+        // Sorting
+        let sortColumn = null;
+        let sortDirection = 'asc';
+
+        function sortTable(column) {
+            const tbody = document.querySelector('#bugs tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+
+            rows.sort((a, b) => {
+                const aVal = a.dataset[column] || '';
+                const bVal = b.dataset[column] || '';
+                return sortDirection === 'asc' ?
+                    aVal.localeCompare(bVal) :
+                    bVal.localeCompare(aVal);
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+
+            // Update header
+            document.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+            });
+            const header = document.querySelector(`th[data-sort="${column}"]`);
+            header.classList.add(`sorted-${sortDirection}`);
+        }
+
+        // Filtering
+        function filterTable() {
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            const priorityFilter = document.getElementById('filter-priority').value;
+            const coverageFilter = document.getElementById('filter-coverage').value;
+            const levelFilter = document.getElementById('filter-level').value;
+            const categoryFilter = document.getElementById('filter-category').value;
+
+            const rows = document.querySelectorAll('#bugs tbody tr');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const matchesSearch = !searchTerm ||
+                    Object.values(row.dataset).some(val => val.toLowerCase().includes(searchTerm));
+                const matchesPriority = !priorityFilter || row.dataset.priority === priorityFilter;
+                const matchesCoverage = !coverageFilter || row.dataset.coverage === coverageFilter;
+                const matchesLevel = !levelFilter || row.dataset.testLevel === levelFilter;
+                const matchesCategory = !categoryFilter ||
+                    row.dataset.categories.split(',').includes(categoryFilter);
+
+                const visible = matchesSearch && matchesPriority && matchesCoverage &&
+                                matchesLevel && matchesCategory;
+                row.style.display = visible ? '' : 'none';
+                if (visible) visibleCount++;
+            });
+
+            console.log(`Showing ${visibleCount} of ${DATA.bugs.length} bugs`);
+        }
+
+        // Event listeners
+        function attachEventListeners() {
+            // Sorting
+            document.querySelectorAll('th[data-sort]').forEach(th => {
+                th.addEventListener('click', () => sortTable(th.dataset.sort));
+            });
+
+            // Filtering
+            document.getElementById('search').addEventListener('input', filterTable);
+            document.getElementById('filter-priority').addEventListener('change', filterTable);
+            document.getElementById('filter-coverage').addEventListener('change', filterTable);
+            document.getElementById('filter-level').addEventListener('change', filterTable);
+            document.getElementById('filter-category').addEventListener('change', filterTable);
+        }
+
+        // Theme toggle functionality
+        function initThemeToggle() {
+            const toggleBtn = document.getElementById('theme-toggle');
+            const body = document.body;
+
+            // Check for saved theme preference or default to light mode
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                body.classList.add('dark-mode');
+                toggleBtn.textContent = 'Light Mode';
+            } else {
+                toggleBtn.textContent = 'Dark Mode';
+            }
+
+            // Toggle theme on button click
+            toggleBtn.addEventListener('click', () => {
+                body.classList.toggle('dark-mode');
+                const isDark = body.classList.contains('dark-mode');
+                toggleBtn.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initThemeToggle();
+            renderCharts();
+            renderTable();
+            attachEventListeners();
+            console.log('Bug Coverage Report initialized');
+            console.log(`Total bugs: ${DATA.bugs.length}`);
+        });
+    </script>
+</body>
+</html>
