@@ -130,20 +130,50 @@ def aggregate_risk_score(
     return int(round(overall)), breakdown
 
 
-def make_decision(overall_risk: int) -> str:
+def make_decision(
+    overall_risk: int,
+    impact_data: dict,
+    crossrepo_data: dict
+) -> str:
     """
-    Make APPROVE or WARN decision based on risk score.
+    Make APPROVE or WARN decision based on risk score AND qualitative factors.
 
     Advisory system - never BLOCK. Even high-risk PRs get WARN.
 
     Rules:
-    - 0-40: APPROVE (low risk)
-    - 41-100: WARN (medium/high risk - provide recommendations)
+    - Base: 0-40 = APPROVE, 41-100 = WARN
+    - Override to WARN if:
+      * Blast radius is MEDIUM or HIGH (coordination required)
+      * Breaking tests >= 5 (significant cross-repo impact)
+      * K8s resource renames with cross-repo references (RHOAIENG-57824 pattern)
 
     Returns:
         "APPROVE" or "WARN"
     """
-    return "APPROVE" if overall_risk <= 40 else "WARN"
+    # Base decision on numeric score
+    base_decision = "APPROVE" if overall_risk <= 40 else "WARN"
+
+    # Qualitative overrides - escalate to WARN if any of these conditions:
+    blast_radius = impact_data.get("blast_radius", "low").lower()
+    breaking_tests_count = len(crossrepo_data.get("breaking_tests", []))
+    k8s_renames = impact_data.get("k8s_resource_renames", [])
+    cross_repo_refs = impact_data.get("cross_repo_references", [])
+
+    # Override: MEDIUM/HIGH blast radius requires coordination
+    if blast_radius in ["medium", "high"]:
+        return "WARN"
+
+    # Override: 5+ breaking tests requires cross-repo coordination
+    if breaking_tests_count >= 5:
+        return "WARN"
+
+    # Override: K8s resource renames with cross-repo impact (RHOAIENG-57824)
+    if k8s_renames and cross_repo_refs:
+        critical_refs = [r for r in cross_repo_refs if r.get("impact") == "CRITICAL"]
+        if critical_refs:
+            return "WARN"
+
+    return base_decision
 
 
 def generate_pr_analysis(
@@ -165,7 +195,7 @@ def generate_pr_analysis(
         (frontmatter_dict, body_markdown)
     """
     overall_risk, risk_breakdown = aggregate_risk_score(risk_data, test_data, impact_data, crossrepo_data)
-    decision = make_decision(overall_risk)
+    decision = make_decision(overall_risk, impact_data, crossrepo_data)
 
     # Extract key findings
     top_risks = risk_data.get("top_risks", [])[:3]  # Top 3
