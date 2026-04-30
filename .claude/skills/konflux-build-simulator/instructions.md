@@ -551,99 +551,19 @@ jobs:
             echo "✅ All FIPS compliance checks passed"
           fi
 
-  hermetic-preflight:
-    name: Hermetic Build Preflight
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: validation-checks
-    if: |
-      !contains(github.event.pull_request.title, '[skip konflux-sim]') &&
-      hashFiles('package-lock.json') != ''
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Test Hermetic NPM Install (Root)
-        run: |
-          # Simulate hermetic build - no network access
-          # This tests if package-lock.json is in sync without building full image
-          
-          # Create minimal Dockerfile for npm ci test
-          cat > Dockerfile.hermetic-test <<'EOF'
-          FROM registry.access.redhat.com/ubi9/nodejs-20:latest
-          WORKDIR /test
-          COPY package.json package-lock.json ./
-          RUN npm ci --ignore-scripts
-          EOF
-          
-          echo "Testing hermetic npm install (--network=none)..."
-          if docker build --network=none -f Dockerfile.hermetic-test -t hermetic-test:root . 2>&1 | tee /tmp/hermetic-build.log; then
-            echo "✅ Root package-lock.json is hermetic build compatible"
-          else
-            echo "❌ Hermetic build failed for root package-lock.json"
-            echo ""
-            echo "This means the lockfile is out of sync or has dependencies"
-            echo "that cannot be resolved without network access."
-            echo ""
-            echo "How to fix:"
-            echo "  1. Run 'npm install' to regenerate package-lock.json"
-            echo "  2. Ensure no git+, github:, or file: dependencies"
-            echo "  3. Commit the updated lockfile"
-            exit 1
-          fi
-      
-      - name: Test Hermetic NPM Install (Modules)
-        if: hashFiles('packages/*/frontend/package-lock.json') != ''
-        run: |
-          # Test each module's lockfile
-          FAILED_MODULES=""
-          
-          for module_dir in packages/*/frontend; do
-            if [ -f "$module_dir/package-lock.json" ]; then
-              module_name=$(basename $(dirname "$module_dir"))
-              echo ""
-              echo "Testing $module_name hermetic build..."
-              
-              # Create test Dockerfile for this module
-              cat > Dockerfile.hermetic-test-module <<EOF
-          FROM registry.access.redhat.com/ubi9/nodejs-20:latest
-          WORKDIR /test
-          COPY $module_dir/package.json $module_dir/package-lock.json ./
-          RUN npm ci --ignore-scripts
-          EOF
-              
-              if docker build --network=none -f Dockerfile.hermetic-test-module -t hermetic-test:$module_name . 2>&1; then
-                echo "✅ $module_name: hermetic build compatible"
-              else
-                echo "❌ $module_name: hermetic build failed"
-                FAILED_MODULES="$FAILED_MODULES $module_name"
-              fi
-            fi
-          done
-          
-          if [ -n "$FAILED_MODULES" ]; then
-            echo ""
-            echo "❌ Hermetic build failed for modules:$FAILED_MODULES"
-            echo ""
-            echo "Run 'npm install' in each failed module's frontend directory"
-            echo "and commit the updated package-lock.json files"
-            exit 1
-          else
-            echo ""
-            echo "✅ All module lockfiles are hermetic build compatible"
-          fi
+  # NOTE: DO NOT add hermetic npm install test with --network=none
+  # It is unreliable and crashes npm. See LEARNINGS.md for details.
+  # The validation-checks job already validates lockfile compatibility.
 
   build-validation:
     name: Validate Build
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [validation-checks, hermetic-preflight]
+    needs: validation-checks
     if: |
       always() &&
       !contains(github.event.pull_request.title, '[skip konflux-sim]') &&
-      needs.validation-checks.result == 'success' &&
-      (needs.hermetic-preflight.result == 'success' || needs.hermetic-preflight.result == 'skipped')
+      needs.validation-checks.result == 'success'
 
     steps:
       - name: Checkout code
