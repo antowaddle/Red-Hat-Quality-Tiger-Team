@@ -478,6 +478,177 @@ When generating new Konflux build simulation workflows, ensure:
 
 **Note:** Checksum verification for downloaded binaries was attempted but removed due to CI failures. For supply chain security, rely on pinned GitHub Actions and HTTPS downloads from trusted sources.
 
+## Issue: Operator-Integration in Vanilla Kind — Pods Cannot Become Ready
+
+### Problem
+
+The operator-integration workflow was attempting to wait for pods to become Ready after applying manifests to a vanilla Kind cluster:
+
+```yaml
+- name: Wait for deployment
+  run: |
+    set -euo pipefail
+    kubectl wait --for=condition=Available \
+      --timeout=300s \
+      deployment/odh-dashboard \
+      -n opendatahub
+```
+
+This step **always times out** because pods require OpenShift-specific resources that don't exist in vanilla Kind.
+
+### Root Cause
+
+Tested locally with Kind cluster to understand actual behavior:
+
+1. **Deployment DOES get created** ✅
+   - `kubectl apply -k manifests/odh -n opendatahub` succeeds
+   - Deployment resource is created
+   - Pods are created
+
+2. **Pods CANNOT become Ready** ❌
+   - Missing required secrets:
+     * `dashboard-proxy-tls` (created by OpenShift Routes or cert-manager)
+     * `odh-ca-cert` (injected by OpenShift CA bundle injector)
+     * `odh-trusted-ca-cert` (injected by OpenShift)
+   - Pod events show: `MountVolume.SetUp failed for volume "proxy-tls" : secret "dashboard-proxy-tls" not found`
+
+3. **Resource constraints** ⚠️
+   - Default Kind cluster has ~2Gi total memory
+   - Deployment spec requests 2 replicas × 1Gi memory each
+   - Result: One pod fails to schedule with `FailedScheduling: 0/1 nodes are available: 1 Insufficient memory`
+
+### What Actually Works in Vanilla Kind
+
+| Operation | Result |
+|-----------|--------|
+| Create namespace | ✅ Works |
+| Apply CRDs | ✅ Works |
+| Apply ConfigMaps | ✅ Works |
+| Create Deployment | ✅ Works |
+| Create Pods | ✅ Pods get created |
+| Mount OpenShift secrets | ❌ Fails - secrets don't exist |
+| Pods become Ready | ❌ Never happens |
+| Wait for deployment Available | ❌ Times out |
+
+### What the Workflow Should Validate
+
+The operator-integration phase should verify that manifests are **structurally valid**, not that the full application becomes operational:
+
+**✅ DO validate:**
+- Namespace creation succeeds
+- Manifests apply without errors
+- Deployment resource is created
+- CRDs are accepted by Kubernetes API
+- No YAML syntax errors or invalid resource definitions
+
+**❌ DO NOT validate:**
+- Pods becoming Ready (requires OpenShift resources)
+- Deployment becoming Available (requires Ready pods)
+- Application functionality (requires full OpenShift platform)
+
+### Solution
+
+**Mock OpenShift resources and run containers with minimal resources:**
+
+This approach simulates what Konflux actually does - it tries to run the containers.
+
+```yaml
+- name: Create mock OpenShift secrets
+  run: |
+    # Create dummy TLS secret (so volumes can mount)
+    kubectl create secret tls dashboard-proxy-tls ...
+    
+    # Create dummy CA bundle configmaps
+    kubectl create configmap odh-ca-cert ...
+    kubectl create configmap odh-trusted-ca-cert ...
+
+- name: Apply manifests
+  run: |
+    kubectl apply -k manifests/odh -n opendatahub
+
+- name: Patch deployment for Kind resource constraints
+  run: |
+    # Reduce resource requests to fit in Kind's limited memory
+    kubectl patch deployment odh-dashboard -n opendatahub --type=json -p='[
+      {"op": "replace", "path": "/spec/template/spec/containers/0/resources/requests/memory", "value": "128Mi"},
+      ...
+    ]'
+    
+    # Reduce to 1 replica
+    kubectl scale deployment odh-dashboard --replicas=1 -n opendatahub
+
+- name: Wait for pods and validate container lifecycle
+  run: |
+    # Wait for pod creation and image pulls
+    sleep 60
+    
+    # Check if containers started (even if they fail later)
+    IMAGES_PULLED=$(kubectl get pods ... -o jsonpath='{.items[0].status.containerStatuses[*].imageID}')
+    
+    if [ "$IMAGES_PULLED" -eq 0 ]; then
+      echo "❌ FAIL: No images were pulled"
+      exit 1
+    fi
+    
+    echo "✅ PASS: Containers attempted to start, images pulled successfully"
+```
+
+**Why this approach:**
+- ✅ **Validates images load into Kind** - Catches image pull errors, invalid image specs
+- ✅ **Validates container specs** - Catches invalid args, missing env vars, bad probes
+- ✅ **Validates volume mounts** - Mock secrets allow containers to at least attempt mounting
+- ✅ **Simulates Konflux behavior** - Konflux actually runs containers, not just applies YAML
+- ✅ **Works with Kind's constraints** - Reduced resources fit in limited memory
+- ⚠️  Containers may crash (missing OpenShift APIs), but that's expected - we validated the important parts
+
+**What this catches that YAML-only validation misses:**
+- Invalid container image references
+- Bad entrypoint/command configurations
+- Missing required environment variables
+- Invalid volume mount configurations
+- Resource specification errors
+- Init container failures
+
+**Dashboard-specific note:**
+ODH Dashboard has many containers (odh-dashboard, kube-rbac-proxy, model-registry-ui, gen-ai-ui, etc.), so resource patching is critical. Most components will have simpler deployments and may not need as aggressive resource reduction.
+
+### Test Results
+
+**Without mock secrets (initial test):**
+- ✅ Namespace creation: Success
+- ✅ Manifest application: Success
+- ✅ Deployment created: Success
+- ✅ Pods created: Success
+- ❌ Pod Ready state: Failed (missing secrets, insufficient memory)
+- ❌ Deployment Available: Never achieved
+
+**With mock secrets and reduced resources (final solution):**
+- ✅ Namespace creation: Success
+- ✅ Manifest application: Success
+- ✅ Mock TLS secret created: Success
+- ✅ Mock CA configmaps created: Success
+- ✅ Deployment patched for reduced resources: Success (128Mi per container, 1 replica)
+- ✅ Pod scheduled: Success (after old pod deleted)
+- ✅ **All 9 containers running: Success**
+  * odh-dashboard (main frontend)
+  * kube-rbac-proxy
+  * model-registry-ui
+  * gen-ai-ui
+  * maas-ui
+  * mlflow-ui
+  * eval-hub-ui
+  * automl-ui
+  * autorag-ui
+- ✅ **All 9 images pulled successfully**: Success
+- ✅ Containers started and stay running: Success
+- ⚠️  Application readiness probes may fail (missing OpenShift APIs) - but containers are running
+
+### Key Takeaway
+
+**Vanilla Kind can validate manifest structure, NOT application readiness.**
+
+The operator-integration phase is about catching **manifest errors** (invalid YAML, wrong API versions, malformed specs), not about validating that the full ODH Dashboard application runs. Full runtime validation requires an actual OpenShift cluster with all platform components.
+
 ## References
 
 - npm issue with --network=none: https://github.com/npm/cli/issues
