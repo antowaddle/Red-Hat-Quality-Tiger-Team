@@ -362,10 +362,9 @@ jobs:
             fi
             
             # Check for missing resolved URLs
-            # IMPORTANT: Use grep-based check, NOT jq recursive descent
-            # The pattern '.. | objects | select(has("dependencies"))' incorrectly matches 
-            # the root package entry, which doesn't have a "resolved" field.
-            # If jq is needed, use: '.packages | to_entries[] | select(.key != "") | select(.value.resolved == null)'
+            # IMPORTANT: Only check node_modules packages, not workspace packages
+            # Workspace packages (backend, frontend, packages/*) don't have resolved URLs
+            # If using jq: '.packages | to_entries[] | select(.key | startswith("node_modules/"))'
             PKG_COUNT=$(grep -c '"version":' "$lockfile" || true)
             RESOLVED_COUNT=$(grep -c '"resolved":' "$lockfile" || true)
             
@@ -1252,10 +1251,9 @@ validate_lockfiles() {
     fi
     
     # Check for missing resolved URLs
-    # IMPORTANT: Use grep-based check, NOT jq recursive descent
-    # The pattern '.. | objects | select(has("dependencies"))' incorrectly matches 
-    # the root package entry, which doesn't have a "resolved" field.
-    # If jq is needed, use: '.packages | to_entries[] | select(.key != "") | select(.value.resolved == null)'
+    # IMPORTANT: Only check node_modules packages, not workspace packages
+    # Workspace packages (backend, frontend, packages/*) don't have resolved URLs
+    # If using jq: '.packages | to_entries[] | select(.key | startswith("node_modules/"))'
     pkg_count=$(grep -c '"version":' "$lockfile" || true)
     resolved_count=$(grep -c '"resolved":' "$lockfile" || true)
     
