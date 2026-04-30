@@ -344,9 +344,9 @@ jobs:
 ```
 
 **Applied to:**
-- websocat binary download (SHA256: `481c0f38dd9847bb6e8f1fb301c00d113ca4a5426de5d4e32a59ddc61a7a5e77`)
-- Kind binary download (SHA256: `513a7213d6c71e5e9a1c260fb90e25a1d5d0c91d36b3e2bb7f3a96f89f9695a0`)
-- Kustomize binary download (prepared for re-enablement)
+- websocat v1.12.0 binary download (SHA256: `e4da4f6c00402e893f3e3120c62e16b61a84aaa78f772b3e155f319f5210d2c6`)
+- Kind v0.20.0 binary download (SHA256: `513a7213d6c71e5e9a1c260fb90e25a1d5d0c91d36b3e2bb7f3a96f89f9695a0`)
+- Kustomize v5.3.0 binary download (prepared for re-enablement)
 
 ### 5. Improved Skip Conditions
 
