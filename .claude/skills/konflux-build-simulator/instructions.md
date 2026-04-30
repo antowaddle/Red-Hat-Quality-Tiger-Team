@@ -14,6 +14,80 @@ Analyze a repository and generate comprehensive PR build validation workflows th
 
 Generate GitHub Actions workflows and supporting files for PR build validation.
 
+## Security Hardening Requirements
+
+**CRITICAL:** ALL generated workflows MUST include these security hardening patterns. See `LEARNINGS.md` for detailed rationale.
+
+### Required Security Patterns
+
+1. **Pin GitHub Actions by Commit SHA**
+   - ✅ `uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2`
+   - ❌ `uses: actions/checkout@v4`
+
+2. **Least-Privilege Permissions**
+   ```yaml
+   permissions:
+     contents: read
+     actions: write  # Only when needed for artifacts
+   ```
+
+3. **Strict Shell Error Handling**
+   ```yaml
+   run: |
+     set -euo pipefail  # FIRST line of every bash script
+     # ... commands
+   ```
+
+4. **Checksum Verification for Downloaded Binaries**
+   ```bash
+   BINARY_SHA256="actual-sha256-from-release"
+   curl -sLo binary "${BINARY_URL}"
+   echo "${BINARY_SHA256}  binary" | sha256sum -c - || {
+     echo "❌ FAIL: Checksum verification failed"
+     exit 1
+   }
+   ```
+
+5. **Improved Skip Conditions**
+   ```yaml
+   if: "!contains(github.event.pull_request.title, '[skip konflux-sim]') && !contains(github.event.pull_request.labels.*.name, 'skip-konflux-sim')"
+   ```
+
+6. **Optional Tool Dependencies with Fallback**
+   ```bash
+   if command -v jq &> /dev/null; then
+     # ... jq commands
+   else
+     echo "⚠️  WARNING: jq not installed, skipping validation"
+   fi
+   ```
+
+7. **Proper Timeout Handling**
+   ```bash
+   READY=false
+   for i in {1..30}; do
+     if check_condition; then
+       READY=true
+       break
+     fi
+     sleep 2
+   done
+   
+   if [ "$READY" = "false" ]; then
+     echo "❌ FAIL: Timeout waiting for condition"
+     exit 1
+   fi
+   ```
+
+8. **Proper Variable Quoting**
+   ```bash
+   # Always quote variables
+   echo "Processing ${VARIABLE}..."
+   if [ -n "$VARIABLE" ]; then
+     # ... commands
+   fi
+   ```
+
 ## Process
 
 ### Phase 1: Repository Analysis
