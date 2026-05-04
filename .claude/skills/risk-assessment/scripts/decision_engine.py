@@ -23,6 +23,24 @@ sys.path.insert(0, str(Path(__file__).parent))
 from frontmatter import read, write
 
 
+DEFAULT_BLAST_RADIUS = "medium"
+BLAST_RADIUS_SCORES = {"low": 20, "medium": 50, "high": 80}
+
+
+def _has_critical_k8s_renames(impact_data: dict) -> tuple[bool, list]:
+    """Pattern from incident RHOAIENG-57824: K8s resource renames that break
+    downstream consumers are high-risk and require coordination.
+    """
+    k8s_renames = impact_data.get("k8s_resource_renames", [])
+    cross_repo_refs = impact_data.get("cross_repo_references", [])
+
+    if not (k8s_renames and cross_repo_refs):
+        return False, []
+
+    critical_refs = [r for r in cross_repo_refs if r.get("impact") == "CRITICAL"]
+    return (True, critical_refs) if critical_refs else (False, [])
+
+
 def aggregate_risk_score(
     risk_data: dict,
     test_data: dict,
@@ -54,9 +72,8 @@ def aggregate_risk_score(
     test_risk = 100 - coverage_percent
 
     # Impact blast radius mapping
-    blast_radius = impact_data.get("blast_radius", "medium")
-    impact_risk_map = {"low": 20, "medium": 50, "high": 80}
-    impact_risk = impact_risk_map.get(blast_radius, 50)
+    blast_radius = (impact_data.get("blast_radius") or DEFAULT_BLAST_RADIUS).lower()
+    impact_risk = BLAST_RADIUS_SCORES.get(blast_radius, 50)
 
     # Cross-repo breaking tests
     requires_test_updates = crossrepo_data.get("requires_test_updates", False)
@@ -66,33 +83,20 @@ def aggregate_risk_score(
         crossrepo_risk = 90
 
     # CRITICAL: Check for K8s resource renames with cross-repo impact (Incident: RHOAIENG-57824)
-    k8s_renames = impact_data.get("k8s_resource_renames", [])
-    cross_repo_refs = impact_data.get("cross_repo_references", [])
-    k8s_critical_override = False
+    k8s_critical_override, critical_refs = _has_critical_k8s_renames(impact_data)
 
-    if k8s_renames and cross_repo_refs:
-        # Check if any cross-repo references are CRITICAL
-        critical_refs = [r for r in cross_repo_refs if r.get("impact") == "CRITICAL"]
-        if critical_refs:
-            # ESCALATE: K8s resource rename with critical cross-repo impact
-            # This is the incident pattern from RHOAIENG-57824
-            k8s_critical_override = True
+    if k8s_critical_override:
+        security_risk = risk_data.get("security_risk", 50)
+        critical_path_risk = risk_data.get("critical_path_risk", 50)
+        dependency_risk = risk_data.get("dependency_risk", 0)
 
-            # Recalculate risk_score with escalated breaking_risk
-            security_risk = risk_data.get("security_risk", 50)
-            critical_path_risk = risk_data.get("critical_path_risk", 50)
-            dependency_risk = risk_data.get("dependency_risk", 0)
+        breaking_risk = 95
 
-            # ESCALATE breaking_risk from 45 → 95 for K8s renames with critical refs
-            breaking_risk = 95
+        risk_score = int(
+            (security_risk + breaking_risk + critical_path_risk + dependency_risk) / 4
+        )
 
-            # Recalculate overall risk_score with new breaking_risk
-            risk_score = int(
-                (security_risk + breaking_risk + critical_path_risk + dependency_risk) / 4
-            )
-
-            # Also escalate cross-repo risk
-            crossrepo_risk = 90
+        crossrepo_risk = 90
 
     # Weighted average
     overall = (
@@ -106,7 +110,7 @@ def aggregate_risk_score(
     # enforce minimum risk floor to prevent dilution from averaging
     if k8s_critical_override:
         # Reference count affects minimum floor
-        total_refs = sum(r.get("references_found", 0) for r in cross_repo_refs)
+        total_refs = sum(r.get("references_found", 0) for r in impact_data.get("cross_repo_references", []))
         if total_refs >= 10:
             # Many references (like PR #489 with 13 refs) = very high risk
             min_risk_floor = 65
@@ -154,10 +158,8 @@ def make_decision(
     base_decision = "APPROVE" if overall_risk <= 40 else "WARN"
 
     # Qualitative overrides - escalate to WARN if any of these conditions:
-    blast_radius = impact_data.get("blast_radius", "low").lower()
+    blast_radius = (impact_data.get("blast_radius") or DEFAULT_BLAST_RADIUS).lower()
     breaking_tests_count = len(crossrepo_data.get("breaking_tests", []))
-    k8s_renames = impact_data.get("k8s_resource_renames", [])
-    cross_repo_refs = impact_data.get("cross_repo_references", [])
 
     # Override: MEDIUM/HIGH blast radius requires coordination
     if blast_radius in ["medium", "high"]:
@@ -168,10 +170,9 @@ def make_decision(
         return "WARN"
 
     # Override: K8s resource renames with cross-repo impact (RHOAIENG-57824)
-    if k8s_renames and cross_repo_refs:
-        critical_refs = [r for r in cross_repo_refs if r.get("impact") == "CRITICAL"]
-        if critical_refs:
-            return "WARN"
+    has_critical, _ = _has_critical_k8s_renames(impact_data)
+    if has_critical:
+        return "WARN"
 
     return base_decision
 
@@ -510,12 +511,6 @@ def _generate_recommendations(
             output.append(f"   - {rec['details']}")
 
     return "\n".join(output)
-
-
-def _blast_radius_to_score(blast_radius: str) -> int:
-    """Convert blast radius to numeric score."""
-    mapping = {"low": 20, "medium": 50, "high": 80}
-    return mapping.get(blast_radius, 50)
 
 
 def main():
