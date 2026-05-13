@@ -9,6 +9,19 @@ Analyze a given repository's quality practices and provide actionable recommenda
 - Repository URL (required)
 - Branch name (optional, defaults to main/master)
 
+## How to Execute
+
+**DO NOT use the Agent tool for this analysis.**
+
+Instead, perform the analysis yourself in the main conversation:
+1. Use git:shallow-clone skill or Bash tool to clone the repository
+2. Analyze all aspects described in the Process steps below
+3. Use the Write tool to save the markdown report as `quality-analysis-{repo-name}.md`
+4. Use Bash tool to run the HTML generator
+5. Use Bash tool to open the HTML file
+
+This ensures the files are written to the correct location and permissions are properly handled.
+
 ## Process
 
 ### Step 0: Pre-flight Checks
@@ -248,16 +261,30 @@ Create structured report with:
 
 After completing the analysis, generate both markdown and HTML reports:
 
+**First, extract the repository name from the URL:**
+- For `https://github.com/owner/repo-name`, extract `repo-name`
+- Use the last segment after the final `/` (e.g., `kube-rbac-proxy`, `hub`, `community-operators-prod`)
+- Store this as the `{repo-name}` variable for use in filenames
+
 1. **Save the Markdown Report**
-   - Write the complete markdown analysis to a file: `quality-analysis-{repo}.md`
+   - **IMPORTANT**: Use Write tool with RELATIVE PATH (filename only, not absolute path)
+   - Write the complete markdown analysis to a file: `quality-analysis-{repo-name}.md`
+   - Example: `quality-analysis-kube-rbac-proxy.md` or `quality-analysis-hub.md`
+   - DO NOT use absolute paths like `/Users/...` - use relative paths so permissions work
    - **CRITICAL**: Include YAML frontmatter at the top with all structured data
    - Include detailed markdown content after the frontmatter
 
 2. **Automatically Generate HTML Report**
-   - Run the HTML generator using uv to ensure dependencies are available:
+   - Run the HTML generator using uv to ensure dependencies are available
+   - **IMPORTANT**: Use relative paths (just filenames) so permissions work for all users
+   - **IMPORTANT**: Replace `{repo-name}` with the actual extracted repository name
    ```bash
-   uv run --with pyyaml python3 .claude/skills/quality-repo-analysis/html_generator.py quality-analysis-{repo}.md quality-report-{repo}.html
+   uv run --with pyyaml python3 .claude/skills/quality-repo-analysis/html_generator.py \
+     quality-analysis-{repo-name}.md \
+     quality-report-{repo-name}.html
    ```
+   - Example: `quality-analysis-kube-rbac-proxy.md` → `quality-report-kube-rbac-proxy.html`
+   - Files will be written to the current working directory (project root)
    - This creates an interactive HTML page with:
      - Animated score circles
      - Color-coded severity indicators  
@@ -268,13 +295,14 @@ After completing the analysis, generate both markdown and HTML reports:
 3. **Open the HTML Report**
    - Open the generated HTML file in the default browser:
    ```bash
-   open quality-report-{repo}.html  # macOS
+   open quality-report-{repo-name}.html  # macOS
    ```
 
 4. **Provide Summary**
    - Inform the user that both reports have been generated:
-     - `quality-analysis-{repo}.md` - Detailed markdown for archiving
-     - `quality-report-{repo}.html` - Interactive visualization for sharing
+     - `quality-analysis-{repo-name}.md` - Detailed markdown for archiving (e.g., `quality-analysis-hub.md`)
+     - `quality-report-{repo-name}.html` - Interactive visualization (e.g., `quality-report-hub.html`)
+     - `quality-report-{repo-name}.html` - Interactive visualization for sharing
    - Provide the file paths so they can easily find the reports
 
 ## Output Format
