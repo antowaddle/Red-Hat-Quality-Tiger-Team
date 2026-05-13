@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Write(quality-analysis-*.md)",
+      "Write(quality-report-*.html)"
+    ]
+  }
+}
