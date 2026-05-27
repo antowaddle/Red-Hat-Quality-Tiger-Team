@@ -1,3 +1,8 @@
+---
+name: quality-repo-analysis
+description: Analyzes a repository's quality practices and provides actionable recommendations for improvement
+---
+
 # Quality Repository Analysis Skill
 
 Analyzes a repository's quality practices and provides actionable recommendations for improvement.
