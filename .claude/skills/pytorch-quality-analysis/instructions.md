@@ -225,33 +225,41 @@ Compare findings against ML gold standards:
 
 ### Step 9: Generate Reports (Markdown + HTML)
 
-**First, extract the repository name from the URL:**
-- For `https://github.com/owner/repo-name`, extract `repo-name`
-- Use the last segment after the final `/`
+**First, extract the org and repository name from the URL:**
+- For `https://github.com/owner/repo-name`, extract `owner` and `repo-name`
+- Use `{org}-{repo-name}` format for filenames to avoid collisions in batch runs
+- Example: `https://github.com/pytorch/pytorch` → `pytorch-pytorch`
 
 1. **Save the Markdown Report**
    - **IMPORTANT**: Use Write tool with RELATIVE PATH (filename only)
-   - Write as `quality-analysis-{repo-name}.md`
+   - Write as `quality-analysis-{org}-{repo-name}.md`
+   - Example: `quality-analysis-pytorch-pytorch.md`
    - **CRITICAL**: Include YAML frontmatter (see Output Format below)
 
 2. **Generate HTML Report**
-   - Reuse the HTML generator from `quality-repo-analysis`:
+   - Reuse the HTML generator from `quality-repo-analysis` (must be present in the same repo):
    ```bash
    uv run --with pyyaml python3 .claude/skills/quality-repo-analysis/html_generator.py \
-     quality-analysis-{repo-name}.md \
-     quality-report-{repo-name}.html
+     quality-analysis-{org}-{repo-name}.md \
+     quality-report-{org}-{repo-name}.html
    ```
 
 3. **Open the HTML Report**
    ```bash
-   open quality-report-{repo-name}.html    # macOS
-   xdg-open quality-report-{repo-name}.html  # Linux
+   open quality-report-{org}-{repo-name}.html    # macOS
+   xdg-open quality-report-{org}-{repo-name}.html  # Linux
    ```
 
 4. **Provide Summary**
    - Report file paths to the user
    - Highlight top 3 critical gaps
    - List quick wins
+
+5. **Cleanup**
+   - Remove the cloned repository to free disk space (PyTorch is ~2 GB even with `--depth 1`):
+   ```bash
+   rm -rf /tmp/{org}-{repo-name}
+   ```
 
 ## Output Format
 
@@ -264,21 +272,27 @@ overall_score: 7.1
 scorecard:
   - dimension: "Testability"
     score: 8.0
+    weight: "30%"
     status: "Massive test corpus (~1,700+ files); device-agnostic patterns; rich OpInfo coverage"
   - dimension: "Correctness"
     score: 7.5
+    weight: "20%"
     status: "Good gradcheck coverage; assert_close adoption; mixed legacy assertEqual usage"
   - dimension: "Completeness"
     score: 8.0
+    weight: "15%"
     status: "Comprehensive op coverage; strong Dynamo/distributed support"
   - dimension: "Maintainability"
     score: 6.0
+    weight: "15%"
     status: "CLAUDE.md present; good linting; no .claude/rules/"
   - dimension: "Compatibility"
     score: 5.0
+    weight: "10%"
     status: "Multi-platform CI; BC tests exist; some deprecated APIs remain"
   - dimension: "Performance"
     score: 6.0
+    weight: "10%"
     status: "Benchmarks exist; profiling available; no PR-level perf gates"
 critical_gaps:
   - title: "No PR-level coverage enforcement"

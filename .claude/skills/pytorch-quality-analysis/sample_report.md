@@ -4,21 +4,27 @@ overall_score: 7.1
 scorecard:
   - dimension: "Testability"
     score: 8.0
+    weight: "30%"
     status: "Massive test corpus (~1,411 Python + ~300 C++ test files); pytest + unittest + GoogleTest; rich OpInfo parametrization; device-agnostic patterns"
   - dimension: "Correctness"
     score: 7.5
+    weight: "20%"
     status: "Good gradcheck coverage; assert_close available; mixed legacy assertEqual usage in older tests; determinism support"
   - dimension: "Completeness"
     score: 8.0
+    weight: "15%"
     status: "Comprehensive operator coverage; strong Dynamo/Inductor support; DDP/FSDP/DTensor distributed coverage"
   - dimension: "Maintainability"
     score: 6.0
+    weight: "15%"
     status: "Substantive CLAUDE.md and .claude/skills/; good linting via lintrunner; no .claude/rules/ directory"
   - dimension: "Compatibility"
     score: 5.0
+    weight: "10%"
     status: "Multi-platform CI; BC tests exist; some deprecated APIs remain; ONNX/TorchScript export tested"
   - dimension: "Performance"
     score: 6.0
+    weight: "10%"
     status: "Benchmarks exist (TorchBench, inductor perf); profiling available; no PR-level perf gates"
 critical_gaps:
   - title: "No PR-level coverage enforcement"

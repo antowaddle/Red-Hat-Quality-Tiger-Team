@@ -147,8 +147,9 @@ This skill is designed to **complement** the generic `quality-repo-analysis` ski
 
 - Repository must be publicly accessible
 - Works best with Python/C++/CUDA ML framework projects
-- Python 3.6+ required for HTML report generation
+- Python 3.8+ required for HTML report generation
 - PyYAML required for YAML frontmatter parsing
+- Requires the `quality-repo-analysis` skill to be present in the same repository (reuses its `html_generator.py` for dashboard generation)
 
 ## Files
 
