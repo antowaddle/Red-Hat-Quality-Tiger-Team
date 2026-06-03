@@ -1,3 +1,8 @@
+---
+name: konflux-build-simulator
+description: Simulates Konflux build environment on PRs to catch build failures before they reach production
+---
+
 # Konflux Build Simulator Skill
 
 Simulates Konflux build environment on PRs to catch build failures before they reach production.

@@ -1,4 +1,5 @@
 ---
+name: workflow-diagram-generator
 description: Generate Mermaid workflow diagrams (.mmd) and render to PNG from a given context — markdown docs, code, or conversation
 user-invocable: true
 allowedTools:
