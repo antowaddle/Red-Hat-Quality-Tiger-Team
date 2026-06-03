@@ -1,3 +1,8 @@
+---
+name: pytorch-quality-analysis
+description: Analyzes the PyTorch repository against ML framework-specific quality standards and provides actionable recommendations for improvement
+---
+
 # PyTorch Quality Analysis Skill
 
 Analyzes the PyTorch repository against ML framework-specific quality standards and provides actionable recommendations for improvement.
