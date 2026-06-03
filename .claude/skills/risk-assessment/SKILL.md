@@ -123,7 +123,7 @@ scripts/run_decision.sh
 
 ## Step 5: Publish to GitHub
 
-**TODO: Implement in Phase 5**
+**Phase 5: Not yet implemented**
 
 For now, placeholder:
 ```bash
