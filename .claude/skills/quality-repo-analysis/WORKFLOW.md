@@ -70,3 +70,84 @@ This script guides you through all steps interactively.
 - Use consistent naming: `{repo-name}_quality_report.md`
 - Archive reports by date for historical tracking
 - Compare reports over time to track improvements
+
+---
+
+## Catalog-Driven Batch Workflow
+
+The `scripts/` directory contains automated tooling that reads the software
+catalog (`repo_mappings.json` + `team_mappings.json`) and runs batch analysis
+across all repos for a given team and tier.
+
+### Prerequisites
+
+- `claude` CLI (Claude Code)
+- `jq`
+- `uv` (Python package manager, for pyyaml)
+- Software catalog directory containing `repo_mappings.json` and `team_mappings.json`
+
+### scripts/run-quality-analysis.sh
+
+Batch runner that resolves team → Jira components → repos from the catalog,
+runs `/quality-repo-analysis` on each, aggregates results, and optionally
+generates org-pulse registry files.
+
+```bash
+# List available teams
+scripts/run-quality-analysis.sh \
+  --catalog-dir /path/to/catalog \
+  --list-teams
+
+# Dry run — see which repos would be analyzed
+scripts/run-quality-analysis.sh \
+  --catalog-dir /path/to/catalog \
+  --team "Model Serving" --tier upstream \
+  --dry-run
+
+# Run analysis with 5 parallel workers
+scripts/run-quality-analysis.sh \
+  --catalog-dir /path/to/catalog \
+  --team "Model Serving" --tier midstream \
+  --parallel 5
+
+# Run analysis and generate org-pulse registry
+scripts/run-quality-analysis.sh \
+  --catalog-dir /path/to/catalog \
+  --team "AI Hub" --tier upstream \
+  --parallel 5 \
+  --org-pulse --org-pulse-dir /path/to/rhai-org-pulse/modules/system-health/client
+```
+
+Output files are written to `quality_reports/YYYY-MM-DD/TEAM/` by default.
+Use `--output-dir` to override.
+
+Filenames are org-prefixed (`quality-analysis-{org}-{repo}.md`) to avoid
+collisions when the same repo name exists across tiers.
+
+### scripts/generate-quality-registry.sh
+
+Standalone registry generator for the org-pulse System Health module. Parses
+YAML frontmatter from quality reports, enriches with catalog metadata
+(tier, component, team), and produces:
+
+- `qualityReports.data.js` — ES module with Vite `?url` imports
+- `generated-reports/` — HTML + MD report files
+- `generated-reports/index.html` — standalone landing page
+
+```bash
+# Generate registry from a reports directory
+scripts/generate-quality-registry.sh \
+  --reports-dir /path/to/reports \
+  --target-dir /path/to/rhai-org-pulse/modules/system-health/client \
+  --catalog-dir /path/to/catalog
+
+# With custom blurb
+scripts/generate-quality-registry.sh \
+  --reports-dir /path/to/reports \
+  --target-dir /path/to/rhai-org-pulse/modules/system-health/client \
+  --catalog-dir /path/to/catalog \
+  --blurb "Model Serving (upstream) — 30 repositories"
+```
+
+Both scripts accept a `CATALOG_DIR` environment variable as an alternative to
+`--catalog-dir`.
