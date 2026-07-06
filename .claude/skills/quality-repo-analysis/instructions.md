@@ -18,7 +18,6 @@ Instead, perform the analysis yourself in the main conversation:
 2. Analyze all aspects described in the Process steps below
 3. Use the Write tool to save the markdown report as `quality-analysis-{repo-name}.md`
 4. Use Bash tool to run the HTML generator
-5. Use Bash tool to open the HTML file
 
 This ensures the files are written to the correct location and permissions are properly handled.
 
@@ -292,13 +291,7 @@ After completing the analysis, generate both markdown and HTML reports:
      - Responsive design
    - Note: `uv run --with pyyaml` ensures PyYAML is installed without requiring global installation
 
-3. **Open the HTML Report**
-   - Open the generated HTML file in the default browser:
-   ```bash
-   open quality-report-{repo-name}.html  # macOS
-   ```
-
-4. **Provide Summary**
+3. **Provide Summary**
    - Inform the user that both reports have been generated:
      - `quality-analysis-{repo-name}.md` - Detailed markdown for archiving (e.g., `quality-analysis-hub.md`)
      - `quality-report-{repo-name}.html` - Interactive visualization (e.g., `quality-report-hub.html`)
