@@ -317,9 +317,110 @@ fi
 
 echo "=== Done ==="
 
-# Try to open the dashboard
-if command -v xdg-open &>/dev/null; then
-    xdg-open "$DASHBOARD" 2>/dev/null &
-elif command -v open &>/dev/null; then
-    open "$DASHBOARD"
-fi
+# --- Validate generated HTML reports ---
+
+echo ""
+echo "Validating HTML reports..."
+
+python3 - "$OUTPUT_DIR" <<'VALIDATE_PYEOF'
+import sys, os, re
+from html.parser import HTMLParser
+
+class ReportValidator(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags = []
+        self.has_title = False
+        self.has_body = False
+        self.has_score = False
+        self.text_content = []
+        self.errors = []
+        self._current_tag = None
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append(tag)
+        self._current_tag = tag
+        if tag == "body":
+            self.has_body = True
+        if tag == "title":
+            self.has_title = True
+
+    def handle_data(self, data):
+        self.text_content.append(data)
+        if re.search(r'\d+(\.\d+)?/10', data):
+            self.has_score = True
+
+    def handle_endtag(self, tag):
+        self._current_tag = None
+
+    def error(self, message):
+        self.errors.append(message)
+
+report_dir = sys.argv[1]
+html_files = sorted(f for f in os.listdir(report_dir) if f.startswith("quality-report-") and f.endswith(".html"))
+
+if not html_files:
+    print("No HTML reports to validate.")
+    sys.exit(0)
+
+passed = 0
+failed = 0
+issues = []
+
+for fname in html_files:
+    path = os.path.join(report_dir, fname)
+    with open(path) as f:
+        content = f.read()
+
+    problems = []
+
+    # Basic size check
+    if len(content) < 500:
+        problems.append(f"File too small ({len(content)} bytes)")
+
+    # Check well-formed HTML structure
+    if "<!DOCTYPE html>" not in content and "<!doctype html>" not in content:
+        problems.append("Missing DOCTYPE")
+
+    # Parse and validate DOM
+    validator = ReportValidator()
+    try:
+        validator.feed(content)
+    except Exception as e:
+        problems.append(f"Parse error: {e}")
+
+    if validator.errors:
+        problems.extend(validator.errors)
+
+    if not validator.has_body:
+        problems.append("Missing <body> tag")
+
+    if not validator.has_score:
+        problems.append("No score (N/10) found in content")
+
+    full_text = " ".join(validator.text_content)
+    if len(full_text.strip()) < 100:
+        problems.append(f"Very little text content ({len(full_text.strip())} chars)")
+
+    # Check for expected sections
+    expected = ["Unit Tests", "CI/CD", "Score"]
+    missing_sections = [s for s in expected if s.lower() not in full_text.lower()]
+    if len(missing_sections) == len(expected):
+        problems.append("None of the expected sections found (Unit Tests, CI/CD, Score)")
+
+    if problems:
+        failed += 1
+        issues.append(f"  FAIL: {fname}")
+        for p in problems:
+            issues.append(f"        - {p}")
+    else:
+        passed += 1
+
+total = passed + failed
+print(f"HTML validation: {passed}/{total} passed, {failed} failed")
+if issues:
+    print("\n".join(issues))
+
+if failed > 0:
+    print(f"\nWarning: {failed} report(s) have issues — review before publishing")
+VALIDATE_PYEOF
