@@ -9,7 +9,11 @@ repos and generating registry artifacts for the Org Pulse dashboard.
 - `jq` for JSON processing
 - `uv` (Python package manager) for pyyaml dependency
 - Python 3.8+
-- A software catalog directory containing `repo_mappings.json` and `team_mappings.json`
+
+The scripts ship with a bundled software catalog (`references/repo_mappings.json`
+and `references/team_mappings.json`) and will use it automatically when
+`--catalog-dir` is not provided. Pass `--catalog-dir` to override with a
+different catalog.
 
 ## Scripts
 
@@ -29,7 +33,6 @@ run-quality-analysis.sh --catalog-dir DIR --team TEAM --tier TIER [OPTIONS]
 
 | Flag | Description |
 |------|-------------|
-| `--catalog-dir DIR` | Path to software catalog references directory |
 | `--team TEAM` | Team name as listed in `team_mappings.json` |
 | `--tier TIER` | One of: `upstream`, `midstream`, `downstream` |
 
@@ -37,6 +40,7 @@ run-quality-analysis.sh --catalog-dir DIR --team TEAM --tier TIER [OPTIONS]
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `--catalog-dir DIR` | bundled `references/` | Override the software catalog directory |
 | `--output-dir DIR` | `<repo-root>/quality_reports/YYYY-MM-DD/TEAM` | Where to write report files |
 | `--parallel N` | `1` | Run N analyses concurrently |
 | `--org-pulse` | off | Generate Org Pulse registry after analysis |
@@ -55,27 +59,29 @@ run-quality-analysis.sh --catalog-dir DIR --team TEAM --tier TIER [OPTIONS]
 
 ```bash
 # List all available teams
-run-quality-analysis.sh --catalog-dir /path/to/catalog --list-teams
+run-quality-analysis.sh --list-teams
 
-# Preview which repos would be analyzed
+# Preview which repos would be analyzed (uses bundled catalog)
 run-quality-analysis.sh \
-  --catalog-dir /path/to/catalog \
   --team "Model Serving" --tier upstream \
   --dry-run
 
 # Run analysis with 5 parallel workers
 run-quality-analysis.sh \
-  --catalog-dir /path/to/catalog \
   --team "Model Serving" --tier midstream \
   --parallel 5
 
 # Run analysis and generate Org Pulse registry
 run-quality-analysis.sh \
-  --catalog-dir /path/to/catalog \
   --team "AI Hub" --tier upstream \
   --parallel 5 \
   --org-pulse \
   --org-pulse-dir /path/to/rhai-org-pulse/modules/system-health/client
+
+# Use an external catalog instead of the bundled one
+run-quality-analysis.sh \
+  --catalog-dir /path/to/catalog \
+  --team "AI Hub" --tier upstream
 ```
 
 **Output structure:**
@@ -119,12 +125,12 @@ generate-quality-registry.sh --reports-dir DIR --target-dir DIR --catalog-dir DI
 |------|-------------|
 | `--reports-dir DIR` | Directory containing `quality-analysis-*.md` and `quality-report-*.html` pairs |
 | `--target-dir DIR` | Org Pulse client directory (writes to `{target}/generated-reports/` and `{target}/qualityReports.data.js`) |
-| `--catalog-dir DIR` | Path to software catalog references directory |
 
 **Optional flags:**
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `--catalog-dir DIR` | bundled `references/` | Override the software catalog directory |
 | `--blurb TEXT` | `"Quality analysis of N repositories."` | Description shown in the registry metadata |
 
 **Environment variables:**
@@ -136,18 +142,22 @@ generate-quality-registry.sh --reports-dir DIR --target-dir DIR --catalog-dir DI
 **Examples:**
 
 ```bash
-# Generate registry from a reports directory
+# Generate registry from a reports directory (uses bundled catalog)
 generate-quality-registry.sh \
   --reports-dir /path/to/reports \
-  --target-dir /path/to/rhai-org-pulse/modules/system-health/client \
-  --catalog-dir /path/to/catalog
+  --target-dir /path/to/rhai-org-pulse/modules/system-health/client
 
 # With custom blurb
 generate-quality-registry.sh \
   --reports-dir /path/to/reports \
   --target-dir /path/to/rhai-org-pulse/modules/system-health/client \
-  --catalog-dir /path/to/catalog \
   --blurb "Model Serving (upstream) — 30 repositories"
+
+# Use an external catalog instead of the bundled one
+generate-quality-registry.sh \
+  --reports-dir /path/to/reports \
+  --target-dir /path/to/rhai-org-pulse/modules/system-health/client \
+  --catalog-dir /path/to/catalog
 ```
 
 **Important:** `--reports-dir` and `--target-dir` must be different directories.

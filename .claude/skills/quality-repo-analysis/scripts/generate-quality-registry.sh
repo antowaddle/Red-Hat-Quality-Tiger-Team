@@ -20,6 +20,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+BUNDLED_CATALOG="$SKILL_DIR/references"
+
 REPORTS_DIR=""
 TARGET_DIR=""
 CATALOG_DIR="${CATALOG_DIR:-}"
@@ -27,14 +31,17 @@ BLURB=""
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") --reports-dir DIR --target-dir DIR --catalog-dir DIR [OPTIONS]
+Usage: $(basename "$0") --reports-dir DIR --target-dir DIR [OPTIONS]
 
 Parse quality report markdown files and generate org-pulse registry files.
 
 Required:
   --reports-dir DIR   Directory containing quality-analysis-*.md and quality-report-*.html
   --target-dir DIR    Org-pulse client dir (outputs to {target}/generated-reports/ and {target}/qualityReports.data.js)
+
+Catalog:
   --catalog-dir DIR   Software catalog references dir (contains repo_mappings.json + team_mappings.json).
+                      Falls back to bundled references/ if not provided.
                       Can also be set via CATALOG_DIR env var.
 
 Options:
@@ -73,8 +80,13 @@ if [[ -z "$TARGET_DIR" ]]; then
 fi
 
 if [[ -z "$CATALOG_DIR" ]]; then
-    echo "Error: --catalog-dir is required (or set CATALOG_DIR env var)"
-    usage
+    if [[ -d "$BUNDLED_CATALOG" && -f "$BUNDLED_CATALOG/repo_mappings.json" ]]; then
+        CATALOG_DIR="$BUNDLED_CATALOG"
+        echo "Using bundled catalog: $CATALOG_DIR"
+    else
+        echo "Error: --catalog-dir is required (or set CATALOG_DIR env var)"
+        usage
+    fi
 fi
 
 if [[ ! -d "$CATALOG_DIR" ]]; then

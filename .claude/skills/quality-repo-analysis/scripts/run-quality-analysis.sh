@@ -29,6 +29,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="${TIGER_TEAM_DIR:-$(cd "$SKILL_DIR/../.." && pwd)}"
 
+BUNDLED_CATALOG="$SKILL_DIR/references"
 CATALOG_DIR="${CATALOG_DIR:-}"
 TEAM=""
 TIER=""
@@ -40,16 +41,19 @@ ORG_PULSE_DIR=""
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") --catalog-dir DIR --team TEAM --tier TIER [OPTIONS]
+Usage: $(basename "$0") --team TEAM --tier TIER [OPTIONS]
 
 Resolve repos for a team+tier from the software catalog, run quality-repo-analysis
 on each, then aggregate results into an HTML dashboard.
 
 Required:
-  --catalog-dir DIR   Path to software catalog references dir (contains repo_mappings.json + team_mappings.json)
-                      Can also be set via CATALOG_DIR env var.
   --team TEAM         Team name (from team_mappings.json)
   --tier TIER         One of: upstream, midstream, downstream
+
+Catalog:
+  --catalog-dir DIR   Path to software catalog references dir (contains repo_mappings.json + team_mappings.json).
+                      Falls back to bundled references/ if not provided.
+                      Can also be set via CATALOG_DIR env var.
 
 Options:
   --output-dir DIR      Where to write reports (default: <repo-root>/quality_reports/YYYY-MM-DD/TEAM)
@@ -85,8 +89,12 @@ while [[ $# -gt 0 ]]; do
         --dry-run)        DRY_RUN=true; shift ;;
         --list-teams)
             if [[ -z "$CATALOG_DIR" ]]; then
-                echo "Error: --catalog-dir (or CATALOG_DIR env var) is required for --list-teams"
-                exit 1
+                if [[ -d "$BUNDLED_CATALOG" && -f "$BUNDLED_CATALOG/team_mappings.json" ]]; then
+                    CATALOG_DIR="$BUNDLED_CATALOG"
+                else
+                    echo "Error: --catalog-dir (or CATALOG_DIR env var) is required for --list-teams"
+                    exit 1
+                fi
             fi
             echo "Available teams:"
             jq -r '[.mappings[].team] | unique | .[]' "$CATALOG_DIR/team_mappings.json"
@@ -100,9 +108,14 @@ done
 # --- Validate required arguments ---
 
 if [[ -z "$CATALOG_DIR" ]]; then
-    echo "Error: --catalog-dir is required (or set CATALOG_DIR env var)"
-    echo ""
-    usage
+    if [[ -d "$BUNDLED_CATALOG" && -f "$BUNDLED_CATALOG/repo_mappings.json" ]]; then
+        CATALOG_DIR="$BUNDLED_CATALOG"
+        echo "Using bundled catalog: $CATALOG_DIR"
+    else
+        echo "Error: --catalog-dir is required (or set CATALOG_DIR env var)"
+        echo ""
+        usage
+    fi
 fi
 
 if [[ ! -d "$CATALOG_DIR" ]]; then
