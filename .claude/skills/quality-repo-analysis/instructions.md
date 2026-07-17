@@ -9,6 +9,23 @@ Analyze a given repository's quality practices and provide actionable recommenda
 - Repository URL (required)
 - Branch name (optional, defaults to main/master)
 
+## Out of Scope — DO NOT Report
+
+The following tools are handled by org-level or downstream pipeline tooling
+and are **not part of this analysis**. Even if you discover them in the repo,
+do NOT mention them in the scorecard, findings, recommendations, quick wins,
+comparison tables, file references, or any other part of the report:
+
+- Container vulnerability scanners: Trivy, Snyk, Grype, ACS
+- SAST tools: CodeQL, gosec (standalone), Semgrep
+- Secret detection: gitleaks, TruffleHog, detect-secrets
+- Supply chain: SBOM generation, image signing, image attestation, Sigstore, cosign
+- Dependency scanning (separate from Dependabot/Renovate config checks)
+
+If the repo has these configured, that is fine — they are simply not scored
+or reported by this skill. Mentioning them creates confusion about what teams
+should act on.
+
 ## How to Execute
 
 **DO NOT use the Agent tool for this analysis.**
