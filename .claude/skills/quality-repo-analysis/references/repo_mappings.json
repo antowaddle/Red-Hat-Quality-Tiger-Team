@@ -1,0 +1,2293 @@
+{
+    "mappings": [
+        {
+            "repo": "pytorch/pytorch",
+            "jira_project": "AIPCC",
+            "jira_component": "PyTorch",
+            "tier": "upstream"
+        },
+        {
+            "repo": "anomalyco/opencode",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentOps",
+            "tier": "upstream"
+        },
+        {
+            "repo": "argoproj/argo-workflows",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "upstream"
+        },
+        {
+            "repo": "assafelovic/gpt-researcher",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentDev",
+            "tier": "upstream"
+        },
+        {
+            "repo": "autogluon/autogluon",
+            "jira_project": "RHAIENG",
+            "jira_component": "AutoML",
+            "tier": "upstream"
+        },
+        {
+            "repo": "BerriAI/litellm",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentOps",
+            "tier": "upstream"
+        },
+        {
+            "repo": "caikit/caikit-nlp",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "upstream"
+        },
+        {
+            "repo": "EleutherAI/lm-evaluation-harness",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "upstream"
+        },
+        {
+            "repo": "elyra-ai/elyra",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Extensions",
+            "tier": "upstream"
+        },
+        {
+            "repo": "elyra-ai/examples",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Extensions",
+            "tier": "upstream"
+        },
+        {
+            "repo": "elyra-ai/pipeline-editor",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Extensions",
+            "tier": "upstream"
+        },
+        {
+            "repo": "eval-hub/eval-hub",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "upstream"
+        },
+        {
+            "repo": "feast-dev/feast",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Feature Store",
+            "tier": "upstream"
+        },
+        {
+            "repo": "foundation-model-stack/fms-hf-tuning",
+            "jira_project": "RHAIENG",
+            "jira_component": "Fine Tuning",
+            "tier": "upstream"
+        },
+        {
+            "repo": "google/ml-metadata",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kagenti/kagenti-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AgentOps",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kserve/kserve",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kserve/modelmesh",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kserve/modelmesh-runtime-adapter",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kserve/modelmesh-serving",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kserve/rest-proxy",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kubeflow/hub",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Hub",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kubeflow/kubeflow",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kubeflow/notebooks",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kubeflow/pipelines",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kubeflow/pipelines-components",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kubeflow/sdk",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Kubeflow Unified SDK",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kubeflow/spark-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Kubeflow Spark Operator",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kubeflow/trainer",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Training Kubeflow",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kubernetes-sigs/gateway-api-inference-extension",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Inference Gateway",
+            "tier": "upstream"
+        },
+        {
+            "repo": "kubernetes-sigs/kueue",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "upstream"
+        },
+        {
+            "repo": "langflow-ai/openrag",
+            "jira_project": "RHAIENG",
+            "jira_component": "RAG + Vector DB",
+            "tier": "upstream"
+        },
+        {
+            "repo": "langfuse/langfuse",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentOps",
+            "tier": "upstream"
+        },
+        {
+            "repo": "langfuse/langfuse-k8s",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentOps",
+            "tier": "upstream"
+        },
+        {
+            "repo": "llm-d-incubation/batch-gateway",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "upstream"
+        },
+        {
+            "repo": "llm-d/llm-d-inference-scheduler",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "upstream"
+        },
+        {
+            "repo": "llm-d/llm-d-kv-cache",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "upstream"
+        },
+        {
+            "repo": "llm-d/llm-d-workload-variant-autoscaler",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "upstream"
+        },
+        {
+            "repo": "mlflow/mlflow",
+            "jira_project": "RHOAIENG",
+            "jira_component": "MLflow",
+            "tier": "upstream"
+        },
+        {
+            "repo": "noobaa/noobaa-core",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "upstream"
+        },
+        {
+            "repo": "noobaa/noobaa-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "upstream"
+        },
+        {
+            "repo": "ogx-ai/ogx",
+            "jira_project": "RHAIENG",
+            "jira_component": "Llama Stack Core",
+            "tier": "upstream"
+        },
+        {
+            "repo": "ogx-ai/ogx-k8s-operator",
+            "jira_project": "RHAIENG",
+            "jira_component": "Llama Stack Core",
+            "tier": "upstream"
+        },
+        {
+            "repo": "ogx-ai/ogx-demos",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Llama Stack Core",
+            "tier": "upstream"
+        },
+        {
+            "repo": "openclaw/openclaw",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentOps",
+            "tier": "upstream"
+        },
+        {
+            "repo": "opendatahub-io-contrib/jupyterhub-odh",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "upstream"
+        },
+        {
+            "repo": "opendatahub-io-contrib/jupyterhub-quickstart",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "upstream"
+        },
+        {
+            "repo": "opendatahub-io-contrib/jupyterhub-singleuser-profiles",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "upstream"
+        },
+        {
+            "repo": "opendatahub-io-contrib/traefik-proxy",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "upstream"
+        },
+        {
+            "repo": "openshift/kube-rbac-proxy",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "upstream"
+        },
+        {
+            "repo": "openvinotoolkit/model_server",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "upstream"
+        },
+        {
+            "repo": "openvinotoolkit/openvino",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "upstream"
+        },
+        {
+            "repo": "openvinotoolkit/openvino.genai",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "upstream"
+        },
+        {
+            "repo": "openvinotoolkit/openvino_contrib",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "upstream"
+        },
+        {
+            "repo": "openvinotoolkit/openvino_tokenizers",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "upstream"
+        },
+        {
+            "repo": "project-codeflare/codeflare-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "upstream"
+        },
+        {
+            "repo": "project-codeflare/codeflare-sdk",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "upstream"
+        },
+        {
+            "repo": "prometheus/blackbox_exporter",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Monitoring",
+            "tier": "upstream"
+        },
+        {
+            "repo": "ray-project/kuberay",
+            "jira_project": "RHOAIENG",
+            "jira_component": "KubeRay",
+            "tier": "upstream"
+        },
+        {
+            "repo": "redhat-openshift-ecosystem/community-operators-prod",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "upstream"
+        },
+        {
+            "repo": "SeldonIO/MLServer",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "upstream"
+        },
+        {
+            "repo": "traefik/traefik",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "upstream"
+        },
+        {
+            "repo": "triton-inference-server/client",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "upstream"
+        },
+        {
+            "repo": "triton-inference-server/perf_analyzer",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "upstream"
+        },
+        {
+            "repo": "trustyai-explainability/fms-guardrails-orchestrator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "upstream"
+        },
+        {
+            "repo": "trustyai-explainability/guardrails-detectors",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "upstream"
+        },
+        {
+            "repo": "trustyai-explainability/guardrails-regex-detector",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "upstream"
+        },
+        {
+            "repo": "trustyai-explainability/NeMo-Guardrails",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "upstream"
+        },
+        {
+            "repo": "trustyai-explainability/trustyai-explainability",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "upstream"
+        },
+        {
+            "repo": "trustyai-explainability/trustyai-explainability-python",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "upstream"
+        },
+        {
+            "repo": "trustyai-explainability/trustyai-service-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "upstream"
+        },
+        {
+            "repo": "trustyai-explainability/vllm-orchestrator-gateway",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "upstream"
+        },
+        {
+            "repo": "vllm-project/semantic-router",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Inference Gateway",
+            "tier": "upstream"
+        },
+        {
+            "repo": "opendatahub-io/.github",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/aaet-devtools",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/agent-eval-harness",
+            "jira_project": "RHAIFIRST",
+            "jira_component": "Test-gen",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/agent-ops",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentDev",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/agentic-ci",
+            "jira_project": "RHAIFIRST",
+            "jira_component": "Build and Release",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/agents",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentDev",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/ai-engineering-process-docs",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/ai-gateway-payload-processing",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Inference Gateway",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/ai-helpers",
+            "jira_project": "RHAIENG",
+            "jira_component": "Foundations",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/aiops-infra",
+            "jira_project": "RHAIENG",
+            "jira_component": "Build and Release",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/architecture-context",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/architecture-decision-records",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/argo-workflows",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/autogluon",
+            "jira_project": "RHAIENG",
+            "jira_component": "AutoML",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/base-containers",
+            "jira_project": "RHAIENG",
+            "jira_component": "Build and Release",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/batch-gateway",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/caikit-nlp",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/caikit-nlp-client",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/caikit-tgis-serving",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/client",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/codeflare-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/codeflare-operator-poc",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/coderabbit",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/community-operators-prod",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/data-processing",
+            "jira_project": "RHAIENG",
+            "jira_component": "Data Processing",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/data-science-pipelines",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/data-science-pipelines-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/distributed-workloads",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/dsp-dev-tools",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/elyra",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Extensions",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/elyra-examples",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Extensions",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/elyra-pipeline-editor",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Extensions",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/eval-hub",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/feast",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Feature Store",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/feast-demo",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Feature Store",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/feast-labs",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Feature Store",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/fips-compliance-checker-claude-code-plugin",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform Security",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/fms-guardrails-orchestrator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/gpt-researcher",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentDev",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/guardrails-detector",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/guardrails-detectors",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/guardrails-regex-detector",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/guides-vllm-llm-d",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kagenti-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AgentOps",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kc-rep",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kserve",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kserve-autogluon-server",
+            "jira_project": "RHAIENG",
+            "jira_component": "AutoML",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kserve-migration",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kserve-raw-migration",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kube-auth-proxy",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kube-authkit",
+            "jira_project": "RHOAIENG",
+            "jira_component": "KubeRay",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kube-rbac-proxy",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kubeflow",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kubeflow-sdk",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Kubeflow Unified SDK",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kubeflow-ui-essentials",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Dashboard",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kuberay",
+            "jira_project": "RHOAIENG",
+            "jira_component": "KubeRay",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/kueue",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/langfuse",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentOps",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/langfuse-k8s",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentOps",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/litellm",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentOps",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/ogx",
+            "jira_project": "RHAIENG",
+            "jira_component": "Llama Stack Core",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/ogx-distribution",
+            "jira_project": "RHAIENG",
+            "jira_component": "Llama Stack Core",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/ogx-k8s-operator",
+            "jira_project": "RHAIENG",
+            "jira_component": "Llama Stack Core",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/llm-d-batch-gateway-operator",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/llm-d-inference-scheduler",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/llm-d-kv-cache",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/llm-d-playbooks",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/lm-evaluation-harness",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/models-as-a-service",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model as a Service",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/mcp-server-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/ml-metadata",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/mlflow",
+            "jira_project": "RHOAIENG",
+            "jira_component": "MLflow",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/mlflow-go",
+            "jira_project": "RHOAIENG",
+            "jira_component": "MLflow",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/mlflow-kubernetes-plugins",
+            "jira_project": "RHOAIENG",
+            "jira_component": "MLflow",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/mlflow-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "MLflow",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/MLServer",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/mod-arch-library",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Dashboard",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/model-metadata-collection",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Hub",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/model-registry",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Hub",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/model-registry-bf4-kf",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Hub",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/model-registry-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Hub",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/model-runtimes-agent",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/modelcar-base-image",
+            "jira_project": "RHOAIENG",
+            "jira_component": "DevOps",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/modelmesh",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/modelmesh-runtime-adapter",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/modelmesh-serving",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/models-as-a-service",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model as a Service",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/NeMo-Guardrails",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/notebooks",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-automation-serving",
+            "jira_project": "RHAIENG",
+            "jira_component": "DevOps",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/ODH-Build-Config",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-build-metadata",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-cli",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-dashboard",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Dashboard",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-doc-examples",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-gitops",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-ide-extensions",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Extensions",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-konflux-central",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-model-controller",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-observability",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-platform-utilities",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-s2i-project-cds",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-s2i-project-cookiecutter",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-s2i-project-simple",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/odh-template-sig",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/openclaw",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentOps",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/opencode",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentOps",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/opendatahub-community",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/opendatahub-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/opendatahub-tests",
+            "jira_project": "RHOAIENG",
+            "jira_component": "QE",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/opendatahub.io",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/opendatahub.io-redirects",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/openrag",
+            "jira_project": "RHAIENG",
+            "jira_component": "RAG + Vector DB",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/openvino",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/openvino_contrib",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/openvino_model_server",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/openvino_tokenizers",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/openvino-repo-syncher",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/openvino.genai",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/perf_analyzer",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/pipelines-components",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/rag",
+            "jira_project": "RHAIENG",
+            "jira_component": "RAG + Vector DB",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/rest-proxy",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/rhai-wiki",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/rhaii-cluster-validation",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/rhaii-on-xks",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/rhoai-mcp",
+            "jira_project": "RHAIENG",
+            "jira_component": "Project Navigator",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/rhoai-observability-mcp",
+            "jira_project": "RHAIENG",
+            "jira_component": "Project Navigator",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/runbooks",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/sample-gam-trigger-workflow",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/sdg-hub",
+            "jira_project": "RHAIENG",
+            "jira_component": "SDG",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/security-config",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform Security",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/semantic-router",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Inference Gateway",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/sig-ml-developer-experience",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/sig-platform",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/skills-registry",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/spark-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Kubeflow Spark Operator",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/test-repo",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/trainer",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Training Kubeflow",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/trainer-sdk",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Training Kubeflow",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/training-notebooks",
+            "jira_project": "RHAIENG",
+            "jira_component": "Notebooks",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/training-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Training Kubeflow",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/trustyai-explainability",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/trustyai-service-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/vllm-gaudi",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/vllm-orchestrator-gateway",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/vllm-tgis-adapter",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/workbenches",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/workload-orchestration",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "midstream"
+        },
+        {
+            "repo": "opendatahub-io/workload-variant-autoscaler",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "midstream"
+        },
+        {
+            "repo": "red-hat-data-services/2022-summit-cluster-setup",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Customer Exploration & Test",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/agentic-starter-kits",
+            "jira_project": "RHAIENG",
+            "jira_component": "AgentDev",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/ai-first-status",
+            "jira_project": "RHAIFIRST",
+            "jira_component": "General usage",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/ai-gateway-payload-processing",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Inference Gateway",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/anaconda-validator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/argo-workflows",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/autox-ci",
+            "jira_project": "RHAIENG",
+            "jira_component": "AutoML",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/batch-gateway",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/blackbox_exporter",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Monitoring",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/bpr-poc",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/caikit-nlp",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/caikit-tgis-serving",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/Cloud-Cost-Optimization",
+            "jira_project": "RHAIENG",
+            "jira_component": "InfraOps",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/cloud-dangling-resources-watcher",
+            "jira_project": "RHAIENG",
+            "jira_component": "InfraOps",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/codeflare-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/codeflare-sdk",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/composable-pipelines",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/conforma-reporter",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/credit-fraud-detection-demo",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Customer Exploration & Test",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/data-hub-pipelines",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/data-science-pipelines",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/data-science-pipelines-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/data-science-pipelines-tekton",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/devops-runner-images",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/distributed-workloads",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/eval-hub",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/eval-hub-sobha",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/feast",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Feature Store",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/fms-guardrails-orchestrator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/fms-hf-tuning",
+            "jira_project": "RHAIENG",
+            "jira_component": "Fine Tuning",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/gam-poc",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/Gated-Auto-Merger",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/gateway-api-inference-extension",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Inference Gateway",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/genaidemo25-gitops",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Customer Exploration & Test",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/gpu-observability-dashboard",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Customer Exploration & Test",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/guardrails-detectors",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/guardrails-regex-detector",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/ibm-ae-ocs-refarch",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/ilab-on-ocp",
+            "jira_project": "RHAIENG",
+            "jira_component": "Fine Tuning",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/insta-merge",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/instant-merger",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/jira-escalation-notifier",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/jupyterhub-odh",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/jupyterhub-quickstart",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/jupyterhub-singleuser-profiles",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/kf-poc-rhods-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/konflux-central",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/kronophage",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/kserve",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/kserve-autogluon-server",
+            "jira_project": "RHAIENG",
+            "jira_component": "AutoML",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/kube-auth-proxy",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/kube-rbac-proxy",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/kubeflow",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/kuberay",
+            "jira_project": "RHOAIENG",
+            "jira_component": "KubeRay",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/kueue",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Workload Orchestration",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/legal",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/ogx",
+            "jira_project": "RHAIENG",
+            "jira_component": "Llama Stack Core",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/ogx-distribution",
+            "jira_project": "RHAIENG",
+            "jira_component": "Llama Stack Core",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/ogx-k8s-operator",
+            "jira_project": "RHAIENG",
+            "jira_component": "Llama Stack Core",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/llm-d-inference-scheduler",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/llm-d-kv-cache",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/llm-d-routing-sidecar",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/lm-evaluation-harness",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/minio-model-storage",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/misc_tools",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/ml-metadata",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/mlflow",
+            "jira_project": "RHOAIENG",
+            "jira_component": "MLflow",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/mlflow-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "MLflow",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/mlmd-bazel-dist",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/MLServer",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/model-metadata-collection",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Hub",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/model-registry",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Hub",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/model-registry-bf4-kf",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Hub",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/model-registry-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Hub",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/model-serving-devops",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/modelmesh",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/modelmesh-private",
+            "jira_project": "RHAIENG",
+            "jira_component": "Model Serving",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/modelmesh-runtime-adapter",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/modelmesh-serving",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/models-as-a-service",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model as a Service",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/models-perf-benchmark-data",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Hub",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/must-gather",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/NeMo-Guardrails",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Safety",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/noobaa-core",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/noobaa-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/notebook-benchmarks",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/notebooks",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/notebooks-downstream",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/notebooks-downstream-z-test",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Notebooks Server",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-cli",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-dashboard",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Dashboard",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-dashboard-sync",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-deployer",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-gitops",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-images",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-manifests",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-model-controller",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-nightlies-disconnected-install-helper",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-operator-allinone",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/odh-operator-test-harness",
+            "jira_project": "RHOAIENG",
+            "jira_component": "QE",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/ods-ci",
+            "jira_project": "RHOAIENG",
+            "jira_component": "QE",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/ods-installer",
+            "jira_project": "RHOAIENG",
+            "jira_component": "QE",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/opendatahub-operator-sync",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/openvino",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/openvino_contrib",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/openvino_model_server",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/pipelines-components",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/pipelines-components-old",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Pipelines",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/product-pages-generator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/pull-request-pipelines",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/RDRhelper",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/red-hat-ai-examples",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/red-hat-odh-dashboard",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rest-proxy",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhai-org-pulse",
+            "jira_project": "RHAIFIRST",
+            "jira_component": "General usage",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/RHAICIC",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhaii-cluster-validation",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/RHCS-vagrant",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhoai-additional-images",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/RHOAI-Build-Config",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/RHOAI-Build-Config-rm",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhoai-component-infra",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhoai-devops-optima",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhoai-disconnected-install-helper",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhoai-gitops",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhoai-jira-reporting",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/RHOAI-Konflux-Automation",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhoai-konflux-tasks",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhoai-ops",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhoai-upgrade-helpers",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhods-devops-infra",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhods-disconnected-install-helper",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhods-jira-tools",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rhods-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Core Platform",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/robotframework-openshift",
+            "jira_project": "RHOAIENG",
+            "jira_component": "QE",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/robotframework-openshiftcli",
+            "jira_project": "RHOAIENG",
+            "jira_component": "QE",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/rpm-lockfile-runner",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/self-managed-installer",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/setup-rhoai",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Build and Release",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/snyk-jira-reporter",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/spark-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Kubeflow Spark Operator",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/telecom-customer-churn-airflow",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Customer Exploration & Test",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/text-generation-inference",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/traefik",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/traefik-proxy",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Internal Processes & Documentation",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/train-experiment-interviews",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Fine Tuning",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/trainer",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Training Kubeflow",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/training-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Training Kubeflow",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/trustyai-explainability",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/trustyai-explainability-python",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/trustyai-service-operator",
+            "jira_project": "RHOAIENG",
+            "jira_component": "AI Evaluations",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/vllm",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/vllm-cpu",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/vllm-gaudi",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/vllm-orchestrator-gateway",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Serving",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/vllm-rocm",
+            "jira_project": "RHOAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/vllm-spyre",
+            "jira_project": "RHAIENG",
+            "jira_component": "Model Runtimes",
+            "tier": "downstream"
+        },
+        {
+            "repo": "red-hat-data-services/workload-variant-autoscaler",
+            "jira_project": "RHAIENG",
+            "jira_component": "llm-d",
+            "tier": "downstream"
+        }
+    ],
+    "lifecycle": {
+        "last_updated": "2026-05-08T18:15:28.298250+00:00"
+    }
+}
