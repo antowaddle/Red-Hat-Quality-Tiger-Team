@@ -22,51 +22,58 @@ Analyzes a repository's quality practices and provides actionable recommendation
 
 ## What It Analyzes
 
-This skill performs a comprehensive quality assessment across multiple dimensions:
+This skill performs a comprehensive quality assessment across 8 dimensions:
 
-### 1. CI/CD Pipeline Analysis
-- What tests run on PRs vs. periodic jobs
-- Workflow organization and efficiency
-- Concurrency control and caching
-- Build automation
+### 1. Unit Tests (15%)
+- Test file detection: `*_test.go`, `*.spec.ts`, `*.test.ts`, `*_test.py`
+- Framework detection and usage patterns
+- Test-to-code ratio calculation
+- Test isolation patterns and best practices
 
-### 2. Test Coverage Assessment
-- Unit test coverage and frameworks
-- Integration test infrastructure
-- E2E test coverage and execution
-- Test-to-code ratio
-- Coverage tracking and enforcement
+### 2. Integration/E2E Tests (20%)
+- `e2e/` and `integration/` directory presence and organization
+- Multi-version testing support
+- Cluster setup verification (Kind, Minikube, envtest)
+- Test scenario coverage and breadth
 
-### 3. Code Quality Tools
-- Linting configuration (golangci-lint, ESLint, etc.)
-- Pre-commit hooks
-- Static analysis tools
-- Code formatters
+### 3. Build Integration (15%)
+- PR workflow Docker image building
+- Konflux build simulation
+- Operator manifest validation
+- Kustomize overlay verification
 
-### 4. Container Image Testing
-- Image build process
-- Runtime validation
-- Vulnerability scanning
+### 4. Image Testing (10%)
+- Dockerfile/Containerfile analysis and best practices
+- Multi-stage build usage
+- Base image selection and security
+- Runtime validation with Testcontainers
 - Multi-architecture support
-- SBOM generation
 
-### 5. Security Practices
-- Container scanning (Trivy, Snyk)
-- SAST/CodeQL integration
-- Dependency scanning
-- Secret detection
+### 5. Coverage Tracking (10%)
+- `.codecov.yml` configuration
+- Coverage threshold enforcement
+- PR coverage reporting integration
+- `--coverprofile` or `pytest-cov` usage in CI
+- Coverage gate enforcement
 
-### 6. Agent Rules Assessment (NEW)
-- Checks for `.claude/rules/` directory
-- Evaluates rule completeness (all test types covered)
-- Assesses rule quality (comprehensive, actionable)
-- Identifies gaps and missing test type rules
+### 6. CI/CD Automation (15%)
+- Workflow inventory and trigger mapping
+- PR-triggered vs. periodic job analysis
+- Concurrency control mechanisms
+- Caching strategies and optimization
+- Test parallelization patterns
 
-### 7. Testing Frameworks
-- Unit testing frameworks
-- Integration testing tools
-- E2E testing infrastructure
-- Mocking strategies
+### 7. Static Analysis (10%)
+- Linting configuration (golangci-lint, ESLint, ruff, etc.)
+- FIPS compatibility checks (crypto imports, build tags, base images)
+- Dependency alert configuration (Dependabot, Renovate)
+- Pre-commit hooks and enforcement
+
+### 8. Agent Rules (5%)
+- `CLAUDE.md` or `AGENTS.md` presence
+- `.claude/rules/` directory and rule files
+- Test creation rule coverage
+- Rule quality assessment (comprehensive, actionable, framework-specific)
 
 ## Output
 
@@ -116,11 +123,14 @@ Each dimension is scored 0-10:
 - **0-3**: Critical gaps, major work required
 
 Overall score is weighted average:
-- Unit Tests: 20%
-- Integration/E2E: 25%
-- Image Testing: 20%
-- Coverage Tracking: 15%
-- CI/CD Automation: 20%
+- Unit Tests: 15%
+- Integration/E2E: 20%
+- Build Integration: 15%
+- Image Testing: 10%
+- Coverage Tracking: 10%
+- CI/CD Automation: 15%
+- Static Analysis: 10%
+- Agent Rules: 5%
 
 ## Implementation Details
 
@@ -130,7 +140,7 @@ The skill uses the Agent tool to:
 2. Examine CI/CD workflows in `.github/workflows/`
 3. Analyze test files and frameworks
 4. Review build and deployment configurations
-5. Check for security scanning integration
+5. Check static analysis, FIPS compatibility, and dependency alerts
 6. Compare against gold standard practices
 7. Generate prioritized recommendations
 

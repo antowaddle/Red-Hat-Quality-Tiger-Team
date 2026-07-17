@@ -9,6 +9,23 @@ Analyze a given repository's quality practices and provide actionable recommenda
 - Repository URL (required)
 - Branch name (optional, defaults to main/master)
 
+## Out of Scope — DO NOT Report
+
+The following tools are handled by org-level or downstream pipeline tooling
+and are **not part of this analysis**. Even if you discover them in the repo,
+do NOT mention them in the scorecard, findings, recommendations, quick wins,
+comparison tables, file references, or any other part of the report:
+
+- Container vulnerability scanners: Trivy, Snyk, Grype, ACS
+- SAST tools: CodeQL, gosec (standalone), Semgrep
+- Secret detection: gitleaks, TruffleHog, detect-secrets
+- Supply chain: SBOM generation, image signing, image attestation, Sigstore, cosign
+- Dependency scanning (separate from Dependabot/Renovate config checks)
+
+If the repo has these configured, that is fine — they are simply not scored
+or reported by this skill. Mentioning them creates confusion about what teams
+should act on.
+
 ## How to Execute
 
 **DO NOT use the Agent tool for this analysis.**
@@ -71,6 +88,12 @@ Analyze `.github/workflows/` or equivalent CI configuration:
    - Multi-architecture support
    - Build caching and optimization
 
+**What We Check (CI/CD Automation dimension, 15% weight):**
+- Files: `.github/workflows/*.yml`, `.github/workflows/*.yaml`, `.gitlab-ci.yml`, `Jenkinsfile`, `Taskfile.yml`
+- Patterns: `Makefile` test/build targets, `on: pull_request`, `on: schedule`
+- CI grep: `concurrency:`, `cache:`, `strategy:` (matrix), `runs-on:`, `timeout-minutes:`
+- Parallelization: `parallel:`, `shard`, `split`, matrix strategy entries
+
 ### Step 3: Test Coverage Analysis
 
 Examine test files and configuration:
@@ -99,9 +122,27 @@ Examine test files and configuration:
    - Look for coverage thresholds
    - Check PR coverage reporting
 
-### Step 4: Code Quality Assessment
+**What We Check (this step feeds three dimensions):**
 
-Review linting and quality tools:
+*Unit Tests (15% weight):*
+- Files: `*_test.go`, `*.spec.ts`, `*.test.ts`, `*_test.py`, `*.spec.js`, `*.test.js`
+- Config: `pytest.ini`, `vitest.config.*`, `jest.config.*`, `go.mod` (test dependencies)
+- Patterns: test-to-code file ratio, testing framework detection, test isolation (`t.Parallel()`, `beforeEach`)
+
+*Integration/E2E (20% weight):*
+- Directories: `e2e/`, `integration/`, `test/e2e/`, `tests/integration/`, `test/integration/`
+- Cluster setup: `Kind`, `Minikube`, `envtest`, `setup-envtest`
+- Multi-version: matrix strategies testing multiple K8s/OCP versions
+- Patterns: `testcontainers`, `docker-compose` in test context, `ginkgo`, `cypress`, `playwright`
+
+*Coverage Tracking (10% weight):*
+- Files: `.codecov.yml`, `codecov.yml`, `.coveragerc`, `coveralls.yml`
+- CI grep: `--coverprofile`, `pytest-cov`, `--coverage`, `coverageThreshold`, `coverage-minimum`
+- PR reporting: `codecov/codecov-action`, coverage comment bots, threshold enforcement
+
+### Step 4: Static Analysis Assessment
+
+Review linting, FIPS compliance, and dependency management:
 
 1. **Linting Configuration**
    - Go: `.golangci.yaml`, number of enabled linters
@@ -113,10 +154,32 @@ Review linting and quality tools:
    - Verify hook enforcement
    - Review configured checks
 
-3. **Static Analysis**
-   - SAST tools (CodeQL, gosec, Semgrep)
-   - Dependency scanning
-   - Secret detection (Gitleaks, TruffleHog)
+3. **FIPS Compatibility**
+
+   Scan for non-FIPS-compliant cryptographic usage and verify FIPS build configuration:
+
+   *Source Code Patterns:*
+   - **Go**: grep for `crypto/md5`, `crypto/des`, `crypto/rc4`, `math/rand` (non-crypto rand used in security context); check for FIPS build tags (`//go:build fips`, `//go:build boringcrypto`)
+   - **Python**: grep for `hashlib.md5`, `Crypto.Cipher.Blowfish`, `Crypto.Cipher.DES`, `Crypto.Cipher.ARC4`
+   - **General**: hardcoded crypto keys/IVs (hex strings > 16 chars assigned to key-like variables), custom PRNG implementations
+
+   *Build Configuration:*
+   - **Go build**: `-tags=fips` or `-tags=strictfipsruntime` in Makefile/CI; `GOEXPERIMENT=boringcrypto`; `CGO_ENABLED=1` with boringssl
+   - **Dockerfile base images**: UBI-based images (FIPS-capable) vs alpine/debian (not FIPS-capable without extra work). Look for `FROM registry.access.redhat.com/ubi` vs `FROM alpine` or `FROM debian`
+   - **OpenSSL**: FIPS provider config (`openssl.cnf` with `fips = fips_sect`), BoringCrypto linkage in Go binaries
+
+4. **Dependency Alerts**
+   - Dependabot configuration (`.github/dependabot.yml`) — check it exists and covers relevant ecosystems (gomod, pip, npm, docker)
+   - Renovate configuration (`renovate.json`, `.renovaterc`, `.renovaterc.json`) — check it exists
+   - This is a binary check: present or absent. No quality judgment on config depth beyond ecosystem coverage
+   - Auto-merge policies for patch/minor updates
+
+**What We Check (Static Analysis dimension, 10% weight):**
+- Files: `.golangci.yaml`, `.golangci.yml`, `.eslintrc.*`, `eslint.config.*`, `ruff.toml`, `.flake8`, `mypy.ini`, `.pre-commit-config.yaml`
+- Patterns: `.github/dependabot.yml`, `renovate.json`, `.renovaterc`, `.renovaterc.json`
+- Source grep: `crypto/md5`, `crypto/des`, `crypto/rc4`, `math/rand`, `hashlib.md5`, `Crypto.Cipher.Blowfish`, `Crypto.Cipher.DES`, `Crypto.Cipher.ARC4`
+- Build grep: `-tags=fips`, `-tags=strictfipsruntime`, `GOEXPERIMENT=boringcrypto`, `CGO_ENABLED=1`
+- Dockerfile grep: `FROM registry.access.redhat.com/ubi`, `FROM alpine`, `FROM debian`
 
 ### Step 5: Build Integration Analysis (CRITICAL)
 
@@ -147,9 +210,16 @@ Review linting and quality tools:
    - Integration manifests correct
 
 **Critical Gap**: If PR builds pass but Konflux/production builds fail:
-- ❌ No PR-time Konflux simulation
-- ❌ No operator integration testing
-- ❌ Build issues discovered post-merge
+- No PR-time Konflux simulation
+- No operator integration testing
+- Build issues discovered post-merge
+
+**What We Check (Build Integration dimension, 15% weight):**
+- Files: `.github/workflows/*.yml` (PR-triggered), `Makefile`, `Dockerfile`, `Containerfile`
+- Patterns: `kustomize build`, `kubectl apply --dry-run`, `kind create cluster`, `minikube start`
+- CI grep: `docker build`, `podman build`, `make build`, `go build`, `make docker-build`
+- Operator patterns: `make bundle`, `make deploy`, `envtest`, CRD install steps
+- Monorepo: cross-package build validation, module federation checks
 
 ### Step 6: Container Image Testing
 
@@ -159,18 +229,20 @@ Analyze image build and testing:
    - Dockerfile/Containerfile analysis
    - Multi-stage builds
    - Base image selection
-   - Platform support
+   - Platform support (multi-arch)
 
 2. **Runtime Testing**
    - Image startup validation
    - Functional testing (Testcontainers, etc.)
    - Deployment testing (Kind, Minikube)
+   - Container health checks and readiness probes
 
-3. **Security Scanning**
-   - Trivy/Snyk integration
-   - Vulnerability thresholds
-   - SBOM generation
-   - Image signing/attestation
+**What We Check (Image Testing dimension, 10% weight):**
+- Files: `Dockerfile`, `Containerfile`, `.dockerignore`, `docker-compose.yml`, `docker-compose.test.yml`
+- Patterns: multi-stage builds (`FROM ... AS`), base image selection (`FROM ubi`, `FROM alpine`, `FROM golang`)
+- CI grep: `testcontainers`, `kind load docker-image`, `docker run`, `podman run`
+- Health: `HEALTHCHECK`, readiness/liveness probe definitions in K8s manifests
+- Multi-arch: `--platform`, `docker buildx`, `manifest list`
 
 ### Step 7: Agent Rules Analysis
 
@@ -200,6 +272,12 @@ Check for existing Claude Code agent rules and test automation guidance:
    - Lack of examples
    - No quality gates/checklists
 
+**What We Check (Agent Rules dimension, 5% weight):**
+- Files: `CLAUDE.md`, `AGENTS.md` (root), `.claude/rules/*.md`, `.claude/skills/*/SKILL.md`
+- Directories: `.claude/`, `.claude/rules/`, `.claude/skills/`
+- Content check: test creation rules (unit, e2e, integration), framework-specific examples, quality gate checklists
+- Quality signals: actionable patterns (not just "write tests"), up-to-date framework references, coverage of all test types in the repo
+
 ### Step 8: Gap Analysis
 
 Compare findings against gold standards:
@@ -214,7 +292,7 @@ Compare findings against gold standards:
 2. **notebooks comparison**
    - Image testing strategy
    - Multi-architecture support
-   - Security scanning
+   - FIPS compatibility patterns
 
 3. **Kubernetes best practices**
    - Operator testing patterns
@@ -237,17 +315,17 @@ Create structured report with:
 
 3. **Critical Gaps**
    - Missing coverage enforcement
-   - No image scanning
    - E2E not automated
-   - Security vulnerabilities
+   - No PR-time build validation
+   - Non-FIPS-compliant crypto usage
 
 4. **Quick Wins** (High ROI, Low Effort)
    - Add codecov integration (2-4 hours)
-   - Add Trivy scanning (1-2 hours)
+   - Enable Dependabot for dependency alerts (1-2 hours)
    - Enable pre-commit hooks (1-2 hours)
 
 5. **Prioritized Recommendations**
-   - P0: Critical gaps (coverage, security)
+   - P0: Critical gaps (coverage, build integration, FIPS compliance)
    - P1: High-value improvements (E2E, contracts)
    - P2: Nice-to-have (performance tests, etc.)
 
@@ -305,7 +383,7 @@ After completing the analysis, generate both markdown and HTML reports:
 ```markdown
 ---
 repository: "owner/repo-name"
-overall_score: 7.8
+overall_score: 7.5
 scorecard:
   - dimension: "Unit Tests"
     score: 8.0
@@ -325,6 +403,9 @@ scorecard:
   - dimension: "CI/CD Automation"
     score: 9.0
     status: "Well-organized workflows with caching"
+  - dimension: "Static Analysis"
+    score: 7.0
+    status: "Good linting setup, missing FIPS checks and dependency alerts"
   - dimension: "Agent Rules"
     score: 2.0
     status: "No test automation guidance for AI agents"
@@ -338,9 +419,9 @@ critical_gaps:
     severity: "HIGH"
     effort: "4-6 hours"
 quick_wins:
-  - title: "Add Trivy scanning to PR workflow"
+  - title: "Enable Dependabot for automated dependency alerts"
     effort: "1-2 hours"
-    impact: "Early detection of security vulnerabilities in dependencies"
+    impact: "Automated security and dependency updates with PR generation"
   - title: "Create basic agent rules for unit test patterns"
     effort: "2-3 hours"
     impact: "Improve AI-generated test quality and consistency"
@@ -369,10 +450,11 @@ recommendations:
 |-----------|-------|--------|
 | Unit Tests | X/10 | ... |
 | Integration/E2E | X/10 | ... |
-| **Build Integration** | **X/10** | **...** |
+| Build Integration | X/10 | ... |
 | Image Testing | X/10 | ... |
 | Coverage Tracking | X/10 | ... |
 | CI/CD Automation | X/10 | ... |
+| Static Analysis | X/10 | ... |
 | Agent Rules | X/10 | ... |
 
 ## Critical Gaps
@@ -388,22 +470,35 @@ recommendations:
    - Implementation: [code example]
 
 ## Detailed Findings
-### CI/CD Pipeline
+### Unit Tests
 [Analysis...]
 
-### Test Coverage
+### Integration/E2E Tests
 [Analysis...]
 
-### Code Quality
+### Build Integration
 [Analysis...]
 
-### Container Images
+### Image Testing
 [Analysis...]
 
-### Security
+### Coverage Tracking
 [Analysis...]
 
-### Agent Rules (Agentic Flow Quality)
+### CI/CD Automation
+[Analysis...]
+
+### Static Analysis
+#### Linting
+[Linting config analysis...]
+
+#### FIPS Compatibility
+[FIPS scan results — non-compliant crypto imports, build tag status, base image analysis...]
+
+#### Dependency Alerts
+[Dependabot/Renovate configuration status...]
+
+### Agent Rules
 [Analysis of existing agent rules]
 - **Status**: Present/Missing/Incomplete
 - **Coverage**: Which test types have rules?
@@ -444,11 +539,16 @@ recommendations:
 - `e2e/`, `integration/` directories
 - `pytest.ini`, `go.mod` (test dependencies)
 
-### Code Quality
+### Code Quality / Static Analysis
 - `.golangci.yaml`, `.golangci.yml`
-- `.eslintrc.js`, `eslintrc.json`
+- `.eslintrc.js`, `.eslintrc.json`, `eslint.config.*`
 - `ruff.toml`, `.flake8`, `mypy.ini`
 - `.pre-commit-config.yaml`
+- `.github/dependabot.yml`
+- `renovate.json`, `.renovaterc`, `.renovaterc.json`
+- FIPS: source files importing `crypto/md5`, `crypto/des`, `crypto/rc4`
+- FIPS: `Makefile`/CI for `-tags=fips`, `GOEXPERIMENT=boringcrypto`
+- FIPS: `Dockerfile` base images (UBI vs alpine/debian)
 
 ### Container Images
 - `Dockerfile`, `Containerfile`
@@ -458,11 +558,6 @@ recommendations:
 ### Coverage
 - `.codecov.yml`, `codecov.yml`
 - `.coveragerc`
-
-### Security
-- `.github/workflows/codeql.yml`
-- `.gitleaks.toml`
-- `.trivyignore`
 
 ### Agent Rules
 - `CLAUDE.md`, `AGENTS.md` (root documentation)
