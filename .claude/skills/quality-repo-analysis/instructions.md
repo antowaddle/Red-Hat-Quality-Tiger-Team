@@ -99,9 +99,9 @@ Examine test files and configuration:
    - Look for coverage thresholds
    - Check PR coverage reporting
 
-### Step 4: Code Quality Assessment
+### Step 4: Static Analysis Assessment
 
-Review linting and quality tools:
+Review linting, FIPS compliance, and dependency management:
 
 1. **Linting Configuration**
    - Go: `.golangci.yaml`, number of enabled linters
@@ -113,10 +113,17 @@ Review linting and quality tools:
    - Verify hook enforcement
    - Review configured checks
 
-3. **Static Analysis**
-   - SAST tools (CodeQL, gosec, Semgrep)
-   - Dependency scanning
-   - Secret detection (Gitleaks, TruffleHog)
+3. **FIPS Compatibility**
+   - Crypto library imports (Go: `crypto/`, Python: `cryptography`)
+   - FIPS build tags in Go code
+   - Base image FIPS compliance (UBI FIPS variants)
+   - OpenSSL vs BoringCrypto usage
+
+4. **Dependency Alerts**
+   - Dependabot configuration (`.github/dependabot.yml`)
+   - Renovate configuration (`renovate.json`)
+   - Auto-merge policies
+   - Security update responsiveness
 
 ### Step 5: Build Integration Analysis (CRITICAL)
 
@@ -159,18 +166,13 @@ Analyze image build and testing:
    - Dockerfile/Containerfile analysis
    - Multi-stage builds
    - Base image selection
-   - Platform support
+   - Platform support (multi-arch)
 
 2. **Runtime Testing**
    - Image startup validation
    - Functional testing (Testcontainers, etc.)
    - Deployment testing (Kind, Minikube)
-
-3. **Security Scanning**
-   - Trivy/Snyk integration
-   - Vulnerability thresholds
-   - SBOM generation
-   - Image signing/attestation
+   - Container health checks and readiness probes
 
 ### Step 7: Agent Rules Analysis
 
@@ -243,7 +245,7 @@ Create structured report with:
 
 4. **Quick Wins** (High ROI, Low Effort)
    - Add codecov integration (2-4 hours)
-   - Add Trivy scanning (1-2 hours)
+   - Enable Dependabot for dependency alerts (1-2 hours)
    - Enable pre-commit hooks (1-2 hours)
 
 5. **Prioritized Recommendations**
@@ -305,7 +307,7 @@ After completing the analysis, generate both markdown and HTML reports:
 ```markdown
 ---
 repository: "owner/repo-name"
-overall_score: 7.8
+overall_score: 7.5
 scorecard:
   - dimension: "Unit Tests"
     score: 8.0
@@ -325,6 +327,9 @@ scorecard:
   - dimension: "CI/CD Automation"
     score: 9.0
     status: "Well-organized workflows with caching"
+  - dimension: "Static Analysis"
+    score: 7.0
+    status: "Good linting setup, missing FIPS checks and dependency alerts"
   - dimension: "Agent Rules"
     score: 2.0
     status: "No test automation guidance for AI agents"
@@ -338,9 +343,9 @@ critical_gaps:
     severity: "HIGH"
     effort: "4-6 hours"
 quick_wins:
-  - title: "Add Trivy scanning to PR workflow"
+  - title: "Enable Dependabot for automated dependency alerts"
     effort: "1-2 hours"
-    impact: "Early detection of security vulnerabilities in dependencies"
+    impact: "Automated security and dependency updates with PR generation"
   - title: "Create basic agent rules for unit test patterns"
     effort: "2-3 hours"
     impact: "Improve AI-generated test quality and consistency"
@@ -369,10 +374,11 @@ recommendations:
 |-----------|-------|--------|
 | Unit Tests | X/10 | ... |
 | Integration/E2E | X/10 | ... |
-| **Build Integration** | **X/10** | **...** |
+| Build Integration | X/10 | ... |
 | Image Testing | X/10 | ... |
 | Coverage Tracking | X/10 | ... |
 | CI/CD Automation | X/10 | ... |
+| Static Analysis | X/10 | ... |
 | Agent Rules | X/10 | ... |
 
 ## Critical Gaps
@@ -388,22 +394,28 @@ recommendations:
    - Implementation: [code example]
 
 ## Detailed Findings
-### CI/CD Pipeline
+### Unit Tests
 [Analysis...]
 
-### Test Coverage
+### Integration/E2E Tests
 [Analysis...]
 
-### Code Quality
+### Build Integration
 [Analysis...]
 
-### Container Images
+### Image Testing
 [Analysis...]
 
-### Security
+### Coverage Tracking
 [Analysis...]
 
-### Agent Rules (Agentic Flow Quality)
+### CI/CD Automation
+[Analysis...]
+
+### Static Analysis
+[Analysis...]
+
+### Agent Rules
 [Analysis of existing agent rules]
 - **Status**: Present/Missing/Incomplete
 - **Coverage**: Which test types have rules?
@@ -459,10 +471,10 @@ recommendations:
 - `.codecov.yml`, `codecov.yml`
 - `.coveragerc`
 
-### Security
-- `.github/workflows/codeql.yml`
-- `.gitleaks.toml`
-- `.trivyignore`
+### Static Analysis
+- `.github/dependabot.yml`
+- `renovate.json`
+- FIPS-related build tags and imports
 
 ### Agent Rules
 - `CLAUDE.md`, `AGENTS.md` (root documentation)
