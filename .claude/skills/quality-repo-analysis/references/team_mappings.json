@@ -1,99 +1,22 @@
 {
   "mappings": [
     {
-      "team": "AI Core Platform",
-      "jira_component": "AI Core Platform",
-      "org": "AI platform",
+      "team": "AI Core Dashboard",
+      "jira_component": "AI Core Dashboard",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
       "team": "AI Core Platform",
-      "jira_component": "AI Hub",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "AgentDev",
-      "jira_component": "AgentDev",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "INFERENG Infra",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "llm-d",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "AI Innovation",
-      "jira_component": "Inference-Time Techniques",
-      "org": "AI Innovation",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "AI Innovation",
-      "jira_component": "Project Analyze",
-      "org": "AI Innovation",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "AI Innovation",
-      "jira_component": "SDG",
-      "org": "AI Innovation",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "AI Innovation",
-      "jira_component": "Training Hub",
-      "org": "AI Innovation",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "Accelerator Enablement",
-      "jira_component": "Accelerator Enablement",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "Agentic Starter Kits",
-      "jira_component": "AutoRAG",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "AI Hub",
       "jira_component": "AI Core Platform",
-      "org": "AI platform",
+      "jira_projects": [
+        "RHOAIENG"
+      ]
+    },
+    {
+      "team": "AI Core Platform Security",
+      "jira_component": "AI Core Platform Security",
       "jira_projects": [
         "RHOAIENG"
       ]
@@ -101,803 +24,90 @@
     {
       "team": "AI Hub",
       "jira_component": "AI Hub",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "AgentOps",
-      "jira_component": "AgentOps [RAG + Vector DB]",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "AgentOps",
-      "jira_component": "General",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Inference Midstream",
-      "jira_component": "Inference Midstream",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "Inference Midstream",
-      "jira_component": "INFERENG Midstream",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "AI Platform DevOps",
-      "jira_component": "AI Platform DevOps",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "AutoRAG/AutoML",
-      "jira_component": "AutoRAG",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "AutoRAG/AutoML",
-      "jira_component": "General",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "AutoRAG/AutoML",
-      "jira_component": "Prompt Lab",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "AI Pipelines",
-      "jira_component": "AI Pipelines",
-      "org": "AI platform",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
       "team": "AI Pipelines",
-      "jira_component": "MLflow",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Architects & Staff Engineers",
-      "jira_component": "AgentDev",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Architects & Staff Engineers",
-      "jira_component": "AgentOps [RAG + Vector DB]",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Architects & Staff Engineers",
-      "jira_component": "Data Processing",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Architects & Staff Engineers",
-      "jira_component": "General",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Architects & Staff Engineers",
-      "jira_component": "Llama Stack Core",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Architects & Staff Engineers",
-      "jira_component": "Notebooks",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Architects & Staff Engineers",
-      "jira_component": "Tooling Experience",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "LLM-D",
-      "jira_component": "llm-d",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "AI Testing + Workflow Validation",
-      "jira_component": "AI Testing + Workflow Validation",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "Eval as a Service",
-      "jira_component": "Eval As a Service",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "Eval as a Service",
-      "jira_component": "General",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "Eval as a Service",
-      "jira_component": "Model Eval",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "Compass",
-      "jira_component": "AI Core Platform",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Data Processing",
-      "jira_component": "Data Processing",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Data Processing",
-      "jira_component": "General",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "ML Research",
-      "jira_component": "Inference Research",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "ML Research",
-      "jira_component": "Optimized Models",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "AIPCC Catalyst Platform",
-      "jira_component": "AIPCC Catalyst Platform",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "General",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "Crimson",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Crimson",
-      "jira_component": "Gen AI Studio",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Crimson",
-      "jira_component": "Model as a Service",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Crimson",
-      "jira_component": "Model Eval",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Director",
-      "jira_component": "General",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Model Opt",
-      "jira_component": "Compressed-Tensors",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "Model Opt",
-      "jira_component": "LLM Compressor",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "Model Opt",
-      "jira_component": "Speculators",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "AIPCC Productization",
-      "jira_component": "AIPCC Productization",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "LLM-D",
-      "jira_component": "AutoRAG",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "LLM-D",
-      "jira_component": "Eval As a Service",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "LLM-D",
-      "jira_component": "General",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "LLM-D",
-      "jira_component": "llm-d",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "Feature Store",
-      "jira_component": "Feature Store",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Feature Store",
-      "jira_component": "Training Kubeflow",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "AgentDev",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "Data Processing",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "General",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "Llama Stack Core",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Runtimes",
-      "jira_component": "llama-cpp",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "Runtimes",
-      "jira_component": "llm-d",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "Runtimes",
-      "jira_component": "vLLM",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "Runtimes",
-      "jira_component": "vLLM Runtime",
-      "org": "Inf Eng",
-      "jira_projects": [
-        "RHAIENG",
-        "INFERENG"
-      ]
-    },
-    {
-      "team": "Customer Exploration & Test",
-      "jira_component": "Customer Exploration & Test",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "MaaS",
-      "jira_component": "Eval As a Service",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "MaaS",
-      "jira_component": "General",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "MaaS",
-      "jira_component": "Models as a Service",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "Forge",
-      "jira_component": "AI Core Platform",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Llama Stack Core",
-      "jira_component": "Llama Stack Core",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Development Platform",
-      "jira_component": "Development Platform",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "Prompt Lab",
-      "jira_component": "Prompt Lab",
-      "org": "WatsonX.ai",
-      "jira_projects": [
-        "RHAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "AI Core Platform",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "AI Core Platform Security",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "AI Hub",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
       "jira_component": "AI Pipelines",
-      "org": "AI platform",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "General",
-      "jira_component": "AI Platform DevOps",
-      "org": "AI platform",
+      "team": "AI Safety",
+      "jira_component": "AI Safety",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "General",
+      "team": "AutoML",
+      "jira_component": "AutoML",
+      "jira_projects": [
+        "RHOAIENG"
+      ]
+    },
+    {
+      "team": "Build and Release",
+      "jira_component": "Build and Release",
+      "jira_projects": [
+        "RHOAIENG"
+      ]
+    },
+    {
+      "team": "CI/CD",
+      "jira_component": "CI/CD",
+      "jira_projects": [
+        "RHOAIENG"
+      ]
+    },
+    {
+      "team": "Documentation",
+      "jira_component": "Documentation",
+      "jira_projects": [
+        "RHOAIENG"
+      ]
+    },
+    {
+      "team": "Feature Store",
       "jira_component": "Feature Store",
-      "org": "AI platform",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "General",
-      "jira_component": "Fine Tuning",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "Gen AI Studio",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "General",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "Kubeflow Unified SDK",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "Model as a Service",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "Model Runtimes",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "Model Serving",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "Training Kubeflow",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Midstream Integration",
-      "jira_component": "General",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "General",
-      "jira_component": "General",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "Green",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Notebooks",
-      "jira_component": "Notebooks",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Model Validation",
-      "jira_component": "Model Validation",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "Heimdall",
-      "jira_component": "AI Core Platform",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Heimdall",
-      "jira_component": "AI Core Platform Security",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Operations",
-      "jira_component": "General",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "OpenShift AI Productization",
-      "jira_component": "OpenShift AI Productization",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "Indigo",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Indigo",
-      "jira_component": "General",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Indigo",
-      "jira_component": "Notebook Server",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Tooling Experience",
-      "jira_component": "Tooling Experience",
-      "org": "AAET",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "PyTorch",
-      "jira_component": "PyTorch",
-      "org": "AIPCC",
-      "jira_projects": [
-        "AIPCC"
-      ]
-    },
-    {
-      "team": "Inference Extensions",
+      "team": "Inference Gateway",
       "jira_component": "Inference Gateway",
-      "org": "AI platform",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Inference Extensions",
-      "jira_component": "Model and Agent Observability",
-      "org": "AI platform",
+      "team": "Internal Processes & Documentation",
+      "jira_component": "Internal Processes & Documentation",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Inference Extensions",
-      "jira_component": "Model as a Service",
-      "org": "AI platform",
+      "team": "KubeRay",
+      "jira_component": "KubeRay",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Kubeflow DevX",
-      "jira_component": "Fine Tuning",
-      "org": "AI platform",
+      "team": "Kubeflow Spark Operator",
+      "jira_component": "Kubeflow Spark Operator",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Kubeflow DevX",
+      "team": "Kubeflow Unified SDK",
       "jira_component": "Kubeflow Unified SDK",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Kubeflow DevX",
-      "jira_component": "MLflow",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Kubeflow Training",
-      "jira_component": "Feature Store",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Kubeflow Training",
-      "jira_component": "Training Kubeflow",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "MLflow",
-      "jira_component": "AI Pipelines",
-      "org": "AI platform",
       "jira_projects": [
         "RHOAIENG"
       ]
@@ -905,7 +115,6 @@
     {
       "team": "MLflow",
       "jira_component": "MLflow",
-      "org": "AI platform",
       "jira_projects": [
         "RHOAIENG"
       ]
@@ -913,31 +122,6 @@
     {
       "team": "Model Runtimes",
       "jira_component": "Model Runtimes",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Model Serving",
-      "jira_component": "LLM-D",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Model Serving",
-      "jira_component": "Model as a Service",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Model Serving",
-      "jira_component": "Model Runtimes",
-      "org": "AI platform",
       "jira_projects": [
         "RHOAIENG"
       ]
@@ -945,141 +129,86 @@
     {
       "team": "Model Serving",
       "jira_component": "Model Serving",
-      "org": "AI platform",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Monarch",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
+      "team": "Model as a Service",
+      "jira_component": "Model as a Service",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Notebook Extensions: Teal",
-      "jira_component": "General",
-      "org": "AI platform",
+      "team": "Notebooks",
+      "jira_component": "Notebooks",
       "jira_projects": [
-        "RHOAIENG"
+        "RHAIENG"
       ]
     },
     {
-      "team": "Notebook Extensions: Teal",
-      "jira_component": "Notebook Server",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Notebook Extensions: Teal",
+      "team": "Notebooks Extensions",
       "jira_component": "Notebooks Extensions",
-      "org": "AI platform",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Notebook Server: Indigo",
-      "jira_component": "Notebook Server",
-      "org": "AI platform",
+      "team": "Notebooks Server",
+      "jira_component": "Notebooks Server",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Onyx",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
+      "team": "OCPMCPLO",
+      "jira_component": "OCPMCPLO",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Pewter",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
+      "team": "OGX Core",
+      "jira_component": "OGX Core",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Pewter",
-      "jira_component": "Notebook Server",
-      "org": "AI platform",
+      "team": "QE",
+      "jira_component": "QE",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Purple / AutoRAG",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
+      "team": "Serving Orchestration",
+      "jira_component": "Serving Orchestration",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Ray Training",
-      "jira_component": "KubeRay",
-      "org": "AI platform",
+      "team": "Training Kubeflow",
+      "jira_component": "Training Kubeflow",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Razzmatazz",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
+      "team": "Workload Orchestration",
+      "jira_component": "Workload Orchestration",
       "jira_projects": [
         "RHOAIENG"
       ]
     },
     {
-      "team": "Tangerine",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
+      "team": "llm-d",
+      "jira_component": "llm-d",
       "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Tangerine",
-      "jira_component": "Notebook Server",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Trusty-AI",
-      "jira_component": "AI Safety",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Trusty-AI",
-      "jira_component": "Model Eval",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
-      ]
-    },
-    {
-      "team": "Zaffre",
-      "jira_component": "AI Core Dashboard",
-      "org": "AI platform",
-      "jira_projects": [
-        "RHOAIENG"
+        "INFERENG"
       ]
     }
-  ],
-  "lifecycle": {
-    "last_updated": "2026-05-08T18:15:28.826201+00:00"
-  }
+  ]
 }
