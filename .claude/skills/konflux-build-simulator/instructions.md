@@ -1350,6 +1350,117 @@ This is **much stronger validation** than just checking YAML syntax.
           kubectl logs -l control-plane=controller-manager --tail=200 || true
 ```
 
+##### Step 2.3b: Operator Reconciliation Smoke Test (controller-runtime operators)
+
+The "run the containers" strategy above validates the **workload** manifests. If the
+repo also ships a **controller-runtime operator** that reconciles a CRD into those
+manifests (e.g. odh-dashboard's `dashboard-operator` reconciling a `Dashboard` CR),
+add a second, stronger check: actually run the operator and prove it reconciles a CR.
+This catches RBAC gaps, scheme/registration panics, and broken render paths that pure
+`kubectl apply` never exercises.
+
+**Five rules learned the hard way (odh-dashboard PR #9658 review):**
+
+1. **Extract inline manifests to checked-in files — never heredoc them in the workflow.**
+   A `kubectl apply -f - <<EOF ... EOF` operator Deployment/RBAC block is unreviewable,
+   unlintable, and untestable. Put the sim-only operator `Deployment`, `ServiceAccount`,
+   and `ClusterRoleBinding` in a dedicated dir — e.g. `.github/pr-build-simulation/` —
+   **not** under `manifests/` (so kustomize/overlay validation never picks them up or
+   ships them) and `kubectl apply -f` them. Bind the operator's **real** ClusterRole
+   (from `config/rbac/role.yaml`) so the smoke test exercises the shipped RBAC, not a
+   hand-copied subset that drifts.
+
+2. **Dump diagnostics inline on rollout failure — a later `if: failure()` step is too late.**
+   `kubectl rollout status deployment/<operator> --timeout=120s` under `set -e` aborts the
+   step on timeout, and the exact failure this phase exists to catch (controller panic,
+   scheme/registration error) surfaces as a bare `timed out waiting for the condition`.
+   Wrap it so the diagnostics run in the **same** step:
+
+   ```yaml
+   - name: Deploy operator
+     run: |
+       set -euo pipefail
+       kubectl apply -f .github/pr-build-simulation/operator-deployment.yaml
+       if ! kubectl rollout status deployment/dashboard-operator -n opendatahub --timeout=120s; then
+         echo "::group::Operator rollout failed — diagnostics"
+         kubectl describe deployment/dashboard-operator -n opendatahub || true
+         kubectl get pods -n opendatahub -o wide || true
+         kubectl logs deployment/dashboard-operator -n opendatahub --tail=200 || true
+         kubectl logs deployment/dashboard-operator -n opendatahub --previous --tail=200 || true
+         kubectl get events -n opendatahub --sort-by=.lastTimestamp | tail -30 || true
+         echo "::endgroup::"
+         exit 1
+       fi
+   ```
+
+3. **Preserve the "we test the PR image" invariant — point the operator at the PR image,
+   don't patch the workload.** When the operator reconciles, it server-side-applies its
+   base manifests as field owner `dashboard-operator`. The merge strategy typically
+   preserves only `spec.replicas` and `containers[].resources` — **not** `image` or
+   `imagePullPolicy`. So any pre-patch of the dashboard Deployment to the loaded PR tag /
+   `Never` is silently reverted on the next reconcile, and the node starts pulling the
+   baked-in upstream default (`quay.io/opendatahub/odh-dashboard:main`) mid-poll. Patching
+   `imagePullPolicy` is futile for the same reason. Instead, set the operator's image
+   resolution env to the already-loaded PR tag so the operator itself applies it:
+
+   ```yaml
+   # in .github/pr-build-simulation/operator-deployment.yaml
+   env:
+     - name: RELATED_IMAGE_ODH_DASHBOARD_IMAGE   # the env the operator resolves the image from
+       value: odh-dashboard:odh-test              # the tag already loaded into Kind
+   ```
+
+   The reconciled dashboard pod may then show a benign `ErrImagePull` on the local-only
+   tag (there is no registry copy) — that's fine: this phase asserts on **operator
+   reconcile evidence** (finalizer present, `status.observedGeneration` advanced), not on
+   the dashboard pod becoming Ready. Document that in a comment on the CR step.
+
+4. **Add a `free-disk-space` step to any job that loads more than one image.** The
+   operator-integration job loads *both* the app image and the operator image into Kind;
+   without freeing disk (as the docker-build jobs already do) the runner can fill up and
+   the image loads or `:main` pull fail with confusing ENOSPC errors:
+
+   ```yaml
+   - name: Free disk space
+     uses: ./.github/actions/free-disk-space   # or easimon/maximize-build-space, etc.
+   ```
+
+5. **Assert on reconcile evidence, not pod readiness.** After creating the CR, poll for
+   the operator's finalizer on the CR and for `status.observedGeneration` catching up to
+   `metadata.generation`, and assert the operator pod has `0` restarts. That proves the
+   controller ran a full reconcile loop without crashing — the thing this phase exists to
+   verify — in a vanilla Kind cluster that can never make the app pod Ready.
+
+   ```yaml
+   - name: Create Dashboard CR and verify reconcile
+     run: |
+       set -euo pipefail
+       # NOTE: the operator SSA-applies the PR image tag (odh-test), NOT :main, so no
+       # large upstream pull happens here. The dashboard pod may sit in ErrImagePull on
+       # the local-only tag — benign; we assert only on operator reconcile evidence below.
+       kubectl apply -f .github/pr-build-simulation/dashboard-cr.yaml
+       for i in $(seq 1 30); do
+         gen=$(kubectl get dashboard default -o jsonpath='{.metadata.generation}' 2>/dev/null || echo "")
+         obs=$(kubectl get dashboard default -o jsonpath='{.status.observedGeneration}' 2>/dev/null || echo "")
+         fin=$(kubectl get dashboard default -o jsonpath='{.metadata.finalizers}' 2>/dev/null || echo "")
+         if [ -n "$obs" ] && [ "$obs" = "$gen" ] && [ -n "$fin" ]; then
+           echo "✅ Reconciled: observedGeneration=$obs, finalizer=$fin"
+           break
+         fi
+         echo "waiting for reconcile... ($i/30) gen=$gen obs=$obs"
+         sleep 5
+       done
+       restarts=$(kubectl get pods -n opendatahub -l app.kubernetes.io/name=dashboard-operator \
+         -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}')
+       [ "$restarts" = "0" ] || { echo "❌ operator restarted $restarts time(s)"; exit 1; }
+   ```
+
+**Certs in Kind:** the real `config/manager/manager.yaml` usually mounts webhook/metrics
+cert secrets (cert-manager) that don't exist in Kind. In the sim-only Deployment, run the
+manager with the webhook disabled (its default) and metrics over HTTP
+(`--secure-metrics=false`) so no certs are required — enough to prove the controller
+starts and reconciles.
+
 #### Step 2.4: Add Manifest Validation (if detected)
 
 ```yaml
@@ -1395,6 +1506,76 @@ This is **much stronger validation** than just checking YAML syntax.
             grep "image: .*latest" $file && echo "⚠️  Warning: 'latest' tag found in $file"
           done
 ```
+
+##### Step 2.4b: Validate the overlays the operator actually renders (not just the obvious ones)
+
+`find manifests -name kustomization.yaml` misses two failure classes:
+
+1. **Overlays the operator renders at runtime but that live outside the obvious tree.**
+   If a controller-runtime operator kustomize-renders specific paths, enumerate *those*
+   paths from the operator source — don't guess. For odh-dashboard the operator renders
+   (from `dashboard-operator/internal/controller/*.go`):
+   `manifests/base`, `manifests/odh`, `manifests/rhoai`,
+   `manifests/observability/{odh,rhoai}`,
+   `manifests/maas-consumer-portal-consolelink/rhoai`, and **every**
+   `manifests/modules/<slug>/` that has a `kustomization.yaml`. A broken `resources:` path
+   in `manifests/modules/<slug>/kustomization.yaml` otherwise passes the job named
+   "Manifest Validation" and fails only on a live cluster. **Discover modules dynamically**
+   so new ones are covered automatically:
+
+   ```yaml
+   - name: Validate operator-rendered overlays
+     run: |
+       set -euo pipefail
+       OVERLAYS=(
+         manifests/base manifests/odh manifests/rhoai
+         manifests/observability/odh manifests/observability/rhoai
+         manifests/maas-consumer-portal-consolelink/rhoai
+       )
+       # dynamic module discovery — future-proof for new modules
+       while IFS= read -r kfile; do OVERLAYS+=("$(dirname "$kfile")"); done \
+         < <(find manifests/modules -mindepth 2 -maxdepth 2 -name kustomization.yaml | sort)
+       for o in "${OVERLAYS[@]}"; do
+         echo "== $o =="
+         kustomize build "$o" > "/tmp/$(echo "$o" | tr / _).yaml"
+       done
+   ```
+
+   > Verify these paths against the operator's Go source for the repo you're onboarding —
+   > they drift. (odh-dashboard note: `manifests/distributions/maas-consumer-portal` is a
+   > **stale** path; the operator renders `manifests/maas-consumer-portal-consolelink/rhoai`.)
+
+2. **Schema-level typos hidden by `-ignore-missing-schemas`.** kubeconform with
+   `-ignore-missing-schemas` turns a misspelled kind into a silent pass: `kind: Deploymnet`
+   is just counted as "no schema found," exit 0. Overlays that are never `kubectl apply`-ed
+   anywhere ship the typo undetected. Don't assert on a raw skip *count* (churns with every
+   CRD added) — instead run `-output json` and **fail if any skipped resource is a
+   Kubernetes built-in** (core group `""`, `*.k8s.io`, or `apps`/`batch`/`policy`/
+   `autoscaling`/`extensions`), which is exactly what a typo in a built-in kind produces.
+   CRD-backed kinds (Dashboard, ConsoleLink, …) are still allowed to skip.
+
+   ```yaml
+   - name: kubeconform schema validation (typo guard)
+     run: |
+       set -euo pipefail
+       for f in /tmp/*.yaml; do
+         kubeconform -strict -ignore-missing-schemas \
+           -kubernetes-version 1.31.0 -output json "$f" > /tmp/kc.json || true
+         echo "skipped kinds in $f:"
+         jq -r '[.resources[]|select(.status=="statusSkipped")|.kind]|unique|join(", ")' /tmp/kc.json
+         BAD=$(jq -r '
+           .resources[] | select(.status=="statusSkipped")
+           | . as $r
+           | (if ($r.version|contains("/")) then ($r.version|split("/")[0]) else "" end) as $g
+           | select($g=="" or ($g|endswith(".k8s.io")) or ($g|IN("apps","batch","policy","autoscaling","extensions")))
+           | "  \($r.kind) (\($r.version))"' /tmp/kc.json)
+         if [ -n "$BAD" ]; then
+           echo "❌ built-in kind(s) skipped — likely an apiVersion/kind typo:"; echo "$BAD"; exit 1
+         fi
+       done
+   ```
+
+   Pin `kubeconform` and `kubernetes-version` (e.g. 1.31.0) so results are reproducible.
 
 ### Phase 3: Generate Helper Scripts
 
