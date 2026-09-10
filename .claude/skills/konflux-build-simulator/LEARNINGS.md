@@ -649,10 +649,89 @@ ODH Dashboard has many containers (odh-dashboard, kube-rbac-proxy, model-registr
 
 The operator-integration phase is about catching **manifest errors** (invalid YAML, wrong API versions, malformed specs), not about validating that the full ODH Dashboard application runs. Full runtime validation requires an actual OpenShift cluster with all platform components.
 
+## Issue: Operator reconcile smoke test — image clobber, silent rollout failures, and missing overlays
+
+Source: odh-dashboard PR #9658 review (reviewer @antowaddle). The workflow was extended
+with an operator build, a `Dashboard` CR reconcile smoke test, and kubeconform validation.
+Six issues surfaced that generalize to any controller-runtime operator repo.
+
+### 1. Server-side apply reverts your pre-patched image — pin it on the operator instead
+
+When the operator reconciles a CR, it **server-side-applies** its base manifests as a
+named field owner. The typical merge strategy preserves only `spec.replicas` and
+`containers[].resources` — **not** `image` or `imagePullPolicy`. So the common trick of
+pre-patching the workload Deployment to the loaded PR tag / `imagePullPolicy: Never` is
+silently reverted on the very next reconcile, and the node begins pulling the operator's
+baked-in default image (e.g. `quay.io/opendatahub/odh-dashboard:main`) mid-poll.
+
+**Fix:** don't patch the workload — point the *operator* at the already-loaded PR image via
+its image-resolution env (odh-dashboard: `RELATED_IMAGE_ODH_DASHBOARD_IMAGE=odh-dashboard:odh-test`).
+Then the operator itself SSA-applies the PR tag, the "we're testing the PR image" invariant
+holds, and no `:main` network pull happens. The reconciled pod may sit in `ErrImagePull` on
+the local-only tag — benign, because this phase asserts on reconcile evidence, not pod
+readiness (see #4).
+
+### 2. Rollout failures must dump diagnostics inline
+
+`kubectl rollout status ... --timeout=Ns` under `set -e` aborts the step on timeout; any
+`::group::logs` dump in a *later* step never runs. Controller panics and scheme/registration
+errors then surface as a bare `timed out waiting for the condition`. Wrap the rollout in
+`if ! kubectl rollout status ...; then <describe + get pods + logs + logs --previous +
+events>; exit 1; fi` so it's diagnosable in the same step. (Same lesson as
+"Proper Timeout Handling" above, applied to the operator Deployment.)
+
+### 3. Extract inline manifests to checked-in files
+
+Operator `Deployment` / `ServiceAccount` / `ClusterRoleBinding` heredocs
+(`kubectl apply -f - <<EOF`) are unreviewable, unlintable, and untestable. Move sim-only
+specs to a dedicated dir **outside** `manifests/` (e.g. `.github/pr-build-simulation/`) so
+overlay validation never picks them up or ships them, and `kubectl apply -f` them. Bind the
+operator's **real** ClusterRole (`config/rbac/role.yaml`) rather than a hand-copied subset,
+so the smoke test exercises shipped RBAC.
+
+### 4. Assert on reconcile evidence, not pod readiness
+
+Extends the "Vanilla Kind can't make pods Ready" learning above. For a controller-runtime
+operator, the *right* assertion is that the controller completed a reconcile loop without
+crashing: poll the CR for the operator's finalizer and for
+`status.observedGeneration == metadata.generation`, and assert the operator pod has `0`
+restarts. That works in vanilla Kind even though the app pod never becomes Ready.
+
+### 5. Free disk space when loading multiple images
+
+The operator-integration job loads *two* images (app + operator) into Kind. Without a
+`free-disk-space` step (which the docker-build jobs already have) the runner can hit ENOSPC
+during image load or pull, producing confusing failures. Add
+`uses: ./.github/actions/free-disk-space` to any multi-image job.
+
+### 6. `-ignore-missing-schemas` masks kind typos; validate the overlays the operator renders
+
+- **Typo masking:** `kubeconform -ignore-missing-schemas` counts a misspelled built-in kind
+  (`Deploymnet`) as "no schema found," exit 0. Instead of asserting a raw skip *count*
+  (churns as CRDs are added), run `-output json` and **fail if any skipped resource is a
+  Kubernetes built-in** — group `""` (core), `*.k8s.io`, or `apps`/`batch`/`policy`/
+  `autoscaling`/`extensions`. CRD-backed kinds stay allowed to skip.
+- **Overlay coverage:** `find manifests -name kustomization.yaml` misses paths the operator
+  renders at runtime. Enumerate them from the operator's Go source and add **dynamic module
+  discovery** (`find manifests/modules -mindepth 2 -maxdepth 2 -name kustomization.yaml`) so
+  new modules are covered automatically. A broken `resources:` path in a module overlay
+  otherwise passes "Manifest Validation" and fails only on a live cluster. (odh-dashboard:
+  the operator renders `manifests/{base,odh,rhoai}`, `manifests/observability/{odh,rhoai}`,
+  `manifests/maas-consumer-portal-consolelink/rhoai`, and each `manifests/modules/<slug>` —
+  note `manifests/distributions/maas-consumer-portal` is a stale path that does not exist.)
+
+### Key Takeaway
+
+For controller-runtime operators, the reconcile smoke test must (a) let the *operator* own
+the image via its resolution env, (b) fail loud with inline diagnostics, (c) keep sim
+manifests in reviewable files, (d) assert on reconcile evidence, and (e) validate every
+overlay the operator actually renders — with schema checks that don't let typos slip through.
+
 ## References
 
 - npm issue with --network=none: https://github.com/npm/cli/issues
 - Hermeto documentation: (add link)
+- odh-dashboard PR #9658 (operator reconcile smoke test + kubeconform hardening): https://github.com/opendatahub-io/odh-dashboard/pull/9658
 - Cachi2 documentation: (add link)
 - CWE-494: Download of Code Without Integrity Check
 - CWE-829: Inclusion of Functionality from Untrusted Control Sphere

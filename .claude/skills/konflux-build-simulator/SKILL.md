@@ -99,12 +99,20 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 - ✅ Applies CRDs and manifests
 - ✅ Validates deployment
 - ✅ Tests operator functionality
+- ✅ **Operator reconcile smoke test** (controller-runtime operators)
+  - Runs the operator from checked-in sim manifests (not workflow heredocs)
+  - Creates a CR and asserts reconcile evidence: finalizer set, `status.observedGeneration` advanced, 0 operator restarts
+  - Dumps describe/logs/`--previous`/events **inline** on rollout failure (not a later `if: failure()` step)
+  - Preserves the "test the PR image" invariant by pinning the operator's image-resolution env to the loaded PR tag (SSA reverts workload image patches)
+  - Adds a free-disk-space step for jobs that load multiple images
 
 #### Phase 5: Manifest Validation (if applicable)
 - ✅ Kustomize build validation
 - ✅ ConfigMap generation
 - ✅ Overlay testing
 - ✅ Resource validation
+- ✅ **Operator-derived overlay coverage** - validates every overlay the operator renders at runtime, with dynamic module discovery (not just `find`-able kustomizations)
+- ✅ **kubeconform typo guard** - fails when a Kubernetes built-in kind is skipped for a missing schema (catches `Deploymnet`-style typos that `-ignore-missing-schemas` silently passes)
 
 ## Key Features
 
