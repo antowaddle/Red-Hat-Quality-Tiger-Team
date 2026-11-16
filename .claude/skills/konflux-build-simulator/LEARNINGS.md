@@ -727,6 +727,94 @@ the image via its resolution env, (b) fail loud with inline diagnostics, (c) kee
 manifests in reviewable files, (d) assert on reconcile evidence, and (e) validate every
 overlay the operator actually renders — with schema checks that don't let typos slip through.
 
+## Issue: Porting the simulator to a Go + Python repo (model-registry)
+
+Onboarding `opendatahub-io/model-registry` exposed several places where the skill
+was Node-shaped. These are the generalized fixes; all were validated by running
+the generated simulator end to end.
+
+### 1. `--network=none` cannot populate the cache it needs
+
+The npm lesson generalizes to every package manager: a single build with the
+network disabled cannot fetch the dependency set it is supposed to use. For Go
+and Python, split the work into two phases on the host:
+
+1. Network phase: `GOMODCACHE=<tmp> go mod download`, or
+   `pip download -r requirements.txt -d <wheelhouse>`.
+2. Offline phase: `GOPROXY=off ... go build`, or
+   `pip install --dry-run --no-index --find-links <wheelhouse>`.
+
+The offline phase is the actual hermetic proof: a dependency that Hermeto would
+not prefetch fails immediately instead of in Konflux.
+
+### 2. Go module cache files are read-only
+
+`rm -rf` on the temporary `GOMODCACHE` fails on macOS with
+`rm: ... Permission denied` because the module cache is written read-only. The
+cleanup trap must chmod first:
+
+```bash
+trap 'chmod -R u+w "$workdir" 2>/dev/null || true; rm -rf "$workdir"' EXIT
+```
+
+### 3. `GOTOOLCHAIN=auto` downloads the toolchain into `GOMODCACHE`
+
+When `go.mod` requires a newer Go than the host has, `go mod download` fetches
+the toolchain into the isolated module cache. That is desirable: the offline
+phase then succeeds only because the toolchain was prefetched, which mirrors the
+hermetic build. Keep `GOTOOLCHAIN=auto` and populate the cache before going
+offline.
+
+### 4. PEP 668 blocks `pip install --dry-run`
+
+Homebrew and Debian mark their Python as externally managed, so even a dry run
+fails with `externally-managed-environment`. Run the offline resolution with a
+venv's pip:
+
+```bash
+python3 -m venv "$workdir/venv"
+"$workdir/venv/bin/python" -m pip install --dry-run --no-index \
+  --find-links "$wheelhouse" -r requirements.txt
+```
+
+### 5. Prove the shipped target, not `./...`
+
+Go entry points and flags in the Dockerfile are the contract. Build the same
+package with the same `CGO_ENABLED`, `GOOS`, and tags (for example
+`CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -o app .`). Building `./...`
+does not prove the binary links, and omitting `GOOS=linux` hides
+platform-specific files when the simulator runs on macOS.
+
+### 6. A pipeline named `multi-arch-*` is not automatically multi-arch
+
+model-registry's PipelineRun resolves
+`odh-konflux-central/pipeline/multi-arch-container-build.yaml`. That pipeline
+defaults `build-platforms` to `linux/x86_64`, `hermetic` to `false`, and
+`prefetch-input` to empty because the PipelineRun does not override them. Resolve
+the `pipelineRef` and read its defaults before choosing the CI platform or
+claiming a build is hermetic.
+
+### 7. Simulate only what Konflux builds from PRs
+
+The repo contains controller, CSI, testops, and UI Dockerfiles, but only two
+images are built by `.tekton/*pull-request.yaml`. Adding the rest duplicates
+coverage that other workflows already provide (Kind deployment, unit tests) and
+creates jobs that can drift from what Konflux actually validates. Derive the
+target list from the PipelineRuns, not from `find . -name Dockerfile`.
+
+### 8. Interpolating PR titles into `run:` is a script-injection vector
+
+`${{ github.event.pull_request.title }}` is attacker-controlled. Pass it through
+`env:` and test it in bash. Evaluate the skip rule once in a `check-skip` job so
+every job cannot drift, and include `workflow_dispatch` as an explicit override.
+
+### 9. Make the summary job the only required check
+
+A `summary` job with `if: always()` that fails unless every dependency is
+`success` or `skipped` gives branch protection one stable check name. GitHub
+treats a skipped required check as passing, so an intentional
+`[skip konflux-sim]` run does not block merge.
+
 ## References
 
 - npm issue with --network=none: https://github.com/npm/cli/issues

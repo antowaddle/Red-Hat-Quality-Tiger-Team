@@ -49,10 +49,11 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
   - Verifies esbuild removal from node_modules
   - Ensures Go binaries use -tags strictfipsruntime
   - Warns about FIPS violations that block product release
-- ✅ **Hermetic build preflight** - Tests lockfile integrity without full build
-  - Runs docker build --network=none with npm ci --ignore-scripts
-  - Catches lockfile-out-of-sync issues in <1 minute
-  - Validates both root and module lockfiles
+- ✅ **Hermetic build preflight** - Proves the build survives with no network
+  - Node: populate a pnpm store, then install from it
+  - Go: populate an isolated module cache, then compile with `GOPROXY=off`
+  - Python: build a local wheelhouse, then resolve with `pip --no-index`
+  - Catches missing prefetch inputs in minutes instead of in Konflux
 
 #### Phase 1: Docker Build Validation
 - ✅ Builds Docker image with production build mode (RHOAI, etc.)
@@ -131,6 +132,9 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
   - Verifies strictfipsruntime build tags for Go binaries
   - Warns about violations that block product release
 - **Konflux-Like Environment**: Simulates production build environment
+- **Workflow Scaffolding**: One skip gate for all jobs, per-job least-privilege
+  permissions, `persist-credentials: false`, and a summary job that is safe as
+  the only required status check
 - **Fast Feedback**: Runs in 10-20 minutes on PRs
 - **Comprehensive**: Catches most common build failures before merge
 - **Automated**: No manual intervention needed
@@ -154,6 +158,12 @@ The skill automatically detects repository type and generates appropriate valida
 - Operator deployment (Kind)
 - Webhook validation
 - RBAC testing
+
+### Go service / Python job (e.g., model-registry)
+- Konflux target discovery from `.tekton/*pull-request.yaml`, including
+  parameter defaults from external `pipelineRef` pipelines
+- Hermetic preflight: `GOPROXY=off` compile and Python wheelhouse resolution
+- Container build, health/API runtime checks, and manifest validation
 
 ### Component/Library
 - Docker build validation (if Dockerfile exists)

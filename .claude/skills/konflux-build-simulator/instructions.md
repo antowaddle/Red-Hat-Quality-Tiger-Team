@@ -97,6 +97,42 @@ Generate GitHub Actions workflows and supporting files for PR build validation.
    fi
    ```
 
+9. **No Credential Persistence in Checkouts**
+   ```yaml
+   - uses: actions/checkout@<sha> # vX.Y.Z
+     with:
+       persist-credentials: false
+   ```
+   Validation workflows only need to read the repo; leaving the token in
+   `.git/config` gives later steps (and any compromised dependency) push access.
+
+10. **Single Skip Gate, Safe Summary Job, No PR-Text Interpolation**
+    Evaluate the skip condition once in a `check-skip` job and let every other
+    job consume `needs.check-skip.outputs.should-skip`. Duplicating the
+    expression per job lets the title and label rules drift apart.
+
+    Pass PR text through `env:`, never interpolate `${{ github.event.pull_request.title }}`
+    directly into `run:` — a PR title is attacker-controlled input:
+
+    ```yaml
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+    run: |
+      set -euo pipefail
+      if [[ "$PR_TITLE" == *"[skip konflux-sim]"* ]] || \
+         [[ ",${PR_LABELS}," == *",skip-konflux-sim,"* ]]; then
+        echo "skip=true" >> "$GITHUB_OUTPUT"
+      else
+        echo "skip=false" >> "$GITHUB_OUTPUT"
+      fi
+    ```
+
+    Finish with a `summary` job (`if: always()`) that fails unless every
+    dependency result is `success` or `skipped`. GitHub treats `skipped`
+    as a passing required check, so the summary can be the only required
+    status check and it cannot be bypassed by a job that never ran.
+
 ## Process
 
 ### Phase 1: Repository Analysis
@@ -220,6 +256,31 @@ if [ -f "go.mod" ]; then
   done
 fi
 ```
+
+#### Step 1.5b: Resolve How Konflux Actually Builds
+
+**Context:** `.tekton/*pull-request.yaml` often delegates to a shared pipeline in another repository (for example `odh-konflux-central`). The resolved pipeline's parameter defaults decide the platform set, hermetic mode, and prefetch inputs. Do not infer any of that from the PipelineRun filename.
+
+```bash
+# Images Konflux builds from PRs (ignore early-gate CI pipelines)
+rg -l "kind: PipelineRun" .tekton/*pull-request.yaml
+
+# Build inputs per component
+rg -nE "name: (output-image|dockerfile|path-context|build-platforms|hermetic|prefetch-input)" \
+  .tekton/*pull-request.yaml
+
+# Resolve an external pipelineRef and read its parameter defaults
+PIPELINE_URL=$(yq '.spec.pipelineRef.params[] | select(.name=="url") | .value' .tekton/<file>.yaml)
+PIPELINE_PATH=$(yq '.spec.pipelineRef.params[] | select(.name=="pathInRepo") | .value' .tekton/<file>.yaml)
+curl -fsSL "${PIPELINE_URL/github.com/raw.githubusercontent.com}/main/${PIPELINE_PATH}" | \
+  grep -A6 -E "name: (build-platforms|hermetic|prefetch-input)"
+```
+
+**Rules:**
+
+- Only simulate images the repository's `.tekton` PR PipelineRuns build. Do not add controller, CSI, or test images Konflux does not build here, and do not duplicate coverage that existing workflows already provide (Kind/operator deployment, unit tests).
+- A pipeline named `multi-arch-*` is not automatically multi-arch: `odh-konflux-central` defaults `build-platforms` to `linux/x86_64`. Match CI to the resolved default (`linux/amd64` unless the PipelineRun overrides it).
+- If `hermetic` or `prefetch-input` is set, the build depends on Hermeto prefetch; add the offline preflight from Step 2.1b.
 
 #### Step 1.6: Analyze Workspace Dependencies (Monorepo Only)
 
@@ -978,6 +1039,54 @@ jobs:
           echo "=== Docker Inspect ==="
           docker inspect test-container || true
 ```
+
+#### Step 2.1b: Hermetic Preflight for Go and Python Repositories
+
+Node repos use the two-stage pnpm store pattern above. Go and Python need the same shape of proof: populate a cache with network access, then build or resolve with the network disabled by configuration. That catches the failure Hermeto exposes — a dependency that was never prefetched.
+
+```bash
+hermetic_go_preflight() {
+  local workdir modcache
+  workdir="$(mktemp -d)"
+  # Go marks module cache files read-only; chmod before rm or the cleanup fails.
+  trap 'chmod -R u+w "$workdir" 2>/dev/null || true; rm -rf "$workdir"' EXIT
+  modcache="$workdir/gomodcache"
+
+  # Network phase: also downloads any GOTOOLCHAIN toolchain into the cache
+  GOMODCACHE="$modcache" GOFLAGS="-mod=readonly" go mod download
+
+  # Offline phase: GOPROXY=off turns a missing module into a hard failure
+  GOMODCACHE="$modcache" GOPROXY=off GOFLAGS="-mod=readonly" \
+    CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -o "$workdir/app" .
+}
+
+hermetic_python_preflight() {
+  local workdir wheelhouse venv_python
+  workdir="$(mktemp -d)"
+  wheelhouse="$workdir/wheelhouse"
+  mkdir -p "$wheelhouse"
+
+  # Network phase: build a local wheelhouse from the pinned requirements
+  python3 -m pip download --quiet --only-binary=:all: \
+    -r jobs/<job>/requirements.txt -d "$wheelhouse" \
+    || python3 -m pip download --quiet \
+      -r jobs/<job>/requirements.txt -d "$wheelhouse"
+
+  # Offline phase: resolve only from the wheelhouse, inside a venv
+  python3 -m venv "$workdir/venv"
+  venv_python="$workdir/venv/bin/python"
+  "$venv_python" -m pip install --dry-run --no-index \
+    --find-links "$wheelhouse" -r jobs/<job>/requirements.txt
+}
+```
+
+**Rules:**
+
+- Build the same package target with the same flags as the Dockerfile (`CGO_ENABLED`, `GOOS`, `-tags`, entry package). Building a different target does not prove the shipped binary links.
+- Set `GOOS=linux` even on macOS so local runs catch platform-specific files.
+- Use `GOPROXY=off` instead of `--network=none` inside a build that must also populate its cache; the npm limitation documented in `LEARNINGS.md` applies to any package manager that resolves during the build.
+- Run the Python resolution in a venv: PEP 668 externally-managed environments (Homebrew, Debian) reject `pip install --dry-run`.
+- Keep this in a separate fast Phase 0 job and make image builds depend on it.
 
 #### Step 2.2: Add Module Federation Validation (if detected)
 
