@@ -106,6 +106,16 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
   - Dumps describe/logs/`--previous`/events **inline** on rollout failure (not a later `if: failure()` step)
   - Preserves the "test the PR image" invariant by pinning the operator's image-resolution env to the loaded PR tag (SSA reverts workload image patches)
   - Adds a free-disk-space step for jobs that load multiple images
+- ✅ **External operator variant** (this repo builds an image that an operator in
+  *another* repo ships)
+  - Applies `<operator-repo>/config/default?ref=<pinned-sha>`, never a moving branch
+  - Sets the operator's `RELATED_IMAGE_*` variable, not the workload Deployment
+    spec: operators re-render the workload from that variable, so patching the
+    Deployment looks correct and silently reverts
+  - Asserts the rendered workload's `spec.template.spec.containers[].image`
+    equals the PR tag — the only proof the PR image is under test
+  - Greps the operator source for the constant it actually reads instead of
+    guessing the variable name
 
 #### Phase 5: Manifest Validation (if applicable)
 - ✅ Kustomize build validation
@@ -116,9 +126,12 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 - ✅ **kubeconform typo guard** - fails when a Kubernetes built-in kind is skipped for a missing schema (catches `Deploymnet`-style typos that `-ignore-missing-schemas` silently passes)
 
 #### Not Covered (state this explicitly)
-- ❌ DataScienceCluster / operator reconciliation: component conditions,
-  Managed vs Unmanaged state, and operator-rendered manifest paths
-  (e.g. model-registry RHOAIENG-103141, RHOAIENG-103140, RHOAIENG-99568)
+- ❌ Platform-operator reconciliation (`DataScienceCluster`): component
+  conditions, Managed vs Unmanaged state, and operator-rendered manifest paths
+  (e.g. model-registry RHOAIENG-103141, RHOAIENG-103140, RHOAIENG-99568).
+  Phase 4 covers the component's own operator, or an external one it names
+  explicitly; the RHOAI platform operator needs that operator repo's E2E suite,
+  not this one.
 - ❌ Cluster RBAC/SCC, networking, storage, and upgrade paths
 - ❌ Broken wheels only if the image is actually run and modules imported —
   always add import/healthcheck smoke tests for Python and Go entrypoints
@@ -149,9 +162,24 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 - **Documented**: Clear failure messages and logs
 - **Skippable**: Add `[skip konflux-sim]` to PR title to skip
 
-## Repository Type Detection
+## Artifact Consumption Detection
 
-The skill automatically detects repository type and generates appropriate validation:
+Repo layout is a poor proxy for what needs validating. The question is not
+"does this repo contain a controller?" but "what consumes the artifacts this
+repo builds?". A service repo can be shipped entirely by an operator that lives
+somewhere else; treating "no controller here" as "skip Phase 4" leaves the
+whole shipping path untested.
+
+Ask in this order:
+
+1. **Does this repo own the operator?** (`dashboard-operator/`, `controllers/`,
+   `config/crd/`) → Phase 4 as written.
+2. **Does another repo's operator ship these images?** Look for a component
+   entry in an operator's `manifests-config.yaml`, a `RELATED_IMAGE_*` variable
+   naming the image, or a deploy script that creates a CR. → Phase 4 against
+   that external operator, at a pinned commit.
+3. **Does only the platform operator ship it?** (`DataScienceCluster`,
+   RHOAI-managed components) → out of scope; say so explicitly.
 
 ### Monorepo (e.g., odh-dashboard)
 - Docker build validation
@@ -167,9 +195,20 @@ The skill automatically detects repository type and generates appropriate valida
 - Webhook validation
 - RBAC testing
 
-### Go service / Python job (e.g., model-registry)
+### Service or job consumed by an external operator (e.g., model-registry)
 - Konflux target discovery from `.tekton/*pull-request.yaml`, including
   parameter defaults from external `pipelineRef` pipelines
+- Hermetic preflight: `GOPROXY=off` compile and Python wheelhouse resolution
+- Container build, health/API runtime checks, and manifest validation
+- **Phase 4 against the external operator**: deploy it at a pinned commit, pin
+  its `RELATED_IMAGE_*` variable to the PR image, create a CR, and assert the
+  rendered workload uses that image with zero restarts
+- Cross-repo contract check: the operator's component entry (repo, ref,
+  `sourcePath`) must point at a real directory, and the manifest directory name
+  must match what the controller reads
+
+### Standalone service or job (no operator consumer)
+- Konflux target discovery from `.tekton/*pull-request.yaml`
 - Hermetic preflight: `GOPROXY=off` compile and Python wheelhouse resolution
 - Container build, health/API runtime checks, and manifest validation
 

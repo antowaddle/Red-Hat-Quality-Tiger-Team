@@ -815,6 +815,90 @@ A `summary` job with `if: always()` that fails unless every dependency is
 treats a skipped required check as passing, so an intentional
 `[skip konflux-sim]` run does not block merge.
 
+## Issue: Detecting the operator consumer, not the operator repo
+
+Onboarding `opendatahub-io/model-registry` produced a simulator with every phase
+except Phase 4, and it looked deliberate: the repo has no `controllers/` and no
+`config/crd/`, so "Go service / Python job" seemed right. It was not. The image
+is shipped entirely by an operator in another repository, so the shipping path
+was untested end to end.
+
+### The detection bug
+
+The skill keyed Phase 4 on repo layout — "does this repo contain a controller?".
+That is a proxy for the real question, which is "what consumes the artifacts this
+repo builds?". The two disagree whenever a service is deployed by an external
+operator, which is the normal shape for component repos in ODH:
+
+- `opendatahub-operator/manifests-config.yaml` maps component `aihub` →
+  `opendatahub-io/model-registry-operator@<ref>`, `sourcePath: config`.
+- That operator resolves the server image from
+  `RELATED_IMAGE_ODH_MODEL_REGISTRY_IMAGE`
+  (`internal/controller/config/defaults.go`), not from the Deployment spec.
+
+Detection that works:
+
+```bash
+gh search code "<image-name>" --filename=manifests-config.yaml --limit 10
+gh search code "RELATED_IMAGE_" --repo <org>/<candidate-operator> --limit 10
+```
+
+If any operator names the image, Phase 4 applies — against that operator, pinned
+to a commit.
+
+### The bug this would have caught
+
+`model-registry/.github/workflows/build-image-pr.yml` did deploy
+`model-registry-operator` into Kind on every PR, and it looked like operator
+coverage. It ran:
+
+```bash
+kubectl set env -n model-registry-operator-system \
+  deployment/model-registry-operator-controller-manager REST_IMAGE="${IMG}"
+```
+
+`REST_IMAGE` is not read anywhere in the operator. The real variable is
+`RELATED_IMAGE_ODH_MODEL_REGISTRY_IMAGE`. So for as long as that workflow has
+existed it has been testing `quay.io/opendatahub/model-registry:latest`, not the
+image it just built — and passing.
+
+Two lessons:
+
+1. **Never infer the image-override variable name.** Grep the operator source for
+   the constant it reads. A wrong name fails silently, because the operator falls
+   back to its embedded default.
+2. **Assert the rendered image.** `kubectl get deployment/<workload> -o jsonpath='{.spec.template.spec.containers[0].image}'`
+   must equal the PR tag before any other assertion runs. Without it, "operator
+   integration passed" means nothing.
+
+An existing operator workflow is also not evidence that the right thing is being
+tested. Read what it pins.
+
+### External-operator phase shape
+
+```bash
+kubectl apply -k "https://github.com/<org>/<operator>.git/config/default?ref=<sha>"
+kubectl -n <operator-ns> set env deployment/<operator-deploy> \
+  RELATED_IMAGE_<COMPONENT>_IMAGE="$SERVER_IMAGE"
+kubectl -n <operator-ns> rollout status deployment/<operator-deploy> --timeout=300s
+kubectl apply -k "https://github.com/<org>/<operator>.git/config/samples/<sample>?ref=<sha>"
+kubectl wait --for=condition=Available <crd>/<name> --timeout=300s
+```
+
+Assert: rendered image equals the PR tag, finalizer present, `restartCount == 0`.
+Reuse the image built by the container phase (artifact upload/download) instead
+of rebuilding, so the operator reconciles the bytes that were just tested.
+
+### Where this still stops
+
+An external-operator phase proves the component's operator can ship the image. It
+does **not** reach the RHOAI platform operator, so `DataScienceCluster` component
+conditions, `Managed`/`Unmanaged` transitions, and operator-rendered manifest
+paths (RHOAIENG-103141, 103140, 99568) remain out of scope. Those assertions
+already exist in `opendatahub-operator/tests/e2e/aihub_test.go`; the gap is that
+they are excluded from the Kind E2E (`E2E_TEST_COMPONENT="kserve"` is hardcoded
+in `make e2e-test-xks`) and only run in the OpenShift suite.
+
 ## Issue: Workflow correctness lessons from the model-registry onboarding review
 
 These came from CodeRabbit review of the generated workflow and from CI runs.

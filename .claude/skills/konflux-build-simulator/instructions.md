@@ -158,6 +158,28 @@ if [ -d "packages" ] && [ -f "turbo.json" ]; then
 fi
 ```
 
+**Then answer the question that actually decides Phase 4: who consumes these
+images?** Repo layout cannot tell you this. An operator in another repository may
+ship everything you build here, and skipping Phase 4 then leaves that path
+untested.
+
+```bash
+# Does another repo's operator reference this image?
+gh search code "<image-name>" --filename=manifests-config.yaml --limit 10
+gh search code "RELATED_IMAGE_" --repo <org>/<candidate-operator> --limit 10
+
+# Does this repo already assume a platform operator exists?
+rg -n "DataScienceCluster|datasciencecluster|managementState" .
+```
+
+Three outcomes:
+
+| Outcome | Phase 4 |
+|---------|---------|
+| This repo owns the operator | Run it as written |
+| Another repo's operator ships these images | Run it against that operator, at a pinned commit |
+| Only the RHOAI platform operator ships it | Out of scope — say so explicitly, do not fake it |
+
 #### Step 1.2: Analyze Dockerfile/Containerfile
 
 Extract critical information:
@@ -1569,6 +1591,44 @@ cert secrets (cert-manager) that don't exist in Kind. In the sim-only Deployment
 manager with the webhook disabled (its default) and metrics over HTTP
 (`--secure-metrics=false`) so no certs are required — enough to prove the controller
 starts and reconciles.
+
+**External operator variant (the operator lives in another repo)**
+
+model-registry is the canonical case: it has no controller of its own, and
+`opendatahub-operator` maps component `aihub` to
+`opendatahub-io/model-registry-operator@<ref>`. That operator's
+`RELATED_IMAGE_ODH_MODEL_REGISTRY_IMAGE` decides which server image lands in the
+cluster. Detecting "no controller in this repo" and skipping Phase 4 there would
+leave the entire shipping path untested — which is exactly what happened.
+
+Apply the operator from a pinned commit and let it render the workload:
+
+```bash
+kubectl apply -k "https://github.com/<org>/<operator>.git/config/default?ref=<sha>"
+kubectl -n <operator-ns> set env deployment/<operator-deploy> \
+  RELATED_IMAGE_<COMPONENT>_IMAGE="$SERVER_IMAGE"
+kubectl -n <operator-ns> rollout status deployment/<operator-deploy> --timeout=300s
+kubectl apply -k "https://github.com/<org>/<operator>.git/config/samples/<sample>?ref=<sha>"
+kubectl wait --for=condition=Available <crd>/<name> --timeout=300s
+```
+
+Then assert, in order:
+
+1. `kubectl get deployment/<workload> -o jsonpath='{.spec.template.spec.containers[0].image}'`
+   equals the PR tag. This is the only proof the PR image is under test; without
+   it the job passes while exercising whatever `:latest` points at.
+2. The CR carries the operator's finalizer.
+3. The workload pods report `restartCount == 0`.
+
+**The failure this catches:** model-registry's existing `build-image-pr.yml` set
+`REST_IMAGE`, an env var the operator never read, so the workflow tested
+`quay.io/opendatahub/model-registry:latest` on every PR while appearing to test
+the build. Grep the operator source for the constant it actually reads
+(`internal/controller/config/defaults.go` in that repo) rather than inferring the
+variable name from the workflow that came before.
+
+Pin the operator commit. A moving branch makes the phase fail for reasons
+unrelated to the PR, and a pin lets you bump it deliberately.
 
 #### Step 2.4: Add Manifest Validation (if detected)
 
