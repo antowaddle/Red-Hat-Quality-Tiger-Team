@@ -923,6 +923,50 @@ already exist in `opendatahub-operator/tests/e2e/aihub_test.go`; the gap is that
 they are excluded from the Kind E2E (`E2E_TEST_COMPONENT="kserve"` is hardcoded
 in `make e2e-test-xks`) and only run in the OpenShift suite.
 
+## Issue: Coverage that exists but is never invoked
+
+Before writing platform-operator tests from scratch, check whether they already
+exist upstream and are only filtered out.
+
+For model-registry, `opendatahub-operator/tests/e2e/aihub_test.go` already
+asserts exactly the `DataScienceCluster` behaviour the Jira tickets describe:
+
+- `spec.components.modelregistry.managementState` Removed → Managed
+- `status.components.modelregistry.registriesNamespace`
+- `status.conditions[] | select(.type == "ModelRegistryReady") | .status == "True"`
+
+The suite is registered in the `Components` TestGroup
+(`tests/e2e/controller_test.go`, `componentApi.AIHubModuleName`), and `--tag`
+defaults to `All`, so it is not tier-skipped. It never runs on Kind because
+`make e2e-test-xks` hardcodes:
+
+```make
+-e E2E_TEST_COMPONENT="kserve"
+```
+
+Enabling it is two edits, not a new test suite:
+
+1. `Makefile` → `E2E_TEST_COMPONENT="kserve,aihub"`
+2. `.github/workflows/test-kind-odh-e2e.yaml` → add the component's paths to
+   `paths:` (`internal/controller/modules/aihub/**`,
+   `api/components/v1alpha1/aihub_types.go`, `tests/e2e/aihub_test.go`,
+   `config/overlays/aihub/**`)
+
+Nothing else is needed. The operator image already bundles `opt/manifests/aihub`
+because `Dockerfiles/Dockerfile` runs `manifest-tools download` for every entry
+in `manifests-config.yaml`, and the aihub handler renders
+`aihub-controller-manager` from `overlays/aihub`.
+
+### Generalize: ask three questions in order
+
+1. Does the platform operator already have a suite for this component?
+2. Is that suite registered in the component `TestGroup`?
+3. Does the Kind target include the component in `E2E_TEST_COMPONENT`?
+
+New coverage work is only needed when (1) is false. When (3) is false, the fix
+is one Makefile line plus path filters — and it is worth more than any amount of
+component-repo simulation, because it exercises the actual DSC reconcile loop.
+
 ## Issue: Workflow correctness lessons from the model-registry onboarding review
 
 These came from CodeRabbit review of the generated workflow and from CI runs.

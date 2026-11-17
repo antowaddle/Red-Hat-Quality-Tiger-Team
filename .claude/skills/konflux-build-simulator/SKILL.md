@@ -117,6 +117,29 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
   - Greps the operator source for the constant it actually reads instead of
     guessing the variable name
 
+#### Phase 4b: Platform Operator Handoff (always emit, never implement here)
+
+Some components are shipped by a platform operator (`DataScienceCluster` /
+RHOAI) rather than by their own controller or an external module operator. That
+layer cannot be simulated in the component repo: it needs the operator's CRDs,
+DSC reconcile loop, RBAC, and platform bootstrap.
+
+The skill still has to be useful there. Detect it and emit a follow-up instead
+of silently stopping:
+
+- ✅ **Detects** whether a platform operator ships this component, using the
+  same evidence as the external-operator check
+- ✅ **Checks whether the coverage already exists** before proposing new tests:
+  is there an E2E suite for the component, and is it in the operator's Kind
+  target? A registered-but-filtered suite is a two-line fix, not a new suite
+- ✅ **Emits a ready-to-file follow-up** in the PR description with exact file
+  paths and the one-line diff
+- ❌ Does not add platform-operator tests to this repo, and does not claim
+  `DataScienceCluster` coverage in the simulator
+
+The common outcome is that the assertions already exist upstream and only the
+Kind component filter excludes them. Emit the diff; do not reimplement them.
+
 #### Phase 5: Manifest Validation (if applicable)
 - ✅ Kustomize build validation
 - ✅ ConfigMap generation
@@ -179,7 +202,8 @@ Ask in this order:
    naming the image, or a deploy script that creates a CR. → Phase 4 against
    that external operator, at a pinned commit.
 3. **Does only the platform operator ship it?** (`DataScienceCluster`,
-   RHOAI-managed components) → out of scope; say so explicitly.
+   RHOAI-managed components) → run Phase 4b: emit the handoff, do not claim
+   coverage.
 
 ### Monorepo (e.g., odh-dashboard)
 - Docker build validation

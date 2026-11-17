@@ -1749,6 +1749,64 @@ unrelated to the PR, and a pin lets you bump it deliberately.
 
    Pin `kubeconform` and `kubernetes-version` (e.g. 1.31.0) so results are reproducible.
 
+#### Step 2.5: Emit the Platform Operator Handoff (always)
+
+Run this even when the repo has no controller. The output goes into the
+simulator PR description; it never becomes new test code in this repo.
+
+**1. Find the consuming operator and its component key**
+
+```bash
+gh search code "<image-name-without-tag>" --filename=manifests-config.yaml --limit 10
+```
+
+The YAML key above the matching `repo:` is the component key. Example:
+`aihub` maps to `opendatahub-io/model-registry-operator` with
+`sourcePath: config`.
+
+**2. Check whether the operator already tests this component**
+
+```bash
+rg -n "<component-key>" tests/e2e/controller_test.go
+rg -n "func <component>TestSuite" tests/e2e/
+```
+
+If the suite is registered in the `Components` TestGroup, the assertions already
+exist. Do not write them again.
+
+**3. Check whether the Kind target actually runs it**
+
+```bash
+rg -n "E2E_TEST_COMPONENT" Makefile
+rg -n "paths:" -A30 .github/workflows/test-kind-odh-e2e.yaml | head -40
+```
+
+`make e2e-test-xks` usually hardcodes `E2E_TEST_COMPONENT="kserve"`. A
+registered suite that is absent from that list never runs on Kind.
+
+**4. Emit the follow-up**
+
+| Suite registered | In Kind target | Follow-up |
+|---|---|---|
+| no | — | File a coverage ticket against the operator; the simulator cannot substitute |
+| yes | yes | None |
+| yes | no | Two-line diff: add the component to `E2E_TEST_COMPONENT`, add its paths to the Kind workflow `paths:` |
+
+```markdown
+## Platform operator coverage (not in this PR)
+
+`<component>` is reconciled by `<operator>`, so `DataScienceCluster`
+conditions cannot be asserted from this repository.
+
+- Suite: `tests/e2e/<component>_test.go` — <registered|missing>
+- Kind target: `make e2e-test-xks` — <included|excluded by E2E_TEST_COMPONENT>
+- Required change: add the component to `E2E_TEST_COMPONENT` in the
+  `e2e-test-xks` target of `Makefile`, and add its paths to the Kind
+  workflow's `paths:` filter.
+```
+
+Do not report `DataScienceCluster` coverage in the simulator summary.
+
 ### Phase 3: Generate Helper Scripts
 
 #### Step 3.1: Create `scripts/validate-build.sh`
