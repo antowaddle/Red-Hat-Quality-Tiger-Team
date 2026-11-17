@@ -815,6 +815,96 @@ A `summary` job with `if: always()` that fails unless every dependency is
 treats a skipped required check as passing, so an intentional
 `[skip konflux-sim]` run does not block merge.
 
+## Issue: Workflow correctness lessons from the model-registry onboarding review
+
+These came from CodeRabbit review of the generated workflow and from CI runs.
+Each one is a silent green check if left unfixed.
+
+### 1. Workflow-level `paths:` can strand a required status check
+
+If an administrator makes the summary job required, a workflow-level `paths:`
+filter prevents the workflow from starting for out-of-scope PRs, so the
+required check stays **pending** and the PR cannot merge. Remove `paths:` from
+the trigger and evaluate changed files inside the gate job, then let the
+summary report an explicit out-of-scope success.
+
+### 2. A summary job must not treat skipped validations as success
+
+When the gate job fails before writing its output, every dependent job becomes
+`skipped`, and `if: always()` lets the summary run. Accepting `skipped` then
+reports success without running anything. Require `needs.check-skip.result ==
+'success'`, and only accept skipped validation jobs when the gate explicitly
+set `skip=true`.
+
+### 3. Metadata triggers plus `cancel-in-progress` cancel real builds
+
+Adding `edited`, `labeled`, and `unlabeled` lets the skip decision re-evaluate,
+but with `cancel-in-progress: true` every bot-applied label aborts an in-flight
+image build and the summary correctly reports `cancelled`. Cancel only on new
+commits:
+
+```yaml
+cancel-in-progress: ${{ github.event.action == 'synchronize' }}
+```
+
+### 4. kubeconform `statusError` is fail-open
+
+kubeconform v0.7.0 emits `statusError` when schema retrieval fails. Filtering
+only `statusInvalid` and swallowing the exit status reports success when
+validation never ran. Treat `statusError` and unparseable JSON as failures.
+
+### 5. EXIT traps cannot see function-local variables
+
+`trap cleanup EXIT` inside a function keeps running after the function
+returns, when `local` variables are out of scope; under `set -u` cleanup dies
+with `unbound variable` and leaves containers behind. Define the validation
+function with a subshell body so the trap fires before the subshell exits:
+
+```bash
+validate_server() (
+  local name="..."
+  trap 'docker rm -f "$name"' EXIT
+  ...
+)
+```
+
+### 6. Generate disposable credentials instead of hardcoding them
+
+Even a throwaway Postgres password trips secret scanners and the shell rule
+against hardcoded credentials. Generate one per run and use it for both
+`POSTGRES_PASSWORD` and the DSN.
+
+### 7. Resolve remote `replace` directives before checking `go.sum`
+
+`replace example.org/lib => example.org/fork v1.1.0` makes Go record the
+fork's checksum, not the original module's. A naïve require/go.sum check then
+rejects a valid dependency update. Resolve remote replacements first; skip
+local replacements and verify the target path instead.
+
+## Why image-level checks matter: Jira evidence from model-registry
+
+- **RHOAIENG-63943**: the async-upload image crashed at startup because the
+  `model_signing` package was missing, while the build itself was green. An
+  image-level `import job.entrypoint` check catches exactly this class of
+  broken wheel.
+- **RHOAIENG-64763**: asked for early detection of async-upload hermetic build
+  issues, local/CI triggering before merge, and sanity imports of Python
+  packages. Closed as Won't Do; a PR-time simulator is the practical
+  implementation of the first two asks.
+- **RHOAIENG-66101 / 66102**: Conforma `hermetic_task.hermetic` exception for
+  `odh-model-registry-job-async-upload-v3-4`, showing dependency prefetch
+  completeness needs a PR-time check.
+
+### Scope boundary: build simulation does not catch DSC/operator issues
+
+The model-registry DSC backlog is dominated by operator-level failures:
+`test_mr_condition_in_dsc` (ModelRegistry condition False), `test_mr_management_state`,
+`test_data_science_cluster_healthy`, and operator manifest path mismatches
+(RHOAIENG-99568). A build simulator that runs the container standalone cannot
+reproduce DSC reconciliation, RBAC/SCC, or operator-rendered manifests. State
+that limitation explicitly; operator integration needs the Kind phase, not a
+bigger Docker run.
+
 ## References
 
 - npm issue with --network=none: https://github.com/npm/cli/issues

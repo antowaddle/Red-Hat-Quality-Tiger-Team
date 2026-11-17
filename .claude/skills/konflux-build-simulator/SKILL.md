@@ -115,6 +115,14 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 - ✅ **Operator-derived overlay coverage** - validates every overlay the operator renders at runtime, with dynamic module discovery (not just `find`-able kustomizations)
 - ✅ **kubeconform typo guard** - fails when a Kubernetes built-in kind is skipped for a missing schema (catches `Deploymnet`-style typos that `-ignore-missing-schemas` silently passes)
 
+#### Not Covered (state this explicitly)
+- ❌ DataScienceCluster / operator reconciliation: component conditions,
+  Managed vs Unmanaged state, and operator-rendered manifest paths
+  (e.g. model-registry RHOAIENG-103141, RHOAIENG-103140, RHOAIENG-99568)
+- ❌ Cluster RBAC/SCC, networking, storage, and upgrade paths
+- ❌ Broken wheels only if the image is actually run and modules imported —
+  always add import/healthcheck smoke tests for Python and Go entrypoints
+
 ## Key Features
 
 - **Hermetic Build Validation**: Validates lockfiles for downstream RHOAI hermetic builds
