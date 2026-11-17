@@ -1146,11 +1146,12 @@ OK   []   config/samples/mysql -> 5 objects
 OK   [//] config/samples/mysql -> 5 objects
 ```
 
-Recent `kubectl` accepts both, and the model-registry workflow had already been
+Current `kubectl` accepts both, and the model-registry workflow had already been
 passing in CI using the single-slash form. Use `//` anyway: it is the documented
-separator between repository and in-repo path, it is unambiguous, and older
-kustomize releases do reject the single slash. State the evidence when you
-change it, so the next reader does not "fix" it back after seeing a green run.
+separator between repository and in-repo path, and it states the boundary
+explicitly instead of relying on inference that the grammar does not require.
+State the evidence when you change it, so the next reader does not "fix" it
+back after seeing a green run.
 
 ## Learning: Find the Jira component before claiming there is no history
 

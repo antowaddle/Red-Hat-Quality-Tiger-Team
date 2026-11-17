@@ -1812,16 +1812,17 @@ kubectl --context "$CTX" wait --for=condition=Available <crd>/<name> --timeout=3
 ```
 
 `//` separates the repository from the path *inside* it; kustomize documents
-that form. Recent `kubectl` also resolves the single-slash form (both were
-verified against the same pinned ref while writing this), so this is about
-matching the documented grammar rather than fixing a live breakage — but do not
-rely on the lenient parse, because a single slash is ambiguous with a URL path
-segment and older kustomize builds do reject it.
+that form. Current `kubectl` also resolves the single-slash form for a
+`.git`-suffixed URL — both were verified against the same pinned ref while
+writing this — so this is about matching the documented grammar rather than
+fixing a live breakage. Prefer `//` anyway: without it the boundary between
+repository and path is inferred, and the grammar does not oblige a future
+kustomize to keep inferring it.
 
 `?ref=<sha>` makes kustomize clone shallowly at that ref. A full 40-character
-commit **is** reachable by shallow fetch, but a short SHA or a branch name is
-not stable: the same command can silently resolve to different content later.
-Always pin the full commit. If the clone fails behind a proxy, pass
+commit is reachable that way, but a branch name can resolve to different
+content later and a short SHA may fail to fetch at all. Always pin the full
+commit. If the clone fails behind a proxy, pass
 `--load-restrictor LoadRestrictionsNone` only after confirming the failure is
 a path-restriction error and not a network error.
 
