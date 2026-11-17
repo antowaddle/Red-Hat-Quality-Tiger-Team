@@ -1123,6 +1123,21 @@ environments differ in the ways that matter.
   workflow that waits on `Available` and then asserts the *deployment spec*
   image will pass while testing the old image. `rollout status` first, then
   compare the running container image and confirm the pod UID changed.
+- **`Available` can also precede the operator's own rollover.** When the
+  operator starts on `:latest` and switches to the PR image once
+  `RELATED_IMAGE_*` reaches it, the workload Deployment rolls over *after* it
+  reports `Available`. A stability snapshot taken at that point legitimately
+  sees the old pod disappear and reports it as instability:
+
+  ```
+  ❌ Model Registry changed after becoming Available:
+  pod fd732b58-... container rest-container disappeared
+  ```
+
+  Wait on `rollout status` for the workload before snapshotting, and exclude
+  pods carrying a `deletionTimestamp` so a superseded ReplicaSet cannot read
+  as a restart or a disappearance. The check is right to be strict; it just has
+  to observe the steady state rather than the transition.
 - **Do not sum restart counts across pods.** Two restarts on pod A and one on
   its replacement B total `1`, which reads as healthy. `END {print total + 0}`
   also makes an empty pod list read as `0`. Key counts by pod UID and container
