@@ -1616,7 +1616,10 @@ Then assert, in order:
 
 1. `kubectl get deployment/<workload> -o jsonpath='{.spec.template.spec.containers[0].image}'`
    equals the PR tag. This is the only proof the PR image is under test; without
-   it the job passes while exercising whatever `:latest` points at.
+   it the job passes while exercising whatever `:latest` points at. `<workload>`
+   is usually named after the CR, not the component — select by the label the
+   operator template sets (`-l component=<component>`) and fail if it matches
+   nothing.
 2. The CR carries the operator's finalizer.
 3. The workload pods report `restartCount == 0`.
 

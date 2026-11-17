@@ -889,6 +889,30 @@ Assert: rendered image equals the PR tag, finalizer present, `restartCount == 0`
 Reuse the image built by the container phase (artifact upload/download) instead
 of rebuilding, so the operator reconciles the bytes that were just tested.
 
+### Select the rendered workload by label, not by name
+
+Operators usually name the workload after the CR (`modelregistry-sample`), not
+after the component (`model-registry`). A hardcoded
+`kubectl get deployment/model-registry` therefore fails *after* a successful
+reconcile, which reads like a reconcile failure and sends you debugging the
+operator.
+
+Select by a label the operator's template actually sets, and use the same
+selector for the restart count so it cannot quietly match zero pods:
+
+```bash
+kubectl get deployment -l component=model-registry \
+  -o jsonpath='{.items[0].spec.template.spec.containers[0].image}'
+kubectl wait --for=condition=Available deployment -l component=model-registry
+kubectl get pods -l component=model-registry \
+  -o jsonpath='{range .items[*]}{range .status.containerStatuses[*]}{.restartCount}{"\n"}{end}{end}'
+```
+
+Check the template for the label instead of assuming the pod and Deployment
+share every key: `deployment.yaml.tmpl` in model-registry-operator puts
+`component: model-registry` on both, but only the Deployment carries
+`app.kubernetes.io/component`.
+
 ### Where this still stops
 
 An external-operator phase proves the component's operator can ship the image. It
