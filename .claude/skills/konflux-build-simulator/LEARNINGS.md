@@ -1057,6 +1057,143 @@ reproduce DSC reconciliation, RBAC/SCC, or operator-rendered manifests. State
 that limitation explicitly; operator integration needs the Kind phase, not a
 bigger Docker run.
 
+## Learning: A green check that never ran is worse than no check
+
+Four separate ways the generated workflow reported success without validating
+anything, all found in review of the model-registry PR. They are cheap to get
+wrong and expensive to notice, because the failure mode is *green*.
+
+### 1. `!` on a pipeline under `pipefail` inverts the wrong failure
+
+```bash
+# Wrong
+if ! git diff --name-only "origin/${BASE_REF}...HEAD" | grep -Eq "$RELEVANT"; then
+  echo "should-skip=true" >> "$GITHUB_OUTPUT"
+fi
+```
+
+`grep -q` exits at its first match and closes the pipe. `git diff` then dies on
+`SIGPIPE`, `pipefail` reports the pipeline as failed, and `!` turns that into
+"no relevant files changed". The run skips every validation job and the summary
+passes. Capture first, match second:
+
+```bash
+changed_files="$(git diff --name-only "origin/${BASE_REF}...HEAD")" || exit 1
+grep -Eq "$RELEVANT" <<< "$changed_files" || echo "should-skip=true" >> "$GITHUB_OUTPUT"
+```
+
+### 2. A skip gate without declared `outputs:` guards nothing
+
+`needs.check-skip.outputs.should-skip` expands to the empty string unless the
+job declares `outputs:`. `'' != 'true'` is true, so every consumer job runs
+while *looking* guarded. The declaration is easy to drop when you copy the job
+into a new workflow.
+
+### 3. `skipped` counts as success for a required check
+
+GitHub treats a skipped job as passing. So `if: ${{ env.HAS_MANIFESTS == 'true' }}`
+on a job where the env var is never set produces a green required check that
+never executes. The summary has to know which results are legitimate: when
+`should-skip` is `false`, require `success`; when it is `true`, require
+`skipped`. Checking only for `failure` misses this entirely.
+
+### 4. `workflow_dispatch` has no `pull_request` payload
+
+`github.event.pull_request.title` is `null` on a manual run. Any guard built
+from it matches nothing, so either the run proceeds without the skip logic or
+the expression errors. Branch on `github.event_name` first.
+
+## Learning: Cluster ownership and context in the operator phase
+
+The Kind phase is written to be run locally as well as in CI, and the two
+environments differ in the ways that matter.
+
+- **Never delete a cluster you did not create.** `KIND_CLUSTER_NAME` lets a
+  developer point the script at an existing cluster. If the reuse branch accepts
+  it and the `EXIT` trap calls `kind delete` unconditionally, a failed run wipes
+  their working environment. Set `created_cluster=true` only after a successful
+  `kind create`, and gate the delete on it.
+- **Pass `--context` on every `kubectl` call.** Reuse does not switch context.
+  The operator then installs into whatever cluster the developer was last using
+  — and the diagnostics that dump state read the wrong cluster too, so the
+  failure is misdiagnosed. In CI this is invisible, because the context already
+  happens to be `kind-<name>`.
+- **`Available` does not mean your pod is running.** After `kubectl set env` the
+  old ReplicaSet still satisfies `Available` while the new pod is stuck. A
+  workflow that waits on `Available` and then asserts the *deployment spec*
+  image will pass while testing the old image. `rollout status` first, then
+  compare the running container image and confirm the pod UID changed.
+- **Do not sum restart counts across pods.** Two restarts on pod A and one on
+  its replacement B total `1`, which reads as healthy. `END {print total + 0}`
+  also makes an empty pod list read as `0`. Key counts by pod UID and container
+  name, fail on any increase, and fail on an empty list.
+
+## Learning: `//` in kustomize remote URLs is required grammar, not a live bug
+
+A review comment insisted `kubectl apply -k` fails without the double slash:
+
+```
+https://github.com/<org>/<repo>.git/config/default?ref=<sha>    # single
+https://github.com/<org>/<repo>.git//config/default?ref=<sha>   # double
+```
+
+Tested both against a pinned ref while addressing the review:
+
+```
+OK   []   config/default      -> 12 objects
+OK   [//] config/default      -> 12 objects
+OK   []   config/samples/mysql -> 5 objects
+OK   [//] config/samples/mysql -> 5 objects
+```
+
+Recent `kubectl` accepts both, and the model-registry workflow had already been
+passing in CI using the single-slash form. Use `//` anyway: it is the documented
+separator between repository and in-repo path, it is unambiguous, and older
+kustomize releases do reject the single slash. State the evidence when you
+change it, so the next reader does not "fix" it back after seeing a green run.
+
+## Learning: Find the Jira component before claiming there is no history
+
+Searching Jira for `component = "Model Registry"` returns nothing. The
+model-registry work lives under `AI Hub`. An empty result is much more likely to
+mean the wrong component than a component with no failures, so search the repo
+name, the operator's component key, and the product-facing name, and keep the
+one that returns issues.
+
+QE test names are the highest-signal search key, because they name the assertion
+that broke: `test_mr_condition_in_dsc`, `test_mr_management_state`,
+`test_mr_pods_health`, `test_data_science_cluster_healthy`. Searching by those
+recovers tickets that share no vocabulary with the repository.
+
+### Worked example: what the model-registry tickets actually split into
+
+| Ticket | Failing test | Class | Catchable by this skill |
+|---|---|---|---|
+| RHOAIENG-63943 | async-upload smoke | Build-time | Yes — Python `--no-index` resolve |
+| RHOAIENG-64763 | (prevention request) | Build-time | Yes — this is the skill's premise |
+| RHOAIENG-66101 / 66102 | Conforma `hermetic_task.hermetic` | Build-time | Yes — wheelhouse completeness |
+| RHOAIENG-99568 | DSC never Ready | Packaging / render | Yes — manifest path contract check |
+| RHOAIENG-103141 | `test_mr_condition_in_dsc` | Reconcile | No — operator e2e |
+| RHOAIENG-103140 | `test_mr_management_state` | Reconcile | No — operator e2e |
+| RHOAIENG-103668 / 103521 | `test_mr_pods_health` | Reconcile | No — operator e2e |
+| RHOAIENG-103763 / 103636 / 103313 | `test_data_science_cluster_healthy` | Reconcile | No — operator e2e |
+
+The lower half is the reason the operator handoff exists. A container that
+starts cleanly says nothing about whether the operator can render it, and the
+first model-registry onboarding looked complete while every one of those was
+still failing.
+
+## Learning: Fault injection is the only evidence a check works
+
+"This assertion would have caught it" is a hypothesis. Break the thing on a
+throwaway branch and watch the assertion fail; that is evidence. Then revert and
+confirm it passes, which proves the positive path too. Quote the actual failing
+line in the PR — a reviewer cannot distinguish a real red test from a claim
+without it, and a check that has never been seen to fail has never been tested.
+
+Keep the injection out of the PR, and do not generalise: one injection proves
+that assertion fires for that failure mode, not that the stage covers the class.
+
 ## References
 
 - npm issue with --network=none: https://github.com/npm/cli/issues

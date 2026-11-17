@@ -1,6 +1,6 @@
 ---
 name: konflux-build-simulator
-description: Simulates Konflux build environment on PRs to catch build failures before they reach production
+description: Simulates the Konflux build environment on a PR, then proves the generated checks against the component's real Jira failure history. Catches build, hermetic, packaging and operator/DSC regressions before merge instead of producing generic green checks.
 ---
 
 # Konflux Build Simulator Skill
@@ -25,6 +25,25 @@ Simulates Konflux build environment on PRs to catch build failures before they r
 
 This skill analyzes a repository and generates GitHub Actions workflows to validate builds at PR time, catching failures that would otherwise only be discovered in Konflux or production.
 
+It starts from evidence, not a checklist: before generating anything it mines
+the component's historical Jira breakages, classifies each one as catchable
+here, catchable only in the consuming operator, or not catchable at all, and
+then **fault-injects every check** to show it actually goes red on that failure.
+The PR description carries both tables — what the simulator now catches, and
+what it still cannot.
+
+That distinction is the whole point. The model-registry onboarding looked
+complete while the `DataScienceCluster` was never Ready: `ModelRegistryReady`
+reported `False` (RHOAIENG-103141), `managementState` would not converge
+(RHOAIENG-103140), component pods were unhealthy (RHOAIENG-103668,
+RHOAIENG-103521), the cluster was never healthy across several runs
+(RHOAIENG-103763, RHOAIENG-103636, RHOAIENG-103313), and one build shipped
+manifests under `/opt/manifests/modelregistry/...` while the operator read
+`/opt/manifests/aihub/...` (RHOAIENG-99568). None of those are visible to a
+standalone container test — the service starts fine. They are only observable
+once an operator renders the workload, which is why the operator phase and the
+handoff exist.
+
 ### Generated Artifacts
 
 1. **`.github/workflows/pr-build-validation.yml`** - Main build validation workflow
@@ -40,6 +59,14 @@ implement a subset. A workflow that shows `Phase 0` and `Phase 4` with nothing
 in between is confusing to everyone who did not read this document. Use
 `Hermetic Build Preflight`, `Operator Integration (Kind)`, `Manifest
 Validation`.
+
+#### Evidence Before Checks
+- ✅ **Historical breakage mining** - Finds the component's real Jira failures, searching by QE test name
+  - Resolves the actual Jira component (often not the repo name, e.g. model-registry lives under `AI Hub`)
+  - Classifies each failure: catchable here, operator-only, or not catchable
+- ✅ **Fault-injection proof** - Every generated check is shown to fail on the failure it claims to catch
+  - Injected on a throwaway branch, reverted, and quoted in the PR description
+  - Uncatchable failures are listed explicitly rather than quietly omitted
 
 #### Early Static Checks
 - ✅ **Hermetic lockfile validation** - Validates package-lock.json for Hermeto/Cachi2 compatibility
@@ -234,6 +261,8 @@ Ask in this order:
 - **Operator integration against the external operator**: deploy it at a pinned commit, pin
   its `RELATED_IMAGE_*` variable to the PR image, create a CR, and assert the
   rendered workload uses that image with zero restarts
+- Historical Jira breakage mining, classification, and fault-injection proof of
+  each check
 - Cross-repo contract check: the operator's component entry (repo, ref,
   `sourcePath`) must point at a real directory, and the manifest directory name
   must match what the controller reads
@@ -257,6 +286,7 @@ Ask in this order:
 - ✅ Faster development cycle
 
 ### Comprehensive Coverage
+- ✅ **Proven against real failures** - Checks are aimed at tickets that actually escaped, and shown to fail on them
 - ✅ **Hermetic build failures** - Catches issues before downstream RHOAI builds
 - ✅ **Workspace dependency issues** - Prevents missing package errors
 - ✅ **FIPS compliance violations** - Warns about release blockers

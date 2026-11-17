@@ -112,26 +112,125 @@ Generate GitHub Actions workflows and supporting files for PR build validation.
     expression per job lets the title and label rules drift apart.
 
     Pass PR text through `env:`, never interpolate `${{ github.event.pull_request.title }}`
-    directly into `run:` — a PR title is attacker-controlled input:
+    directly into `run:` — a PR title is attacker-controlled input.
+
+    A skip gate is only correct if all five of these hold. Omitting any one of
+    them produces a workflow that reports success without validating anything:
+
+    1. the `check-skip` job **declares `outputs:`** — without it
+       `needs.check-skip.outputs.should-skip` is the empty string, and
+       `'' != 'true'` makes every consumer run while looking guarded;
+    2. every validation job has **`if: needs.check-skip.outputs.should-skip != 'true'`**;
+    3. `workflow_dispatch` is handled — `github.event.pull_request` is `null`
+       there, so the title/label test matches nothing and the run proceeds;
+    4. the summary can distinguish "skipped on purpose" from "never ran";
+    5. you re-run on edits, because `edited`/`labeled`/`unlabeled` change the
+       skip inputs and the `gh` CLI's `--add-label` path emits `labeled`.
 
     ```yaml
-    env:
-      PR_TITLE: ${{ github.event.pull_request.title }}
-      PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
-    run: |
-      set -euo pipefail
-      if [[ "$PR_TITLE" == *"[skip konflux-sim]"* ]] || \
-         [[ ",${PR_LABELS}," == *",skip-konflux-sim,"* ]]; then
-        echo "skip=true" >> "$GITHUB_OUTPUT"
-      else
-        echo "skip=false" >> "$GITHUB_OUTPUT"
-      fi
+    on:
+      pull_request:
+        types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+      workflow_dispatch:
+
+    concurrency:
+      # A new push supersedes the old run; edits and label events must NOT
+      # cancel, or the summary check flips to "cancelled" mid-review.
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.event.action == 'synchronize' }}
+
+    jobs:
+      check-skip:
+        runs-on: ubuntu-latest
+        outputs:
+          should-skip: ${{ steps.decide.outputs.should-skip }}
+        steps:
+          - id: decide
+            env:
+              PR_TITLE: ${{ github.event.pull_request.title }}
+              PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+              EVENT_NAME: ${{ github.event_name }}
+            run: |
+              set -euo pipefail
+              # workflow_dispatch carries no pull_request payload; never skip a
+              # manual run, or the job silently validates nothing.
+              if [ "$EVENT_NAME" != "pull_request" ]; then
+                echo "should-skip=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              if [[ "$PR_TITLE" == *"[skip konflux-sim]"* ]] || \
+                 [[ ",${PR_LABELS}," == *",skip-konflux-sim,"* ]]; then
+                echo "should-skip=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "should-skip=false" >> "$GITHUB_OUTPUT"
+              fi
+
+      static-checks:
+        needs: check-skip
+        if: needs.check-skip.outputs.should-skip != 'true'
+        runs-on: ubuntu-latest
+        # ...
+
+      summary:
+        if: always()
+        needs: [check-skip, static-checks]   # every validation job
+        runs-on: ubuntu-latest
+        steps:
+          - env:
+              NEEDS: ${{ toJSON(needs) }}
+            run: |
+              set -euo pipefail
+              echo "$NEEDS"
+              # check-skip must itself succeed, or the gate told us nothing.
+              gate=$(jq -r '."check-skip".result' <<< "$NEEDS")
+              if [ "$gate" != "success" ]; then
+                echo "❌ check-skip result was '$gate'"
+                exit 1
+              fi
+              skip=$(jq -r '."check-skip".outputs."should-skip"' <<< "$NEEDS")
+              if [ "$skip" = "true" ]; then
+                # Off by request. 'skipped' is the only acceptable result, and
+                # anything else means the gate leaked into a job that still ran.
+                bad=$(jq -r 'to_entries[]
+                  | select(.key != "check-skip" and .key != "summary")
+                  | select(.value.result != "skipped")
+                  | "\(.key)=\(.value.result)"' <<< "$NEEDS")
+              else
+                # Not skipped, so 'skipped' is a failure here. GitHub counts a
+                # skipped job as a passing required check, which lets a broken
+                # `if:` report green.
+                bad=$(jq -r 'to_entries[]
+                  | select(.key != "check-skip" and .key != "summary")
+                  | select(.value.result != "success")
+                  | "\(.key)=\(.value.result)"' <<< "$NEEDS")
+              fi
+              if [ -n "$bad" ]; then
+                echo "❌ unexpected job results:"
+                echo "$bad"
+                exit 1
+              fi
+              echo "✅ all validation jobs accounted for (skip=$skip)"
     ```
 
-    Finish with a `summary` job (`if: always()`) that fails unless every
-    dependency result is `success` or `skipped`. GitHub treats `skipped`
-    as a passing required check, so the summary can be the only required
-    status check and it cannot be bypassed by a job that never ran.
+    Make `summary` the only required status check. It cannot be bypassed by a
+    job that never ran, which is the whole point of keeping it outside any
+    path filter.
+
+    Do not combine `!` with a pipeline under `set -o pipefail` when deciding
+    whether a PR touched relevant files. `grep -q` exits at the first match, so
+    `git diff` can take `SIGPIPE` and fail; the negation then reads that as
+    "no relevant changes" and the run skips validation while reporting success.
+    Capture first, then match:
+
+    ```bash
+    set -euo pipefail
+    changed_files="$(git diff --name-only "origin/${BASE_REF}...HEAD")" || exit 1
+    if ! grep -Eq "$RELEVANT" <<< "$changed_files"; then
+      echo "should-skip=true" >> "$GITHUB_OUTPUT"
+    else
+      echo "should-skip=false" >> "$GITHUB_OUTPUT"
+    fi
+    ```
 
 ## Process
 
@@ -469,6 +568,67 @@ for dockerfile in $WORKSPACE_DOCKERFILES; do
     fi
   fi
 done
+```
+
+#### Step 1.8: Mine Historical Breakages for This Component
+
+Do this before deciding which checks to generate. A simulator that only runs
+generic checks measures nothing; a simulator that is aimed at failures that
+actually escaped is worth something. The output of this step is the coverage
+target list that Step 2.6 has to prove against.
+
+**Find the right Jira component first.** It is frequently *not* the repository
+name, and picking the obvious one returns an empty result that looks like "no
+history". For model-registry, the `Model Registry` component is empty while all
+the work sits under `AI Hub`. Search for the repo name, the operator's component
+key from Step 2.5, and the product-facing name, then keep whichever component
+actually returns issues:
+
+```bash
+# Use whatever Jira client is configured. Detect rather than assume:
+for tool in acli jira; do command -v "$tool" >/dev/null 2>&1 && echo "found: $tool"; done
+
+# acli (Atlassian CLI)
+acli jira workitem search --jql 'project = RHOAIENG AND component = "AI Hub"' --limit 200
+
+# jira-cli (ankitpokhrel)
+jira issue list -q 'project = RHOAIENG AND component = "AI Hub"' --plain
+```
+
+If no client is installed or configured, stop and ask for the ticket list (or a
+saved JQL export). Do **not** invent ticket keys, and do not silently skip this
+step — an unsupported "no history found" claim in the PR description is worse
+than an explicit gap.
+
+**Search by QE test name, not just by words.** Failed-test names are the
+highest-signal key in the tracker, because they name the assertion that broke.
+The model-registry DSC tickets were clustered by `test_mr_condition_in_dsc`,
+`test_mr_management_state`, `test_mr_pods_health`, and
+`test_data_science_cluster_healthy`:
+
+```bash
+jira issue list -q 'project = RHOAIENG AND text ~ "test_mr_condition_in_dsc"' --plain
+jira issue list -q 'project = RHOAIENG AND (summary ~ "DataScienceCluster" OR summary ~ "DSC")' --plain
+```
+
+**Classify every hit honestly.** Only the first two classes are this skill's
+job; claiming the others is how a green check gets mistaken for coverage.
+
+| Class | Tell-tale in the ticket | Where it can be caught |
+|---|---|---|
+| Build-time, in-repo | `hermetic`, `go.sum`, `lockfile`, `ModuleNotFoundError` / `No module named` during image build | This repo — hermetic preflight, lockfile checks |
+| Packaging / render | manifest path mismatch, missing overlay dir, `RELATED_IMAGE_*` ignored, wrong `sourcePath` | This repo — manifest validation and the operator phase |
+| Reconcile / conditions | `DataScienceCluster` condition `False`, `managementState`, component pods unhealthy | Operator repo e2e only — hand off via Step 2.5 |
+| Infra / capacity / flake | quota, image pull throttling, CSI, provisioning | Neither. Say so; do not claim it |
+
+Write the result down as you go. Each row needs the ticket, the QE test that
+failed, the observed symptom, and the class:
+
+```markdown
+| Ticket | Failing test | Symptom | Class |
+|---|---|---|---|
+| RHOAIENG-103141 | `test_mr_condition_in_dsc` | `ModelRegistryReady` False | Reconcile |
+| RHOAIENG-63943 | async-upload smoke | build green, job dies on `No module named 'model_signing'` | Build-time |
 ```
 
 ### Phase 2: Generate Build Validation Workflow
@@ -1066,40 +1226,75 @@ jobs:
 
 Node repos use the two-stage pnpm store pattern above. Go and Python need the same shape of proof: populate a cache with network access, then build or resolve with the network disabled by configuration. That catches the failure Hermeto exposes — a dependency that was never prefetched.
 
+Both functions open with `(` rather than `{`. A `trap ... EXIT` registered
+inside a function body belongs to the *shell*, not to the function: when the
+function returns, the trap fires at the end of the whole job, by which point
+its `local` variables are out of scope and the cleanup dies on
+`workdir: unbound variable` under `set -u` — leaking `mktemp -d` directories
+and turning a clean failure into a confusing one. A subshell gives the trap its
+own scope and its own lifetime. `exit 1` still propagates: the subshell's status
+becomes the function's status, so the caller's `set -e` aborts as expected.
+
 ```bash
-hermetic_go_preflight() {
+hermetic_go_preflight() (
   local workdir modcache
   workdir="$(mktemp -d)"
   # Go marks module cache files read-only; chmod before rm or the cleanup fails.
   trap 'chmod -R u+w "$workdir" 2>/dev/null || true; rm -rf "$workdir"' EXIT
   modcache="$workdir/gomodcache"
 
-  # Network phase: also downloads any GOTOOLCHAIN toolchain into the cache
-  GOMODCACHE="$modcache" GOFLAGS="-mod=readonly" go mod download
+  # GOTOOLCHAIN is explicit in BOTH phases. `go.mod` may request a newer
+  # toolchain than the runner ships; the network phase then downloads it into
+  # GOMODCACHE/golang.org/toolchain, and the offline phase must find that same
+  # copy instead of trying to fetch it again (which GOPROXY=off would reject).
+  # Setting it explicitly also stops an inherited GOTOOLCHAIN from changing
+  # behaviour between local runs and CI.
+  GOTOOLCHAIN=auto GOMODCACHE="$modcache" GOFLAGS="-mod=readonly" \
+    go mod download
 
   # Offline phase: GOPROXY=off turns a missing module into a hard failure
-  GOMODCACHE="$modcache" GOPROXY=off GOFLAGS="-mod=readonly" \
+  GOTOOLCHAIN=auto GOMODCACHE="$modcache" GOPROXY=off GOFLAGS="-mod=readonly" \
     CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -o "$workdir/app" .
-}
+)
 
-hermetic_python_preflight() {
+hermetic_python_preflight() (
   local workdir wheelhouse venv_python
   workdir="$(mktemp -d)"
+  trap 'rm -rf "$workdir"' EXIT
   wheelhouse="$workdir/wheelhouse"
   mkdir -p "$wheelhouse"
 
-  # Network phase: build a local wheelhouse from the pinned requirements
+  # One requirements file per job, not a hardcoded path: a repo may ship
+  # several (one per Konflux component) and only some are in scope.
+  local requirements_file="${REQUIREMENTS_FILE:?set REQUIREMENTS_FILE to the job requirements file}"
+
+  # Network phase: build a local wheelhouse from the pinned requirements.
+  # Prefer wheels only: Hermeto/Cachi2 prefetch wheels, so a package with no
+  # wheel on the index is a real hermetic risk the build would hit later.
+  # The fallback exists for packages that publish only an sdist -- for those,
+  # pip must build locally, which is what the image build does too. If you
+  # find yourself relying on the fallback, check whether Hermeto can prefetch
+  # that sdist before treating this preflight as proof.
   python3 -m pip download --quiet --only-binary=:all: \
-    -r jobs/<job>/requirements.txt -d "$wheelhouse" \
+    -r "$requirements_file" -d "$wheelhouse" \
     || python3 -m pip download --quiet \
-      -r jobs/<job>/requirements.txt -d "$wheelhouse"
+      -r "$requirements_file" -d "$wheelhouse"
 
   # Offline phase: resolve only from the wheelhouse, inside a venv
   python3 -m venv "$workdir/venv"
   venv_python="$workdir/venv/bin/python"
   "$venv_python" -m pip install --dry-run --no-index \
-    --find-links "$wheelhouse" -r jobs/<job>/requirements.txt
-}
+    --find-links "$wheelhouse" -r "$requirements_file"
+)
+```
+
+Set `REQUIREMENTS_FILE` per invocation rather than editing the function, so one
+job can cover several components:
+
+```bash
+for req in jobs/*/requirements.txt; do
+  REQUIREMENTS_FILE="$req" hermetic_python_preflight
+done
 ```
 
 **Rules:**
@@ -1604,24 +1799,79 @@ leave the entire shipping path untested — which is exactly what happened.
 Apply the operator from a pinned commit and let it render the workload:
 
 ```bash
-kubectl apply -k "https://github.com/<org>/<operator>.git/config/default?ref=<sha>"
-kubectl -n <operator-ns> set env deployment/<operator-deploy> \
+CTX="kind-${CLUSTER_NAME}"
+kubectl --context "$CTX" apply -k \
+  "https://github.com/<org>/<operator>.git//config/default?ref=<sha>"
+kubectl --context "$CTX" -n <operator-ns> set env deployment/<operator-deploy> \
   RELATED_IMAGE_<COMPONENT>_IMAGE="$SERVER_IMAGE"
-kubectl -n <operator-ns> rollout status deployment/<operator-deploy> --timeout=300s
-kubectl apply -k "https://github.com/<org>/<operator>.git/config/samples/<sample>?ref=<sha>"
-kubectl wait --for=condition=Available <crd>/<name> --timeout=300s
+kubectl --context "$CTX" -n <operator-ns> rollout status \
+  deployment/<operator-deploy> --timeout=300s
+kubectl --context "$CTX" apply -k \
+  "https://github.com/<org>/<operator>.git//config/samples/<sample>?ref=<sha>"
+kubectl --context "$CTX" wait --for=condition=Available <crd>/<name> --timeout=300s
 ```
+
+`//` separates the repository from the path *inside* it; kustomize documents
+that form. Recent `kubectl` also resolves the single-slash form (both were
+verified against the same pinned ref while writing this), so this is about
+matching the documented grammar rather than fixing a live breakage — but do not
+rely on the lenient parse, because a single slash is ambiguous with a URL path
+segment and older kustomize builds do reject it.
+
+`?ref=<sha>` makes kustomize clone shallowly at that ref. A full 40-character
+commit **is** reachable by shallow fetch, but a short SHA or a branch name is
+not stable: the same command can silently resolve to different content later.
+Always pin the full commit. If the clone fails behind a proxy, pass
+`--load-restrictor LoadRestrictionsNone` only after confirming the failure is
+a path-restriction error and not a network error.
+
+Pass `--context` on **every** `kubectl` call in this phase, including any
+diagnostic dump. When the cluster was reused rather than created, the current
+context still points wherever it did before, and an unqualified command
+installs the operator — and then deletes things — in an unrelated cluster.
 
 Then assert, in order:
 
-1. `kubectl get deployment/<workload> -o jsonpath='{.spec.template.spec.containers[0].image}'`
-   equals the PR tag. This is the only proof the PR image is under test; without
-   it the job passes while exercising whatever `:latest` points at. `<workload>`
-   is usually named after the CR, not the component — select by the label the
-   operator template sets (`-l component=<component>`) and fail if it matches
-   nothing.
+1. The rendered workload image equals the PR tag. This is the only proof the PR
+   image is under test; without it the job passes while exercising whatever
+   `:latest` points at. `<workload>` is usually named after the CR, not the
+   component — select by the label the operator template sets and fail if it
+   matches nothing:
+
+   ```bash
+   set -euo pipefail
+   workload=$(kubectl --context "$CTX" -n <ns> get deployment \
+     -l component=<component> -o jsonpath='{.items[0].metadata.name}')
+   # Fail loudly on no match. `kubectl get deployment ""` exits non-zero with an
+   # unhelpful message, and a later `[ "$rendered" = "$SERVER_IMAGE" ]` on two
+   # empty strings passes -- the assertion must never be satisfiable by absence.
+   if [ -z "$workload" ]; then
+     echo "❌ no workload matched -l component=<component> in namespace <ns>"
+     exit 1
+   fi
+   rendered=$(kubectl --context "$CTX" -n <ns> get deployment "$workload" \
+     -o jsonpath='{.spec.template.spec.containers[0].image}')
+   if [ -z "$rendered" ]; then
+     echo "❌ deployment/$workload has no image in the pod template"
+     exit 1
+   fi
+   if [ "$rendered" != "$SERVER_IMAGE" ]; then
+     echo "❌ rendered image '$rendered' != PR image '$SERVER_IMAGE'"
+     exit 1
+   fi
+   ```
+
+   Assert against the **running** container, not just the deployment spec: after
+   `set env`, the old ReplicaSet can still satisfy `Available` while the new pod
+   is stuck. Wait on `rollout status` first, then compare
+   `.status.containerStatuses[0].image` on the pod, and fail if the pod UID is
+   unchanged from before the env edit.
 2. The CR carries the operator's finalizer.
-3. The workload pods report `restartCount == 0`.
+3. The workload pods report `restartCount == 0`, keyed by pod UID and container
+   name. Summing counts across pods hides a restart: two restarts on pod A and
+   one on its replacement B total `1`, which reads as "healthy". Snapshot the
+   per-identity counts, then fail on any increase, on any new or missing pod,
+   and on an empty pod list.
 
 **The failure this catches:** model-registry's existing `build-image-pr.yml` set
 `REST_IMAGE`, an env var the operator never read, so the workflow tested
@@ -1811,6 +2061,71 @@ conditions cannot be asserted from this repository.
 ```
 
 Do not report `DataScienceCluster` coverage in the simulator summary.
+
+#### Step 2.6: Prove the Checks Catch Them (always)
+
+A check you have never seen fail is a check you have not tested. Every row from
+Step 1.8 that you classified as catchable here needs a demonstration that the
+generated check actually goes red on that failure. Reading the code and
+concluding "this would have caught it" is not evidence, and reviewers are right
+to reject it.
+
+**Fault-inject each check on a scratch branch, then revert.** One mutation per
+row, sized so that only the intended assertion can fire:
+
+| Ticket class | Injection | Assertion that must fail |
+|---|---|---|
+| Build-time, Go | add an `import` of a module absent from `go.sum` | offline `GOPROXY=off` build |
+| Build-time, Python | add a package to `requirements.txt` that the wheelhouse cannot supply | `--no-index` resolve |
+| Lockfile | delete a `resolved` / `integrity` field from a `package-lock.json` entry | lockfile validator |
+| Workspace COPY | delete one `COPY packages/<x>` line from the Dockerfile | workspace dependency check |
+| Manifest path | rename the directory the operator's `sourcePath` points at | cross-repo contract check |
+| Rendered image | set the `RELATED_IMAGE_*` variable to `:latest` while asserting the PR tag | rendered-image assertion |
+| Reconcile | not catchable here — must appear under the operator handoff | operator repo e2e |
+
+Record the failing output verbatim. "It failed with the expected message" is
+not proof; the message is:
+
+```
+❌ rendered image 'quay.io/opendatahub/model-registry:latest' != PR image 'quay.io/...@sha256:...'
+```
+
+Three rules keep this honest:
+
+- **Revert the injection.** It must not be part of the PR. If the check passes
+  after the revert, that is the positive path working. If it passed *with* the
+  injection, you proved nothing and the check itself needs fixing.
+- **Never inject into the default branch or a shared fork.** Use a throwaway
+  branch and delete it afterwards.
+- **Do not upgrade a red-test into a claim about coverage.** One injection
+  proves that assertion fires for that failure mode, not that the stage covers
+  the whole class.
+
+**Put the result in the PR description.** Reviewers need to see, per ticket,
+that the gap is closed rather than asserted. This table is the deliverable:
+
+```markdown
+## Historical failures this catches
+
+Source: Jira component `AI Hub` (the `Model Registry` component is empty),
+searched by QE test name. Classified per Step 1.8.
+
+| Ticket | Failing test | Symptom | Covered by | Proof |
+|---|---|---|---|---|
+| RHOAIENG-63943 | async-upload smoke | build green, job died on `No module named 'model_signing'` | `Hermetic Build Preflight` (Python `--no-index`) | injected the import; preflight failed with `ERROR: No matching distribution found for model-signing` |
+
+## Historical failures this does not catch
+
+| Ticket | Failing test | Why not | Follow-up |
+|---|---|---|---|
+| RHOAIENG-103141 | `test_mr_condition_in_dsc` | needs DSC reconciliation, not a standalone container | opendatahub-operator#<n> |
+```
+
+The second table is not optional. Listing only what you catch is how a
+simulator gets credit for failures it would have sailed past — the model-registry
+DSC conditions (`ModelRegistryReady` False, `managementState`, unhealthy
+component pods) are exactly that case: the container ran fine, so nothing in
+this repo could observe them.
 
 ### Phase 3: Generate Helper Scripts
 
