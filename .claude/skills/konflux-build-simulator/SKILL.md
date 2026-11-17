@@ -34,7 +34,14 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 
 ### What Gets Validated
 
-#### Phase 0: Early Static Checks
+**Name generated jobs after what they check, not by stage number.** This list
+is the skill's internal inventory, not an execution order, and most repos
+implement a subset. A workflow that shows `Phase 0` and `Phase 4` with nothing
+in between is confusing to everyone who did not read this document. Use
+`Hermetic Build Preflight`, `Operator Integration (Kind)`, `Manifest
+Validation`.
+
+#### Early Static Checks
 - ✅ **Hermetic lockfile validation** - Validates package-lock.json for Hermeto/Cachi2 compatibility
   - Detects unsupported dependency protocols (git+, github:, file:)
   - Ensures all dependencies have resolved URLs
@@ -55,13 +62,13 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
   - Python: build a local wheelhouse, then resolve with `pip --no-index`
   - Catches missing prefetch inputs in minutes instead of in Konflux
 
-#### Phase 1: Docker Build Validation
+#### Docker Build Validation
 - ✅ Builds Docker image with production build mode (RHOAI, etc.)
 - ✅ Tests multi-stage build (builder + runtime)
 - ✅ Validates COPY commands and file paths
 - ✅ Catches BUILD_MODE environment differences
 
-#### Phase 2: Runtime Validation
+#### Runtime Validation
 - ✅ Starts container
 - ✅ Scans logs for crashloop indicators (fastify errors, uncaught exceptions)
 - ✅ Detects delayed crashes after initialization
@@ -78,7 +85,7 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
   - Prevents non-admin user crashes (exit 1/OOMKill 137)
 - ✅ Monitors container stability
 
-#### Phase 3: Module Federation Validation (if applicable)
+#### Module Federation Validation (if applicable)
 - ✅ Validates remoteEntry.js build output in dist/
 - ✅ **Checks remoteEntry.js file size** - Catches empty/corrupted manifests
 - ✅ **Checks for missing webpack chunks** - Catches ChunkLoadError issues
@@ -94,7 +101,7 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 - ✅ Verifies module-federation config in package.json
 - ⚠️  Does NOT test runtime proxy endpoints (/_mf/* routes proxy to K8s services)
 
-#### Phase 4: Operator Integration (if applicable)
+#### Operator Integration (if applicable)
 - ✅ Creates Kind cluster
 - ✅ Loads image to cluster
 - ✅ Applies CRDs and manifests
@@ -117,7 +124,7 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
   - Greps the operator source for the constant it actually reads instead of
     guessing the variable name
 
-#### Phase 4b: Platform Operator Handoff (always emit, never implement here)
+#### Platform Operator Handoff (always emit, never implement here)
 
 Some components are shipped by a platform operator (`DataScienceCluster` /
 RHOAI) rather than by their own controller or an external module operator. That
@@ -140,7 +147,7 @@ of silently stopping:
 The common outcome is that the assertions already exist upstream and only the
 Kind component filter excludes them. Emit the diff; do not reimplement them.
 
-#### Phase 5: Manifest Validation (if applicable)
+#### Manifest Validation (if applicable)
 - ✅ Kustomize build validation
 - ✅ ConfigMap generation
 - ✅ Overlay testing
@@ -152,7 +159,7 @@ Kind component filter excludes them. Emit the diff; do not reimplement them.
 - ❌ Platform-operator reconciliation (`DataScienceCluster`): component
   conditions, Managed vs Unmanaged state, and operator-rendered manifest paths
   (e.g. model-registry RHOAIENG-103141, RHOAIENG-103140, RHOAIENG-99568).
-  Phase 4 covers the component's own operator, or an external one it names
+  Operator integration covers the component's own operator, or an external one it names
   explicitly; the RHOAI platform operator needs that operator repo's E2E suite,
   not this one.
 - ❌ Cluster RBAC/SCC, networking, storage, and upgrade paths
@@ -190,19 +197,19 @@ Kind component filter excludes them. Emit the diff; do not reimplement them.
 Repo layout is a poor proxy for what needs validating. The question is not
 "does this repo contain a controller?" but "what consumes the artifacts this
 repo builds?". A service repo can be shipped entirely by an operator that lives
-somewhere else; treating "no controller here" as "skip Phase 4" leaves the
+somewhere else; treating "no controller here" as "skip operator integration" leaves the
 whole shipping path untested.
 
 Ask in this order:
 
 1. **Does this repo own the operator?** (`dashboard-operator/`, `controllers/`,
-   `config/crd/`) → Phase 4 as written.
+   `config/crd/`) → operator integration as written.
 2. **Does another repo's operator ship these images?** Look for a component
    entry in an operator's `manifests-config.yaml`, a `RELATED_IMAGE_*` variable
-   naming the image, or a deploy script that creates a CR. → Phase 4 against
+   naming the image, or a deploy script that creates a CR. → operator integration against
    that external operator, at a pinned commit.
 3. **Does only the platform operator ship it?** (`DataScienceCluster`,
-   RHOAI-managed components) → run Phase 4b: emit the handoff, do not claim
+   RHOAI-managed components) → emit the platform operator handoff, do not claim
    coverage.
 
 ### Monorepo (e.g., odh-dashboard)
@@ -224,7 +231,7 @@ Ask in this order:
   parameter defaults from external `pipelineRef` pipelines
 - Hermetic preflight: `GOPROXY=off` compile and Python wheelhouse resolution
 - Container build, health/API runtime checks, and manifest validation
-- **Phase 4 against the external operator**: deploy it at a pinned commit, pin
+- **Operator integration against the external operator**: deploy it at a pinned commit, pin
   its `RELATED_IMAGE_*` variable to the PR image, create a CR, and assert the
   rendered workload uses that image with zero restarts
 - Cross-repo contract check: the operator's component entry (repo, ref,

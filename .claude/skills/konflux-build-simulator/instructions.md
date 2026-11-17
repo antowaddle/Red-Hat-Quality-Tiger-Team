@@ -158,9 +158,9 @@ if [ -d "packages" ] && [ -f "turbo.json" ]; then
 fi
 ```
 
-**Then answer the question that actually decides Phase 4: who consumes these
+**Then answer the question that actually decides operator integration: who consumes these
 images?** Repo layout cannot tell you this. An operator in another repository may
-ship everything you build here, and skipping Phase 4 then leaves that path
+ship everything you build here, and skipping operator integration then leaves that path
 untested.
 
 ```bash
@@ -174,7 +174,7 @@ rg -n "DataScienceCluster|datasciencecluster|managementState" .
 
 Three outcomes:
 
-| Outcome | Phase 4 |
+| Outcome | Operator integration |
 |---------|---------|
 | This repo owns the operator | Run it as written |
 | Another repo's operator ships these images | Run it against that operator, at a pinned commit |
@@ -824,7 +824,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Phase 1: Docker Build
+      # Docker build
       - name: Build Docker Image
         id: build
         run: |
@@ -834,7 +834,7 @@ jobs:
             -f Dockerfile \
             .
 
-      # Phase 2: Runtime Validation
+      # Runtime validation
       - name: Test Container Startup
         run: |
           # Start container
@@ -1108,12 +1108,12 @@ hermetic_python_preflight() {
 - Set `GOOS=linux` even on macOS so local runs catch platform-specific files.
 - Use `GOPROXY=off` instead of `--network=none` inside a build that must also populate its cache; the npm limitation documented in `LEARNINGS.md` applies to any package manager that resolves during the build.
 - Run the Python resolution in a venv: PEP 668 externally-managed environments (Homebrew, Debian) reject `pip install --dry-run`.
-- Keep this in a separate fast Phase 0 job and make image builds depend on it.
+- Keep this in a separate fast preflight job and make image builds depend on it.
 
 #### Step 2.2: Add Module Federation Validation (if detected)
 
 ```yaml
-      # Phase 3: Module Federation Validation
+      # Module Federation validation
       - name: Validate Module Federation Build Output
         if: ${{ env.IS_MONOREPO == 'true' }}
         run: |
@@ -1307,7 +1307,7 @@ This is **much stronger validation** than just checking YAML syntax.
 
 ```yaml
   operator-integration:
-    name: "Phase 4: Operator Integration"
+    name: "Operator Integration (Kind)"
     needs: [docker-build-odh, docker-build-rhoai]  # Or whatever your build jobs are named
     runs-on: ubuntu-latest
     permissions:
@@ -1598,7 +1598,7 @@ model-registry is the canonical case: it has no controller of its own, and
 `opendatahub-operator` maps component `aihub` to
 `opendatahub-io/model-registry-operator@<ref>`. That operator's
 `RELATED_IMAGE_ODH_MODEL_REGISTRY_IMAGE` decides which server image lands in the
-cluster. Detecting "no controller in this repo" and skipping Phase 4 there would
+cluster. Detecting "no controller in this repo" and skipping operator integration there would
 leave the entire shipping path untested — which is exactly what happened.
 
 Apply the operator from a pinned commit and let it render the workload:
@@ -1783,6 +1783,11 @@ rg -n "paths:" -A30 .github/workflows/test-kind-odh-e2e.yaml | head -40
 
 `make e2e-test-xks` usually hardcodes `E2E_TEST_COMPONENT="kserve"`. A
 registered suite that is absent from that list never runs on Kind.
+
+The list is **space**-separated, not comma-separated: it is read from the
+environment and split with `strings.Fields`, so `"kserve,aihub"` collapses into
+a single malformed name and validation fails before any test runs. Check for a
+regression test that pins the format before you edit it.
 
 **4. Emit the follow-up**
 
