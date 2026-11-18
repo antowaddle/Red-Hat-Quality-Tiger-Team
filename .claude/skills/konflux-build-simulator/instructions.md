@@ -2084,6 +2084,115 @@ operand containers produce false failures.
 - Negative-test it before trusting it: add a bogus flag to the overlay and a
   duplicated env var to a fixture, confirm both fail, then revert.
 
+##### Step 2.4d: Check generated artifacts, RBAC identity, and the manifest path contract
+
+Three more failure classes survive every check above. All three are cheap and
+none needs a cluster.
+
+**1. A generated artifact that CI never regenerates.**
+
+When a repo generates something it ships — a Helm chart (`make helm`), an OLM
+bundle (`make bundle`), a manifest bundle — and nothing in CI regenerates and
+diffs it, the artifact silently stops matching its source. For
+`feast-module-operator`, `config/chart` is generated from `config/default` by
+`make helm` and consumed by `opendatahub-operator` through
+`manifests-config.yaml` (`sourcePath: config/chart`). `ci.yaml` runs
+`make manifests generate` in `Verify Generated Files`, which covers CRDs and
+deepcopy code but **not** the chart. RHOAIENG-96436 ("odh-feast-operator —
+manifests are out of sync") was an RC blocker for exactly this reason.
+
+Detect the seam before writing the check:
+
+```bash
+# a Makefile target whose name suggests generation, writing into a tracked dir
+grep -nE '^[a-zA-Z0-9_-]+:' Makefile | grep -iE 'helm|bundle|manifests|generate'
+# who consumes that directory?
+gh search code "sourcePath: <dir>" --filename=manifests-config.yaml --limit 10
+```
+
+Then regenerate from a clean export of `HEAD` and diff:
+
+```bash
+tmp="$(mktemp -d)"; mkdir -p "$tmp/repo"
+git archive HEAD | tar -x -C "$tmp/repo"
+( cd "$tmp/repo" && make helm )
+diff -r config/chart "$tmp/repo/config/chart"
+```
+
+Rules:
+
+- **Warn, do not fail, on pre-existing drift.** If `main` is already drifted, a
+  hard failure blocks every PR on day one and the check gets removed. Emit the
+  diff as a warning, say how to fix it, and promote it to a hard failure once
+  the committed artifact is regenerated.
+- Print *which files* drift. "chart is out of sync" is not actionable;
+  `values.yaml`, the NetworkPolicy template, and a template that `make helm` no
+  longer produces are.
+- Regenerate from `git archive HEAD`, not the working tree, so the check
+  compares what is committed.
+- A generation target that also regenerates CRDs and deepcopy code (`helm:
+  manifests generate`) is fine — only diff the artifact directory.
+
+**2. RBAC bindings that name an identity the manifests never create.**
+
+A kustomize `namePrefix` rewrites the `ServiceAccount` name but not the
+`subjects` of a `RoleBinding` or `ClusterRoleBinding`. The result renders,
+schema-validates, and then crash-loops on startup. RHOAIENG-100514 /
+RHOAIENG-100515: `tls_clusterrolebinding.yaml` still bound `controller-manager`
+while the prefix produced `feast-operator-controller-manager`; the operator
+could not read `apiservers.config.openshift.io`, `default-feastoperator` stayed
+`Not Ready`, and the `DataScienceCluster` was never Ready (RHOAIENG-99631 is the
+same outage from the platform side).
+
+```python
+service_accounts = {d["metadata"]["name"] for d in docs if d["kind"] == "ServiceAccount"}
+for d in docs:
+    if d["kind"] in {"RoleBinding", "ClusterRoleBinding"}:
+        for s in d.get("subjects") or []:
+            if s.get("kind") == "ServiceAccount" and s["name"] not in service_accounts:
+                fail(f"{d['kind']}/{d['metadata']['name']} binds {s['namespace']}/{s['name']}")
+    if d["kind"] in {"Deployment", "StatefulSet", "DaemonSet"}:
+        sa = d["spec"]["template"]["spec"].get("serviceAccountName")
+        if sa and sa not in service_accounts:
+            fail(f"{d['kind']}/{d['metadata']['name']} runs as {sa}")
+```
+
+Run it on **rendered** output. Raw kustomize directories do not apply
+`namePrefix`, so the mismatch is invisible there. Skip the whole check when the
+render produces no `ServiceAccount` at all — the platform may create the
+identity.
+
+**3. The manifest path contract between image, chart, and binary.**
+
+Three files that never reference each other have to agree:
+
+| File | Statement |
+|---|---|
+| `Containerfile` | `COPY --from=builder /workspace/config/manifests/ /manifests/` |
+| chart `initContainer` | `cp -r /manifests/. /opt/manifests/` |
+| Deployment `env` | `ODH_MODULE_OPERATOR_MANIFESTS_PATH=/opt/manifests` |
+
+Change one and the operator starts with no operand overlays. Parse all three and
+compare; this is the generalised form of the model-registry manifest-path
+handoff. Fixtures: RHOAIENG-99568 (model-registry shipped to
+`/opt/manifests/modelregistry`, operator read `/opt/manifests/aihub`) and the
+`feast-module-operator` equivalent, which passes today.
+
+**Two false positives to avoid:**
+
+- `COPY --from=<stage> <path> <dest>` references an earlier build stage, not the
+  build context. Skip every `COPY` line containing `--from=` before checking
+  that sources exist, or the checker fails on any multi-stage Dockerfile.
+- Parse argv, not strings. `cp -r /manifests/. /opt/manifests/` arrives as
+  separate tokens; filtering tokens that start with `-` is enough to find the
+  source and destination.
+
+**Also warn when `.tekton/*pull-request.yaml` does not set `build-platforms`.**
+The shared pipeline then defaults to `linux/x86_64` only, and a single-arch
+manifest list surfaces as `ImagePullBackOff` on ppc64le/arm64
+(RHOAIENG-79767). Warn rather than fail: the fix is a PipelineRun change, not
+something a PR can infer.
+
 #### Step 2.5: Emit the Platform Operator Handoff (always)
 
 Run this even when the repo has no controller. The output goes into the
