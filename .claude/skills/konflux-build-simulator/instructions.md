@@ -1258,33 +1258,49 @@ hermetic_go_preflight() (
 )
 
 hermetic_python_preflight() (
-  local workdir wheelhouse venv_python
+  local workdir
   workdir="$(mktemp -d)"
   trap 'rm -rf "$workdir"' EXIT
-  wheelhouse="$workdir/wheelhouse"
-  mkdir -p "$wheelhouse"
 
   # One requirements file per job, not a hardcoded path: a repo may ship
   # several (one per Konflux component) and only some are in scope.
   local requirements_file="${REQUIREMENTS_FILE:?set REQUIREMENTS_FILE to the job requirements file}"
+  local python_version="${PYTHON_VERSION:-3.12}"
+  # Resolve for the BUILD platform, not the runner's. A wheel that exists for
+  # macosx_arm64 says nothing about the manylinux build Konflux runs.
+  local python_platform="${PYTHON_PLATFORM:-x86_64-manylinux_2_34}"
 
-  # Network phase: build a local wheelhouse from the pinned requirements.
-  # Prefer wheels only: Hermeto/Cachi2 prefetch wheels, so a package with no
-  # wheel on the index is a real hermetic risk the build would hit later.
-  # The fallback exists for packages that publish only an sdist -- for those,
-  # pip must build locally, which is what the image build does too. If you
-  # find yourself relying on the fallback, check whether Hermeto can prefetch
-  # that sdist before treating this preflight as proof.
-  python3 -m pip download --quiet --only-binary=:all: \
-    -r "$requirements_file" -d "$wheelhouse" \
-    || python3 -m pip download --quiet \
-      -r "$requirements_file" -d "$wheelhouse"
+  # Network phase 1: resolve the full closure. Use uv, not pip. pip's
+  # backtracking gives up on real dependency graphs ("resolution-too-deep")
+  # and falls back to building sdists that need system toolchains (psycopg-c
+  # wants pg_config). uv resolves the same graph the image installs from.
+  uv pip compile "$requirements_file" \
+    --python-version "$python_version" \
+    --python-platform "$python_platform" \
+    --quiet \
+    --output-file "$workdir/lock.txt"
+  echo "resolved $(grep -c '==' "$workdir/lock.txt") pinned distributions"
 
-  # Offline phase: resolve only from the wheelhouse, inside a venv
-  python3 -m venv "$workdir/venv"
-  venv_python="$workdir/venv/bin/python"
-  "$venv_python" -m pip install --dry-run --no-index \
-    --find-links "$wheelhouse" -r "$requirements_file"
+  # The offline proof is only meaningful where the target platform can be
+  # installed. On a macOS runner the cache is keyed for darwin, so skip it
+  # rather than report a pass that proves nothing.
+  if [ "$(uname -s)" != "Linux" ]; then
+    echo "skipping offline install on $(uname -s); resolution check only"
+    return 0
+  fi
+
+  # Network phase 2: populate an ISOLATED cache, then delete the venv so the
+  # next install cannot reuse installed packages and must come from the cache.
+  export UV_CACHE_DIR="$workdir/uv-cache"
+  uv venv "$workdir/v1" --python "$python_version" --quiet
+  uv pip install --python "$workdir/v1/bin/python" \
+    --requirement "$requirements_file" --quiet
+
+  # Offline phase: --offline forbids all network, so a missing prefetch fails here
+  rm -rf "$workdir/v1"
+  uv venv "$workdir/v2" --python "$python_version" --quiet
+  uv pip install --offline --python "$workdir/v2/bin/python" \
+    --requirement "$requirements_file" --quiet
 )
 ```
 
@@ -1302,6 +1318,9 @@ done
 - Build the same package target with the same flags as the Dockerfile (`CGO_ENABLED`, `GOOS`, `-tags`, entry package). Building a different target does not prove the shipped binary links.
 - Set `GOOS=linux` even on macOS so local runs catch platform-specific files.
 - Use `GOPROXY=off` instead of `--network=none` inside a build that must also populate its cache; the npm limitation documented in `LEARNINGS.md` applies to any package manager that resolves during the build.
+- **Use `uv` for the Python preflight, not `pip`.** `pip download` / `pip install --no-index` is the obvious recipe and it does not survive contact with a real dependency graph: pip aborts with `resolution-too-deep`, and its sdist fallback needs system toolchains the runner lacks. If the image already installs with `uv`, resolve with `uv` too — otherwise the preflight is validating a different resolution than the one that ships.
+- Pin `--python-version` and `--python-platform` to the Konflux build target (`x86_64-manylinux_2_34` for a linux/x86_64 pipeline). Resolving on the runner platform proves nothing about the build.
+- Warm an isolated `UV_CACHE_DIR` and **delete the venv** before the `--offline` install. If the venv survives, the second install can satisfy itself from installed packages and the check passes without proving the prefetch is sufficient.
 - Run the Python resolution in a venv: PEP 668 externally-managed environments (Homebrew, Debian) reject `pip install --dry-run`.
 - Keep this in a separate fast preflight job and make image builds depend on it.
 
@@ -1999,6 +2018,71 @@ unrelated to the PR, and a pin lets you bump it deliberately.
    ```
 
    Pin `kubeconform` and `kubernetes-version` (e.g. 1.31.0) so results are reproducible.
+
+##### Step 2.4c: Validate the rendered manifest against the binary it starts
+
+Rendering an overlay only proves it is valid YAML. It does not prove the
+container it describes can start. Two failure classes survive `kustomize build`
+and `kubeconform` completely:
+
+1. **The Deployment passes a flag the binary does not define.** The container
+   exits during flag parsing and never reconciles. RHOAIENG-100779: the RHOAI
+   overlay passed `--metrics-cert-path`, the operand image did not define it,
+   `feast-operator-controller-manager` crash-looped and `default-feastoperator`
+   stayed `Not Ready`. Nothing in either repository compared the two.
+2. **A container declares the same env var name twice.** The API server keeps
+   only the last entry, so the rendered overlay and the effective configuration
+   silently disagree. RHOAIENG-57579: duplicate `RELATED_IMAGE_CRON_JOB` on the
+   controller-manager Deployment.
+
+Both are cheap to check and neither needs a cluster.
+
+**Duplicate env vars** — no extra tooling beyond PyYAML:
+
+```python
+for _, doc in yaml.safe_load_all(handle):
+    if doc.get("kind") not in {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"}:
+        continue
+    for container in doc["spec"]["template"]["spec"].get("containers", []):
+        names = [e["name"] for e in container.get("env", []) if "name" in e]
+        duplicates = {n for n in names if names.count(n) > 1}
+```
+
+**Flag contract** — build the operator image, read its flag set, compare:
+
+```yaml
+- name: Build the operator and verify its flag contract
+  run: |
+    set -euo pipefail
+    # flags the overlays actually pass
+    python3 scripts/manifest_contract.py manager-flags out/rhoai.yaml out/odh.yaml \
+      | sort -u > used.txt
+    # flags the binary actually defines
+    docker build -f infra/feast-operator/Dockerfile -t operator:pr infra/feast-operator
+    docker run --rm operator:pr --help > help.txt 2>&1 || true
+    python3 scripts/manifest_contract.py help-flags help.txt | sort -u > known.txt
+    missing="$(comm -23 used.txt known.txt)"
+    [ -z "$missing" ] || { echo "undefined flag(s): $missing"; exit 1; }
+```
+
+`manager-flags` should read only the `controller-manager` Deployment and only
+concatenate `command` + `args` of its containers — otherwise flags belonging to
+operand containers produce false failures.
+
+**Rules:**
+
+- Compare flag *names* only, never values. A value mismatch is a config bug the
+  overlay intentionally parameterises; a missing name is a crash.
+- Skip the comparison when the rendered manifest has no flags, and fail closed
+  if `--help` produced no output — an empty `known.txt` would otherwise make
+  every comparison pass.
+- This check is only meaningful when the operator binary and the overlays are
+  built from the same commit. In a repo that ships both (like feast) it catches
+  "overlay edited, `cmd/main.go` not updated". It cannot catch a new overlay
+  shipped against an older published operand image — that is the cross-repo
+  case, and it is why Step 2.5 exists.
+- Negative-test it before trusting it: add a bogus flag to the overlay and a
+  duplicated env var to a fixture, confirm both fail, then revert.
 
 #### Step 2.5: Emit the Platform Operator Handoff (always)
 

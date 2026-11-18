@@ -1210,6 +1210,79 @@ without it, and a check that has never been seen to fail has never been tested.
 Keep the injection out of the PR, and do not generalise: one injection proves
 that assertion fires for that failure mode, not that the stage covers the class.
 
+## Learning: `pip` cannot prove a Python hermetic build, `uv` can
+
+The model-registry onboarding used `pip download` into a wheelhouse and then
+`pip install --no-index --find-links`. That worked for a small graph and does not
+generalise. On feast's feature-server requirements pip aborts with
+`resolution-too-deep`; its fallback then tries to build `psycopg-c` from source,
+which needs `pg_config` that the runner does not have. `ast-serialize==0.13.1`
+also publishes no `cp312` manylinux wheel, so an `--only-binary` pass finds
+nothing.
+
+`uv pip compile` resolves the same file to 186 pinned distributions in seconds,
+for `x86_64-manylinux_2_34` / Python 3.12. Two details make the proof real:
+
+- Resolve for the **build** platform (`--python-version`, `--python-platform`),
+  never the runner's.
+- Delete the venv between the warm install and the `--offline` install. If the
+  venv survives, the offline pass can satisfy itself from installed packages and
+  the check is vacuous.
+
+If the Dockerfile installs with `uv`, the preflight must too — otherwise it
+validates a different resolution than the one that ships.
+
+## Learning: a rendered manifest is not a runnable container
+
+Feast's recurring downstream failure was not a bad overlay and not a bad image;
+it was the seam between them. RHOAIENG-100779 shipped a RHOAI overlay passing
+`--metrics-cert-path` to an operand image that did not define the flag. The
+container exited during flag parsing, `default-feastoperator` stayed `Not
+Ready`, and both `kustomize build` and `kubeconform` were perfectly happy.
+RHOAIENG-57579 was the same seam: a duplicated `RELATED_IMAGE_CRON_JOB` env var,
+where the API server silently keeps the last value.
+
+Neither needs a cluster to detect:
+
+- render the overlays the operator ships;
+- for the controller-manager Deployment, collect `command` + `args` flag *names*
+  (never values, and never flags from operand containers);
+- build the operator image and diff against `--help`;
+- reject any container that repeats an env var name.
+
+Fail closed when `--help` is empty, or every comparison passes trivially.
+
+This only works when the binary and the overlay come from the same commit. A new
+overlay shipped against an older published operand image is the cross-repo case
+and belongs in the platform handoff, not here.
+
+## Worked example: feast (three Konflux targets, one repo)
+
+`opendatahub-io/feast` builds three images from `.tekton/*pull-request.yaml`:
+`feature-server`, `feast-operator` (context `infra/feast-operator`), and
+`odh-feast-mcp`. Each needed a different check, which is the point — "the repo
+is a Python repo" was not a useful level of analysis.
+
+The highest-value assertion was the cheapest: the feature-server Dockerfile
+`COPY`s `sdk/python/feast` over the installed package. If that overlay regresses,
+the image silently ships PyPI feast instead of the PR's code. That is not
+hypothetical — RHOAIENG-81940 / 81941 / 81942 are the same bug on three
+branches.
+
+**Jira mining paid for itself, but the raw count misleads.** `text ~ feast`
+returned 564 bugs; 252 of them (45%) are Snyk CVE tickets against kserve sample
+Dockerfiles that merely mention feast. Filter by mechanism, not by count.
+Seventeen tickets had a mechanism this simulator reproduces; the rest were
+reconciliation, bundle, or NetworkPolicy failures that need a cluster.
+
+**Fork PRs cannot run Konflux.** The three Konflux status checks fail in ~1 second
+on a fork PR — that is admission denial when the PipelineRun is created, not a
+build failure, and it is not related to the change. Say so in the PR so a
+reviewer does not go looking for a code problem.
+
+**PR title lint.** feast runs commitlint with `subject-case: sentence-case`;
+`ci: add ...` fails, `ci: Add ...` passes.
+
 ## References
 
 - npm issue with --network=none: https://github.com/npm/cli/issues
