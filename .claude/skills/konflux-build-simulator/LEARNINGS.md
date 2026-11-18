@@ -1353,6 +1353,25 @@ the raw overlay and the raw chart template both look correct.
   tokens. Filter tokens starting with `-` and treat the last token as the
   destination.
 
+### The green job that skipped its own check
+
+The first CI run of the drift check passed in 2m21s. It had not checked
+anything: `make helm` failed in the clean export, the script printed a warning
+and returned 0, and the job went green. The failure only surfaced when the log
+was read line by line — which nobody does for a passing job.
+
+Two separate bugs, both worth carrying forward:
+
+1. **A skipped assertion must not be a pass.** Capture the generator output and
+   exit non-zero when generation fails. *Drift* may warn (it pre-exists);
+   *inability to generate* must fail.
+2. **Workflow `env:` overrides Makefile `?=` variables.** The workflow exported
+   `KUSTOMIZE_VERSION: '5.8.1'`. `KUSTOMIZE_VERSION ?= v5.8.1` does not apply
+   when the variable is already set, so `make helm` ran
+   `go run ...kustomize/v5@5.8.1` and died with `invalid version: unknown
+   revision 5.8.1`. The `v` was in the Makefile default and not in the
+   workflow. Prefix every simulator variable (`SIM_*`) so it cannot collide.
+
 ### Environment: the `go run` fallback is not free
 
 `make helm` and the skill's helm/kustomize fallbacks use `go run <module>@<ver>`.

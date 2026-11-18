@@ -2187,6 +2187,21 @@ handoff. Fixtures: RHOAIENG-99568 (model-registry shipped to
   separate tokens; filtering tokens that start with `-` is enough to find the
   source and destination.
 
+**Do not export environment variables that the repo's Makefile defines.**
+`KUSTOMIZE_VERSION ?= v5.8.1` does **not** apply when the environment already
+sets `KUSTOMIZE_VERSION`; `?=` only fills an unset value. A workflow that
+exported the simulator's tool version as `KUSTOMIZE_VERSION: '5.8.1'` (no `v`)
+made the repo's own `make helm` run `go run
+sigs.k8s.io/kustomize/kustomize/v5@5.8.1` and fail with `unknown revision`.
+Prefix simulator variables (`SIM_KUSTOMIZE_VERSION`, `SIM_HELM_VERSION`, …) so
+they cannot shadow anything the Makefile reads.
+
+**A generation step that fails is a failure, not a skip.** The first version of
+the drift check warned and returned 0 when `make helm` failed, so the job went
+green while its main assertion never ran. Capture the generator output, print
+it, and exit non-zero. The distinction is: *drift* warns because it pre-exists,
+*inability to generate* fails because there is no evidence either way.
+
 **Also warn when `.tekton/*pull-request.yaml` does not set `build-platforms`.**
 The shared pipeline then defaults to `linux/x86_64` only, and a single-arch
 manifest list surfaces as `ImagePullBackOff` on ppc64le/arm64
