@@ -1392,13 +1392,47 @@ binaries in CI.
 
 Two related Go notes:
 
-- `GOTOOLCHAIN=local` belongs in the CI hermetic job, paired with
-  `actions/setup-go` reading `go-version-file: go.mod`. With `auto`, a `go.mod`
+- `GOTOOLCHAIN=local` belongs in the CI hermetic job. With `auto`, a `go.mod`
   bump past the builder image silently downloads a toolchain mid-build — the one
   thing the Konflux builder cannot do. (On a laptop, `auto` plus an isolated
   `GOMODCACHE` is still the right call; see the note above.)
+- **`go-version-file: go.mod` is the wrong toolchain.** It installs whatever
+  `go.mod` asks for, so the preflight passes on a Go the builder image does not
+  have. Parse the `golang:<ver>` tag out of the Containerfile, pass that to
+  `actions/setup-go`, and compare `go env GOVERSION` against it before building.
 - Do not hardcode `docker`. `CONTAINER_TOOL=docker|podman` costs three lines and
   is the difference between the image check running and being skipped.
+
+### What the review of the simulator itself found
+
+A second pass over the generated workflow found six more traps, all of them in
+the simulator rather than the component:
+
+1. **`-verbose` is not optional.** kubeconform's `-output json` omits
+   `statusSkipped` records unless `-verbose` is set. Without it a `Deploymnet`
+   typo disappears from the report and the built-in-kind guard never fires.
+2. **`-verbose` also surfaces every CRD.** kubeconform ships no schema for
+   `CustomResourceDefinition`, so each one arrives as `statusSkipped`. Allow
+   exactly `(apiextensions.k8s.io/v1, CustomResourceDefinition)`; anything else
+   in a built-in group is a typo or an API version that no longer exists. Do not
+   allowlist the whole `apiextensions.k8s.io` group — that hides `v1beta1`.
+3. **A version in a URL is not integrity.** Pin the SHA-256 of every release
+   archive (`helm`, `kustomize`, `kubeconform`) in the workflow and run
+   `sha256sum --check --strict` before extracting. Same for installers:
+   `curl ... | sh` for `uv` becomes the SHA-pinned `astral-sh/setup-uv`.
+4. **The PipelineRun's dockerfile and context must travel.** Reading
+   `dockerfile` / `path-context` only to check they exist, then building
+   `Containerfile` with context `.`, lets a PR pass the simulator and break the
+   build Konflux actually runs. Resolve the target once and pass it to every
+   downstream check, including `COPY` source existence.
+5. **`.dockerignore` is a build input.** A PR that only edits it can break the
+   image build; it belongs in the relevant-path filter next to the Containerfile.
+6. **A lock is not an install.** `uv pip compile --python-platform
+   x86_64-manylinux_2_34` on an arm64 host proves the closure *resolves*. Gate
+   the offline install on `uname -m` matching the lock target and pass
+   `--python-platform` to both installs, or say plainly that only resolution ran.
+   For Go, `GOPROXY=off` alone still permits a direct VCS fetch for modules
+   matching `GONOPROXY`; add `GONOPROXY=none`.
 
 ### Evidence table
 
