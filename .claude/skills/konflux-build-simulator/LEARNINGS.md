@@ -1283,6 +1283,15 @@ reviewer does not go looking for a code problem.
 **PR title lint.** feast runs commitlint with `subject-case: sentence-case`;
 `ci: add ...` fails, `ci: Add ...` passes.
 
+**Tell your failures from theirs.** The feast unit suite failed on exactly one
+test in each of two runs, a different one each time
+(`test_wait_for_index_ready_timeout`, then
+`test_apply_stream_source_from_repo`), with 4,553 and 4,564 passing. The same
+commit passed on the other matrix legs. A single unrelated failure that moves
+between runs is flake, not regression — compare the same suite on a sibling
+matrix leg before spending time on it, and say so in the PR. External
+contributors cannot re-run jobs, so a maintainer has to clear it.
+
 ## References
 
 - npm issue with --network=none: https://github.com/npm/cli/issues
