@@ -181,20 +181,10 @@ Kind component filter excludes them. Emit the diff; do not reimplement them.
 - ✅ Resource validation
 - ✅ **Operator-derived overlay coverage** - validates every overlay the operator renders at runtime, with dynamic module discovery (not just `find`-able kustomizations)
 - ✅ **kubeconform typo guard** - fails when a Kubernetes built-in kind is skipped for a missing schema (catches `Deploymnet`-style typos that `-ignore-missing-schemas` silently passes)
-- ✅ **Generated artifact drift** - when the repo generates something it ships
-  (`make helm`, `make bundle`), regenerate it from `git archive HEAD` and diff it
-  against the committed copy. `make manifests generate` does not cover a chart
-  (RHOAIENG-96436). Warn rather than fail while the committed artifact is
-  already stale, and print the drifting files.
-- ✅ **RBAC identity resolution** - every `RoleBinding`/`ClusterRoleBinding`
-  subject and every pod `serviceAccountName` must name a `ServiceAccount` the
-  render creates. A kustomize `namePrefix` renames the account but not the
-  subjects (RHOAIENG-100514, RHOAIENG-100515, RHOAIENG-99631).
-- ✅ **Manifest path contract** - the Containerfile `COPY` destination, the chart
-  init-container `cp`, and `ODH_MODULE_OPERATOR_MANIFESTS_PATH` must agree
-  (RHOAIENG-99568).
-- ⚠️  Does NOT catch a missing `build-platforms` as a failure — warn only
-  (RHOAIENG-79767, ppc64le `ImagePullBackOff`).
+- ✅ **Generated artifact drift** - regenerate shipped artifacts (`make helm`) from `git archive HEAD` and diff; `make manifests generate` misses charts (RHOAIENG-96436). Warn while `main` is already stale.
+- ✅ **RBAC identity** - every binding subject and pod `serviceAccountName` must name a rendered `ServiceAccount`; `namePrefix` renames the account, not the subjects (RHOAIENG-100514, -100515, -99631).
+- ✅ **Manifest path contract** - Containerfile `COPY` dest, chart init-container `cp`, and `ODH_MODULE_OPERATOR_MANIFESTS_PATH` must agree (RHOAIENG-99568).
+- ⚠️  Missing `build-platforms` warns only (RHOAIENG-79767).
 
 #### Not Covered (state this explicitly)
 - ❌ Platform-operator reconciliation (`DataScienceCluster`): component
