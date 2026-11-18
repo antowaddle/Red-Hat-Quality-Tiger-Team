@@ -102,10 +102,7 @@ Validation`.
 - ✅ Tests non-root user runtime (catches permission issues)
 - ✅ Waits for health check
 - ✅ Validates endpoints
-- ✅ **Tests critical API endpoints** - Catches fastify v5 regressions
-  - Tests PATCH with `application/merge-patch+json` (415 error in Fastify 5)
-  - Tests PATCH with `application/json-patch+json` (breaks 28+ operations)
-  - Prevents PR #6727 style regressions
+- ✅ **PATCH content types** - catches fastify v5 415/merge-patch regressions (PR #6727)
 - ✅ **Tests WebSocket compatibility** - Catches connection crashes
   - Validates WebSocket endpoints don't crash the pod
   - Catches @fastify/websocket v11 regression (SocketStream removal)
@@ -176,15 +173,13 @@ Kind component filter excludes them. Emit the diff; do not reimplement them.
 
 #### Manifest Validation (if applicable)
 - ✅ Kustomize build validation
-- ✅ ConfigMap generation
 - ✅ Overlay testing
-- ✅ Resource validation
 - ✅ **Operator-derived overlay coverage** - validates every overlay the operator renders at runtime, with dynamic module discovery (not just `find`-able kustomizations)
 - ✅ **kubeconform typo guard** - fails when a Kubernetes built-in kind is skipped for a missing schema (catches `Deploymnet`-style typos that `-ignore-missing-schemas` silently passes)
-- ✅ **Generated artifact drift** - regenerate shipped artifacts (`make helm`) from `git archive HEAD` and diff; `make manifests generate` misses charts (RHOAIENG-96436). Warn while `main` is already stale.
-- ✅ **RBAC identity** - every binding subject and pod `serviceAccountName` must name a rendered `ServiceAccount`; `namePrefix` renames the account, not the subjects (RHOAIENG-100514, -100515, -99631).
-- ✅ **Manifest path contract** - Containerfile `COPY` dest, chart init-container `cp`, and `ODH_MODULE_OPERATOR_MANIFESTS_PATH` must agree (RHOAIENG-99568).
-- ⚠️  Missing `build-platforms` warns only (RHOAIENG-79767).
+- ✅ **Generated artifact drift** - regenerate `make helm` from `git archive HEAD` and diff (RHOAIENG-96436)
+- ✅ **RBAC identity** - binding subjects must name a rendered ServiceAccount (RHOAIENG-100514, -100515, -99631)
+- ✅ **Manifest path contract** - image `COPY` dest = chart `cp` = `ODH_MODULE_OPERATOR_MANIFESTS_PATH` (RHOAIENG-99568)
+- ⚠️  Missing `build-platforms` warns only (RHOAIENG-79767)
 
 #### Not Covered (state this explicitly)
 - ❌ Platform-operator reconciliation (`DataScienceCluster`): component
