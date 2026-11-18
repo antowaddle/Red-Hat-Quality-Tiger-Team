@@ -1446,6 +1446,39 @@ the simulator rather than the component:
 | RHOAIENG-101993 — reconciler crashes on `is not a WithReleases` | No | Needs `make test-e2e` |
 | RHOAIENG-79767 — ppc64le `ImagePullBackOff` | Warn | `build-platforms` absent from the PipelineRun |
 
+## Learning: the skill shipped the defects it was meant to catch
+
+Reviewing the two onboarding PRs side by side showed the same two findings in
+both. Neither came from the component repos — both were copied verbatim out of
+this skill's own recipes.
+
+**`kubeconform ... || true`.** Step 2.4b taught the typo guard with the exit
+status discarded. The guard then cannot fire: `statusInvalid` and `statusError`
+are exactly the states it exists to catch, and `|| true` drops both. CodeRabbit
+raised it independently on `feast#310` and `feast-module-operator#55`.
+
+**"DO NOT do binary checksum verification."** The security section said this
+explicitly, on the grounds that it was "too fragile in CI", and recommended
+HTTPS plus a pinned version instead. Both generated workflows therefore
+downloaded Helm, Kustomize, and kubeconform and `sudo install`ed them without a
+digest. Both PRs got CWE-494 / CWE-829 findings for it.
+
+Two things follow.
+
+1. **A skill snippet is a template, not an example.** Whatever it contains ends
+   up in every repo that onboards, so a defect in the recipe scales with
+   adoption. Review the recipes with the same suspicion as generated code —
+   ideally by fault-injecting them, the same rule the skill applies to checks.
+2. **Fix the fragility, don't abandon the control.** Checksum verification was
+   dropped because the first attempt was flaky, and the fix recorded was "don't
+   do it". The right fix is to pin the digest next to the version and read it
+   from the project's published checksum file, which is neither fragile nor
+   optional.
+
+The general rule already appears in this document — *a check that cannot fail is
+worse than no check* — and that is precisely what a `|| true` on a validator, or
+an unverified download-then-execute, produces. Apply it to the templates too.
+
 ## References
 
 - npm issue with --network=none: https://github.com/npm/cli/issues

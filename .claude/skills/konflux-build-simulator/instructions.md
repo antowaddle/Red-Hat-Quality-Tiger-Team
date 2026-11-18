@@ -698,7 +698,12 @@ This validates:
 
 Much stronger than just checking YAML syntax!
 
-**Be lenient on manifest application** - use `|| true` to continue even if some resources fail validation (pre-existing repo issues like ClusterRoleBinding errors).
+**Be lenient on manifest *application*, never on manifest *validation*.** When
+applying to a Kind cluster, `kubectl apply` may legitimately fail on resources
+the cluster cannot admit (CRDs not yet established, ClusterRoleBinding
+escalation). That is a reason to keep applying and report, not a reason to
+swallow validator output. `kustomize build`, `kubeconform`, and the contract
+checks must fail closed; only the apply step may continue past an error.
 
 ### 5. Security Hardening
 
@@ -710,10 +715,32 @@ Much stronger than just checking YAML syntax!
 - Skip conditions for both PR title and labels
 
 **❌ DO NOT do:**
-- Binary checksum verification (attempted but removed - too fragile in CI)
-- Rely on binary checksums from releases (use HTTPS + pinned versions instead)
+- Download a tarball over HTTPS and `sudo install` it without a digest check.
+  A version in a URL is a name, not an integrity guarantee (CWE-494, CWE-829).
 
-Primary supply chain protection comes from **pinned GitHub Actions**.
+**Verify every downloaded tool.** Add the digest next to the version and check it
+before extraction, so a swapped artifact fails closed:
+
+```yaml
+env:
+  KUSTOMIZE_VERSION: 'v5.8.1'
+  KUSTOMIZE_SHA256: '<sha256 of kustomize_v5.8.1_linux_amd64.tar.gz>'
+run: |
+  set -euo pipefail
+  curl -fsSL -o /tmp/kustomize.tar.gz "$URL"
+  printf '%s  %s\n' "$KUSTOMIZE_SHA256" /tmp/kustomize.tar.gz | sha256sum --check --strict
+  tar -xzf /tmp/kustomize.tar.gz -C /tmp
+```
+
+Take the digest from the project's published checksum file where one exists
+(Helm publishes `helm-vX.Y.Z-linux-amd64.tar.gz.sha256sum`, kubeconform ships
+`CHECKSUMS`), otherwise compute it once from a known-good download and commit
+it. Never invent one, and never derive it from the artifact you are about to
+install. Prefer a SHA-pinned action (`astral-sh/setup-uv`, `actions/setup-go`)
+over a `curl | sh` bootstrap — a pipe to a shell cannot be verified at all.
+
+Pinned GitHub Actions remain the first line of supply chain protection; digests
+cover the tools the workflow fetches itself.
 
 ### 6. Dashboard-Specific: Multi-Container Deployments
 
@@ -2001,12 +2028,26 @@ unrelated to the PR, and a pin lets you bump it deliberately.
      run: |
        set -euo pipefail
        for f in /tmp/*.yaml; do
-         kubeconform -strict -ignore-missing-schemas \
-           -kubernetes-version 1.31.0 -output json "$f" > /tmp/kc.json || true
-         echo "skipped kinds in $f:"
-         jq -r '[.resources[]|select(.status=="statusSkipped")|.kind]|unique|join(", ")' /tmp/kc.json
+         set +e
+         kubeconform -strict -ignore-missing-schemas -verbose \
+           -kubernetes-version 1.31.0 -output json "$f" > /tmp/kc.json 2> /tmp/kc.err
+         status=$?
+         set -e
+         # statusInvalid / statusError are real defects: fail on them.
+         if [ "$status" -ne 0 ] && grep -Eq '"status": ?"(statusInvalid|statusError)"' /tmp/kc.json; then
+           cat /tmp/kc.err /tmp/kc.json >&2
+           echo "❌ kubeconform rejected $f"; exit 1
+         fi
+         if [ ! -s /tmp/kc.json ]; then
+           cat /tmp/kc.err >&2
+           echo "❌ kubeconform produced no report for $f"; exit 1
+         fi
+         # -verbose is required for statusSkipped records. It also records the
+         # CRDs themselves, which have no standalone schema — allow that exact
+         # (apiVersion, kind) pair, never a whole group.
          BAD=$(jq -r '
            .resources[] | select(.status=="statusSkipped")
+           | select(. == {"version":"apiextensions.k8s.io/v1","kind":"CustomResourceDefinition"} | not)
            | . as $r
            | (if ($r.version|contains("/")) then ($r.version|split("/")[0]) else "" end) as $g
            | select($g=="" or ($g|endswith(".k8s.io")) or ($g|IN("apps","batch","policy","autoscaling","extensions")))
@@ -2016,6 +2057,11 @@ unrelated to the PR, and a pin lets you bump it deliberately.
          fi
        done
    ```
+
+   `|| true` on the kubeconform call is the single most common way this check
+   ends up decorative: it discards the non-zero exit, so `statusInvalid` and
+   `statusError` never reach the summary and the job stays green. Compare the
+   exit status and the JSON report separately.
 
    Pin `kubeconform` and `kubernetes-version` (e.g. 1.31.0) so results are reproducible.
 
