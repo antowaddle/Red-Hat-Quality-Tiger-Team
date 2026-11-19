@@ -1537,6 +1537,31 @@ The general rule already appears in this document — *a check that cannot fail 
 worse than no check* — and that is precisely what a `|| true` on a validator, or
 an unverified download-then-execute, produces. Apply it to the templates too.
 
+## Learning: one build variant is not the product
+
+The odh-dashboard simulator builds twice (`BUILD_MODE=ODH` and `=RHOAI`) and
+asserts the artifacts do not contaminate each other. That looked like
+dashboard-specific complexity, so the feast-module-operator onboarding copied
+the single-build shape. It was wrong, and the reason is visible in the
+repository rather than in the workflow.
+
+`feast-module-operator` has no `ARG BUILD_MODE`. It still has two products.
+`ODH_PLATFORM_TYPE=odh|rhoai` selects a different overlay at runtime:
+`opendatahub` vs `redhat-ods-applications`, `registry.k8s.io/kubectl` vs
+`registry.redhat.io/openshift4/ose-cli`, `odh-kube-rbac-proxy` vs
+`rhoai/odh-kube-rbac-proxy-rhel9`, and `rhoai` adds `../../prometheus` plus a
+`ServiceMonitor`. Only the ODH overlay had ever been deployed by CI. A
+`RELATED_IMAGE_*` value, a namespace, or a bundled monitoring object that only
+exists on one side is invisible to a single-variant simulator, and those are
+exactly the inputs to "component NotReady" tickets.
+
+The generalisation: a variant is anything that changes the artifact or the
+deployed resource set. Compile-time build-args, runtime platform selectors, and
+a separate `red-hat-data-services/*` repository are all variants. Enumerate
+them from the repo (Step 1.2b) before designing jobs; the workflow should have
+one leg per variant, named after it, with `fail-fast: false` so one red leg
+does not hide the other.
+
 ## References
 
 - npm issue with --network=none: https://github.com/npm/cli/issues

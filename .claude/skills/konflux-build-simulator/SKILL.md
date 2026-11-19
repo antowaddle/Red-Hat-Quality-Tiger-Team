@@ -93,7 +93,7 @@ Validation`.
 - ✅ Builds Docker image with production build mode (RHOAI, etc.)
 - ✅ Tests multi-stage build (builder + runtime)
 - ✅ Validates COPY commands and file paths
-- ✅ Catches BUILD_MODE environment differences
+- ✅ Covers every build variant (Step 1.2b/2.1c)
 
 #### Runtime Validation
 - ✅ Starts container

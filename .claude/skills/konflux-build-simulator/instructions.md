@@ -298,6 +298,46 @@ grep "^COPY" Dockerfile
 grep "^CMD\|^ENTRYPOINT" Dockerfile
 ```
 
+#### Step 1.2b: Enumerate the Build Variants (ODH, RHOAI, downstream)
+
+A simulator that builds one artifact proves one artifact. ODH components
+usually ship at least two: the upstream/ODH build and the downstream/RHOAI
+build. Find out how they differ **before** writing jobs, or the simulator
+silently covers half the product.
+
+Three mechanisms produce the difference. Check all three:
+
+```bash
+# 1. A build-arg that changes the bytes in the image
+rg -n "ARG (BUILD_MODE|PLATFORM|DISTRIBUTION|[A-Z_]*_MODE)" -g '*ockerfile*' -g 'Containerfile*'
+rg -n "BUILD_MODE|BUILD_PLATFORM" .github .tekton 2>/dev/null
+
+# 2. A Makefile or script variable that selects the inputs
+rg -n "ODH_PLATFORM_TYPE|PLATFORM_TYPE|DOWNSTREAM|IS_RHOAI" Makefile hack/ scripts/ 2>/dev/null
+
+# 3. A separate downstream repository that is the real build input
+rg -n "red-hat-data-services|quay.io/rhoai|registry.redhat.io" hack/ scripts/ Makefile .tekton 2>/dev/null
+```
+
+| Mechanism | What changes | Simulator requirement |
+|-----------|--------------|-----------------------|
+| `ARG BUILD_MODE=RHOAI` in the Containerfile | The bytes in the image: branding, route bundles, feature flags | Build **both** variants and assert cross-contamination (the ODH build must not carry RHOAI branding, and vice versa) |
+| Platform selector such as `ODH_PLATFORM_TYPE` | Which manifests/overlays get rendered, which platform-type value is injected at runtime | Run the operator/e2e phase once per value — not once in total |
+| Downstream repo (`red-hat-data-services/<component>`) | The pinned manifest commit and the `RELATED_IMAGE_*` registry set | Pin and validate the downstream commit; say so explicitly if you cannot build it |
+
+Record the answer in the PR description as a table of variants and which job
+covers each. A variant with no job is a coverage gap to name, not something to
+leave implied.
+
+Do not assume the dashboard's shape. `odh-dashboard` needs two docker builds
+because `BUILD_MODE` is a compile-time input. `feast-module-operator` has no
+build-arg at all and still has two variants: `ODH_PLATFORM_TYPE=odh|rhoai`
+selects a different overlay — namespace, `RELATED_IMAGE_CRON_JOB`
+(`registry.k8s.io/kubectl` vs `registry.redhat.io/openshift4/ose-cli`),
+`odh-kube-rbac-proxy` vs `rhoai/odh-kube-rbac-proxy-rhel9`, and `rhoai` adds
+`../../prometheus` plus a `ServiceMonitor`. Same image, different deployed
+resource set, and only one of them was ever deployed.
+
 #### Step 1.3: Detect Module Federation (if monorepo)
 
 ```bash
@@ -1350,6 +1390,48 @@ done
 - Warm an isolated `UV_CACHE_DIR` and **delete the venv** before the `--offline` install. If the venv survives, the second install can satisfy itself from installed packages and the check passes without proving the prefetch is sufficient.
 - Run the Python resolution in a venv: PEP 668 externally-managed environments (Homebrew, Debian) reject `pip install --dry-run`.
 - Keep this in a separate fast preflight job and make image builds depend on it.
+
+#### Step 2.1c: Add the Build-Variant Matrix (when Step 1.2b found more than one)
+
+**Compile-time variants** (`ARG BUILD_MODE`) get one build job per value, plus a
+cross-contamination assertion:
+
+```yaml
+  docker-build-odh:
+    steps:
+      - run: docker build --build-arg BUILD_MODE=ODH -t "$IMAGE_ODH" .
+
+  docker-build-rhoai:
+    steps:
+      - run: docker build --build-arg BUILD_MODE=RHOAI -t "$IMAGE_RHOAI" .
+```
+
+Assert the branding rather than stopping at a green build. A build-arg that
+stops being plumbed still builds successfully — it just builds the wrong
+artifact. Grep the built image for the other variant's markers and fail when
+they are present.
+
+**Runtime variants** (platform selector) get a matrix leg on the deploy/e2e
+job, not a second image build:
+
+```yaml
+  operator-e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [odh, rhoai]
+    steps:
+      - run: make test-e2e ODH_PLATFORM_TYPE=${{ matrix.platform }} IMG=<pr image>
+```
+
+Name the legs after the platform (`Operator e2e (odh)`, `Operator e2e (rhoai)`)
+so a red leg says which platform broke. `fail-fast: false` is required: the
+first leg failing must not hide whether the other platform was also broken.
+
+If a variant genuinely cannot run in CI — no entitlement-protected registry
+access, no OpenShift APIs on Kind — say that in the PR description and file the
+follow-up. Do not let the matrix quietly shrink to the variant that happens to
+work.
 
 #### Step 2.2: Add Module Federation Validation (if detected)
 
