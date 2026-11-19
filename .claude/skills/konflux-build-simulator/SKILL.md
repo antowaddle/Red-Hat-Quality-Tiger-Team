@@ -27,7 +27,8 @@ This skill analyzes a repository and generates GitHub Actions workflows to valid
 
 **Read [`instructions.md`](instructions.md) before generating anything.** The
 procedure, thresholds, fault-injection requirements and environment traps live
-there; this file is the summary. `LEARNINGS.md` records why each check exists.
+there; this file is the summary. Then read [`LEARNINGS.md`](LEARNINGS.md): it
+records why each check exists, and most checks make no sense without it.
 
 It starts from evidence, not a checklist: before generating anything it mines
 the component's historical Jira breakages, classifies each one as catchable
