@@ -25,6 +25,10 @@ Simulates Konflux build environment on PRs to catch build failures before they r
 
 This skill analyzes a repository and generates GitHub Actions workflows to validate builds at PR time, catching failures that would otherwise only be discovered in Konflux or production.
 
+**Read [`instructions.md`](instructions.md) before generating anything.** The
+procedure, thresholds, fault-injection requirements and environment traps live
+there; this file is the summary. `LEARNINGS.md` records why each check exists.
+
 It starts from evidence, not a checklist: before generating anything it mines
 the component's historical Jira breakages, classifies each one as catchable
 here, catchable only in the consuming operator, or not catchable at all, and
@@ -285,19 +289,8 @@ Ask in this order:
 - ✅ Faster development cycle
 
 ### Comprehensive Coverage
-- ✅ **Proven against real failures** - Checks are aimed at tickets that actually escaped, and shown to fail on them
-- ✅ **Hermetic build failures** - Catches issues before downstream RHOAI builds
-- ✅ **Workspace dependency issues** - Prevents missing package errors
-- ✅ **FIPS compliance violations** - Warns about release blockers
-- ✅ **Dependency regressions** - Detects crashloops from breaking changes (e.g., fastify v4→v5)
-- ✅ **WebSocket crashes** - Catches @fastify/websocket v11 pod crashes (PR #6727, #7387)
-- ✅ **API content-type rejections** - Detects 415 errors on PATCH operations (PR #6727, #7387)
-- ✅ **Permission issues** - Tests non-root user runtime
-- ✅ Docker build failures (any stage)
-- ✅ Module Federation issues (including missing chunks, slow loads)
-- ✅ Operator packaging problems
-- ✅ Manifest generation errors
-- ✅ Runtime crashes (immediate and delayed)
+- ✅ **Proven against real failures** - Each check is aimed at a ticket that actually escaped, and shown to fail on it
+- ✅ Build, hermetic, packaging, manifest, Module Federation and runtime failures, as listed above
 
 ### Developer Experience
 - ✅ Fast feedback (10-20 min)
@@ -316,3 +309,9 @@ Ask in this order:
 - Repository with Dockerfile
 - GitHub Actions enabled
 - Public or accessible repository
+
+## Files
+
+- `SKILL.md` — This document: what the skill does and what it checks
+- `instructions.md` — The procedure the agent follows; read it before generating anything
+- `LEARNINGS.md` — Why each check exists: field failures, gotchas, and approaches that were rejected

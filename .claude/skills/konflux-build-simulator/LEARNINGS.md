@@ -1562,6 +1562,32 @@ them from the repo (Step 1.2b) before designing jobs; the workflow should have
 one leg per variant, named after it, with `fail-fast: false` so one red leg
 does not hide the other.
 
+## Learning: an unreferenced document does not exist
+
+`SKILL.md` described the skill but never mentioned `instructions.md` or
+`LEARNINGS.md`. Claude Code loads `SKILL.md` when a skill is invoked and does
+not walk the directory, so 2,900 lines of procedure — the steps, the
+thresholds, the fault-injection rules — were unreachable. The skill would have
+run from the summary alone and quietly produced the generic green checks it
+exists to prevent.
+
+The other skills in this repository link their supporting files from a
+`## Files` section; this one did not, which made it look like a deliberate
+split rather than an omission.
+
+Two things to take from it:
+
+1. **A skill is a package, and its entry point is the whole contract.** Anything
+   an agent must read has to be reachable from `SKILL.md`, transitively.
+   Writing the guidance is not the same as delivering it.
+2. **The lint rule that would have caught this does not run.** `skillsaw` ships
+   `agentskill-unreferenced-files` ("Every bundled skill file should be
+   referenced from SKILL.md, directly or transitively"), and it reports
+   `skipped (not applicable)` on this repository — verified against the
+   unfixed `SKILL.md`, which has zero references. So the guard cannot be
+   relied on. The `## Files` section is the fix; a reviewer is the check.
+   See the earlier learning on checks that cannot fail.
+
 ## References
 
 - npm issue with --network=none: https://github.com/npm/cli/issues
