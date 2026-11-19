@@ -1275,6 +1275,10 @@ Dockerfiles that merely mention feast. Filter by mechanism, not by count.
 Seventeen tickets had a mechanism this simulator reproduces; the rest were
 reconciliation, bundle, or NetworkPolicy failures that need a cluster.
 
+**The operator was the missing phase.** The repo's own operator e2e builds
+from source, so the published operator image was untested; see "a source-built
+operator suite cannot test the image under test" below.
+
 **Fork PRs cannot run Konflux.** The three Konflux status checks fail in ~1 second
 on a fork PR — that is admission denial when the PipelineRun is created, not a
 build failure, and it is not related to the change. Say so in the PR so a
@@ -1291,6 +1295,60 @@ commit passed on the other matrix legs. A single unrelated failure that moves
 between runs is flake, not regression — compare the same suite on a sibling
 matrix leg before spending time on it, and say so in the PR. External
 contributors cannot re-run jobs, so a maintainer has to clear it.
+
+## Learning: a source-built operator suite cannot test the image under test
+
+feast ships an operator e2e suite that deploys a real operator into a real Kind
+cluster, which reads like full operator coverage. It calls
+`utils.DeployOperatorFromCode(...)`, which runs `make docker-build` in the test
+and loads that image. The PipelineRun's Containerfile is never involved, so a
+broken entrypoint, a missing binary, or a bad environment contract in the
+published image is invisible to it.
+
+The suite was also label-gated (`ok-to-test` / `approved` / `lgtm`) and filtered
+to `paths: infra/**`, so it did not run on most PRs even to do the source-built
+version.
+
+### The phase that closes it
+
+1. Build both images from PipelineRun inputs — operator `Dockerfile` with
+   context `infra/feast-operator`, operand Dockerfile with context `.` — and
+   `kind load docker-image` each one, so nothing is pulled from a registry.
+2. `make install`, then `make deploy IMG=<operator> FS_IMG=<operand>`; the
+   Makefile's `related-image-fs` target is what carries the operand image into
+   the operator's env.
+3. `kubectl wait --for=condition=Available deployment/<name>`. "Created" is not
+   "runnable": a crash-looping container satisfies the object existing.
+4. Assert the running Deployment's image equals the one you built. This catches
+   a stale tag or a default that overrode your flag.
+5. Apply a minimal CR, wait for the operand, then assert an operand pod runs the
+   built image — that is what proves reconcile happened *and* used the PR image.
+6. Dump operator logs, operand pods and events before deleting the cluster.
+
+### `kubectl wait --all` errors on an empty set
+
+`kubectl wait --for=condition=Available deployment --all -n <ns>` returns
+`error: no matching resources found` when nothing matches — which is exactly the
+state right after applying a CR, before the operator has reconciled. The first
+run of the feast phase failed here after reconciling correctly, and the error
+reads like a reconcile failure if you only read the last line.
+
+Poll until `kubectl get deployment -o name` is non-empty, then wait:
+
+```bash
+while [ -z "$(kubectl -n "$NS" get deployment -o name)" ]; do sleep 5; done
+kubectl -n "$NS" wait --for=condition=Available deployment --all --timeout=10m
+```
+
+### Ungating a suite surfaces its unpaid flakes
+
+Removing the label gate is one line, but budget for the suite being red. The
+first unlabelled feast run passed `Should be able to deploy and run a
+TestSimpleFeastCR` and failed `TestRemoteRegistryFeastCR` — the remote-setup
+Deployment never became Available in three minutes — on a PR that changed no
+operator code. A suite that only runs when a maintainer asks for it has never
+had its timing assumptions tested against a loaded runner. Report it as a
+finding, do not "fix" it by re-adding the gate.
 
 ## Worked example: feast-module-operator (generated chart and RBAC identity)
 

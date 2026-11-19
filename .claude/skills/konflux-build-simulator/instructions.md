@@ -2317,6 +2317,32 @@ conditions cannot be asserted from this repository.
 
 Do not report `DataScienceCluster` coverage in the simulator summary.
 
+#### Step 2.5c: Check the repo's own operator e2e (if it has one)
+
+A repository that ships an operator usually has a Kind/operator e2e suite.
+Two questions decide whether that suite gives you image coverage at all:
+
+```bash
+# 1. Does it deploy the operator from source, or from a prebuilt image?
+rg -n "DeployOperatorFromCode|make deploy|IMG=|FS_IMG=" infra/*/test .github/workflows
+
+# 2. Is it gated behind a label, or a path filter that excludes the operand?
+rg -n "labels\.|ok-to-test|lgtm|approved|paths:" .github/workflows/*operator*e2e*.yml
+```
+
+- **Source-built** (`DeployOperatorFromCode`, `make docker-build` inside the
+  test) proves the code compiles and reconciles. It never runs the image the
+  PipelineRun publishes, so add an operator-image phase.
+- **Label-gated** means the suite is not part of standard CI. Removing the gate
+  is in scope — it is the only coverage that exercises a real cluster.
+- **Path-gated to the operator directory alone** misses changes to the operand
+  images the operator renders. Add those paths.
+
+Expect an unlabelled suite to be red for reasons unrelated to your diff the
+first time it runs: it has never run on every PR, so its flakes have never been
+paid down. Compare against a sibling matrix leg or spec, and say so in the PR
+rather than chasing it.
+
 #### Step 2.6: Prove the Checks Catch Them (always)
 
 A check you have never seen fail is a check you have not tested. Every row from
