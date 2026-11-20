@@ -1275,6 +1275,10 @@ Dockerfiles that merely mention feast. Filter by mechanism, not by count.
 Seventeen tickets had a mechanism this simulator reproduces; the rest were
 reconciliation, bundle, or NetworkPolicy failures that need a cluster.
 
+**The operator was the missing phase.** The repo's own operator e2e builds
+from source, so the published operator image was untested; see "a source-built
+operator suite cannot test the image under test" below.
+
 **Fork PRs cannot run Konflux.** The three Konflux status checks fail in ~1 second
 on a fork PR — that is admission denial when the PipelineRun is created, not a
 build failure, and it is not related to the change. Say so in the PR so a
@@ -1282,6 +1286,332 @@ reviewer does not go looking for a code problem.
 
 **PR title lint.** feast runs commitlint with `subject-case: sentence-case`;
 `ci: add ...` fails, `ci: Add ...` passes.
+
+**Tell your failures from theirs.** The feast unit suite failed on exactly one
+test in each of two runs, a different one each time
+(`test_wait_for_index_ready_timeout`, then
+`test_apply_stream_source_from_repo`), with 4,553 and 4,564 passing. The same
+commit passed on the other matrix legs. A single unrelated failure that moves
+between runs is flake, not regression — compare the same suite on a sibling
+matrix leg before spending time on it, and say so in the PR. External
+contributors cannot re-run jobs, so a maintainer has to clear it.
+
+## Learning: a source-built operator suite cannot test the image under test
+
+feast ships an operator e2e suite that deploys a real operator into a real Kind
+cluster, which reads like full operator coverage. It calls
+`utils.DeployOperatorFromCode(...)`, which runs `make docker-build` in the test
+and loads that image. The PipelineRun's Containerfile is never involved, so a
+broken entrypoint, a missing binary, or a bad environment contract in the
+published image is invisible to it.
+
+The suite was also label-gated (`ok-to-test` / `approved` / `lgtm`) and filtered
+to `paths: infra/**`, so it did not run on most PRs even to do the source-built
+version.
+
+### The phase that closes it
+
+1. Build both images from PipelineRun inputs — operator `Dockerfile` with
+   context `infra/feast-operator`, operand Dockerfile with context `.` — and
+   `kind load docker-image` each one, so nothing is pulled from a registry.
+2. `make install`, then `make deploy IMG=<operator> FS_IMG=<operand>`; the
+   Makefile's `related-image-fs` target is what carries the operand image into
+   the operator's env.
+3. `kubectl wait --for=condition=Available deployment/<name>`. "Created" is not
+   "runnable": a crash-looping container satisfies the object existing.
+4. Assert the running Deployment's image equals the one you built. This catches
+   a stale tag or a default that overrode your flag.
+5. Apply a minimal CR, wait for the operand, then assert an operand pod runs the
+   built image — that is what proves reconcile happened *and* used the PR image.
+6. Dump operator logs, operand pods and events before deleting the cluster.
+
+### `kubectl wait --all` errors on an empty set
+
+`kubectl wait --for=condition=Available deployment --all -n <ns>` returns
+`error: no matching resources found` when nothing matches — which is exactly the
+state right after applying a CR, before the operator has reconciled. The first
+run of the feast phase failed here after reconciling correctly, and the error
+reads like a reconcile failure if you only read the last line.
+
+Poll until `kubectl get deployment -o name` is non-empty, then wait. Bound the
+poll: if the operator never creates the Deployment, an unbounded loop hangs
+until the job's own timeout and hides the operator error:
+
+```bash
+deadline=$((SECONDS + 120))
+while [ -z "$(kubectl -n "$NS" get deployment -o name)" ]; do
+  if [ "$SECONDS" -ge "$deadline" ]; then
+    kubectl -n "$NS" get pods,events 2>&1 | tail -40 >&2
+    echo "no Deployment appeared in $NS within 2m" >&2
+    exit 1
+  fi
+  sleep 5
+done
+kubectl -n "$NS" wait --for=condition=Available deployment --all --timeout=10m
+```
+
+### Ungating a suite surfaces its unpaid flakes
+
+Removing the label gate is one line, but budget for the suite being red. The
+first unlabelled feast run passed `Should be able to deploy and run a
+TestSimpleFeastCR` and failed `TestRemoteRegistryFeastCR` — the remote-setup
+Deployment never became Available in three minutes — on a PR that changed no
+operator code. A suite that only runs when a maintainer asks for it has never
+had its timing assumptions tested against a loaded runner. Report it as a
+finding, do not "fix" it by re-adding the gate.
+
+## Worked example: feast-module-operator (generated chart and RBAC identity)
+
+`feast-module-operator` builds one image and ships the operand manifests inside
+it. It is the smallest repo this skill has been run against, and it still had
+two contract failures that no compiler, linter, or `go test` can see.
+
+### The generated chart is not verified anywhere
+
+`config/chart` is generated by `make helm` from `config/default`, and it is the
+path `opendatahub-operator` consumes through `manifests-config.yaml`
+(`sourcePath: config/chart`). `ci.yaml` runs four jobs plus `docker-build`;
+`Verify Generated Files` runs `make manifests generate`, which covers CRDs and
+deepcopy code and nothing else. **No job runs `make helm`.**
+
+Running it on a clean `git archive HEAD` of `main` changes three files:
+
+- `config/chart/values.yaml` — committed
+  `quay.io/opendatahub/odh-feast-module-operator:odh-stable`, regenerated
+  `ttl.sh/opendatahub-feast-operator:latest` (from
+  `config/manager/kustomization.yaml`)
+- `config/chart/templates/networking.k8s.io_v1_networkpolicy.yaml` — committed
+  `opendatahub-feast-allow-egress` / `{{ .Values.namespace }}`, regenerated
+  `allow-egress` / `{{ default .Release.Namespace .Values.namespace }}`
+- `config/chart/templates/upgrade-gates.yaml` — committed, but not produced by
+  `make helm` at all
+
+That is the shape of RHOAIENG-96436 (`odh-feast-operator — manifests are out of
+sync`, an RC1 blocker for 3.6-EA2). The ticket's own mechanism was the
+downstream `red-hat-data-services` fork sync, which this check does not cover;
+the in-repo half — "the shipped chart is not what the source generates" — is
+what it does cover, and it was true on `main` the day the skill ran.
+
+Because the drift already exists, the check has to **warn**. A hard failure
+would block every PR in the repo on its first run and be removed within a day.
+The warning names the files and says the check can be promoted once the
+committed chart is regenerated.
+
+### RBAC identity: the check that reproduces RHOAIENG-100514
+
+The Data module outage in October 2026 was a render-scope bug, not a kustomize
+rename bug. Kustomize's name-reference transformer *does* update a
+`RoleBinding`/`ClusterRoleBinding` subject when the referenced
+`ServiceAccount` is in the same rendered set; a binding rendered without that
+`ServiceAccount` keeps the literal name. In `feast-module-operator`,
+`kustomize build overlays/openshift` emits
+`tls_clusterrolebinding.yaml` with subject `controller-manager` and no
+`ServiceAccount`, while `overlays/rhoai` includes `../../default` and renders
+the subject as `feast-operator-controller-manager` in
+`redhat-ods-applications`. The operator ran as the prefixed identity while the
+binding that reached the cluster granted permissions to `controller-manager`.
+It started, failed to read
+`apiservers.config.openshift.io`, crash-looped, `default-feastoperator` stayed
+`Not Ready`, and the `DataScienceCluster` was never Ready
+(RHOAIENG-100514, RHOAIENG-100515, RHOAIENG-99631).
+
+The check is twenty lines: collect the `(namespace, name)` of every rendered
+`ServiceAccount` in the **union** of manifests applied together, then assert
+every RBAC subject and every pod `serviceAccountName` is in that set. Fault-
+injected by rewriting the rendered chart's subjects back to `controller-manager`:
+
+```
+ClusterRoleBinding/opendatahub-feast-manager-rolebinding binds to
+ServiceAccount validation/controller-manager, which the chart does not create
+```
+
+It has to run on **rendered** output, and on the union rather than per overlay.
+`namePrefix` is a kustomize transform, so the raw overlay and the raw chart
+template both look correct; and `openshift` alone has the binding but no
+`ServiceAccount`, while `default` has the `ServiceAccount` but no binding. Name
+and namespace must both match. For a `RoleBinding`, a subject with no explicit
+namespace defaults to the binding's namespace; for a `ClusterRoleBinding`, no
+namespace means the binding is invalid and should be reported. Comparing names
+alone reports a false mismatch whenever two namespaces define the same name.
+
+### Two false positives worth pre-empting
+
+- `COPY --from=builder /workspace/bin/manager .` is not a build-context path.
+  A naive "every COPY source must exist" walk fails on every multi-stage
+  Dockerfile. Skip `COPY` lines containing `--from=`.
+- `cp -r /manifests/. /opt/manifests/` reaches the parser as separate argv
+  tokens. Require `cp` to be the executable (`os.path.basename(argv[0]) == "cp"`),
+  filter flag tokens, and treat the last token as the destination. `sh -c` and
+  `cp -t DIR SRC` need explicit handling; don't treat any argv that mentions
+  `cp` as a copy.
+
+### The green job that skipped its own check
+
+The first CI run of the drift check passed in 2m21s. It had not checked
+anything: `make helm` failed in the clean export, the script printed a warning
+and returned 0, and the job went green. The failure only surfaced when the log
+was read line by line — which nobody does for a passing job.
+
+Two separate bugs, both worth carrying forward:
+
+1. **A skipped assertion must not be a pass.** Capture the generator output and
+   exit non-zero when generation fails. *Drift* may warn (it pre-exists);
+   *inability to generate* must fail.
+2. **Workflow `env:` overrides Makefile `?=` variables.** The workflow exported
+   `KUSTOMIZE_VERSION: '5.8.1'`. `KUSTOMIZE_VERSION ?= v5.8.1` does not apply
+   when the variable is already set, so `make helm` ran
+   `go run ...kustomize/v5@5.8.1` and died with `invalid version: unknown
+   revision 5.8.1`. The `v` was in the Makefile default and not in the
+   workflow. Prefix every simulator variable (`SIM_*`) so it cannot collide.
+
+### Environment: the `go run` fallback is not free
+
+`make helm` and the skill's helm/kustomize fallbacks use `go run <module>@<ver>`.
+That needs a writable `GOCACHE` and a reachable module proxy. On a locked-down
+laptop it fails with `operation not permitted` on
+`~/Library/Caches/go-build`, or `dial tcp: lookup proxy.golang.org`. Add
+`HELM_BIN` / `KUSTOMIZE_BIN` / `KUBECONFORM_BIN` overrides, and install real
+binaries in CI.
+
+Two related Go notes:
+
+- `GOTOOLCHAIN=local` belongs in the CI hermetic job. With `auto`, a `go.mod`
+  bump past the builder image silently downloads a toolchain mid-build — the one
+  thing the Konflux builder cannot do. (On a laptop, `auto` plus an isolated
+  `GOMODCACHE` is still the right call; see the note above.)
+- **`go-version-file: go.mod` is the wrong toolchain.** It installs whatever
+  `go.mod` asks for, so the preflight passes on a Go the builder image does not
+  have. Parse the `golang:<ver>` tag out of the Containerfile, pass that to
+  `actions/setup-go`, and compare `go env GOVERSION` against it before building.
+- Do not hardcode `docker`. `CONTAINER_TOOL=docker|podman` costs three lines and
+  is the difference between the image check running and being skipped.
+
+### What the review of the simulator itself found
+
+A second pass over the generated workflow found six more traps, all of them in
+the simulator rather than the component:
+
+1. **`-verbose` is not optional.** kubeconform's `-output json` omits
+   `statusSkipped` records unless `-verbose` is set. Without it a `Deploymnet`
+   typo disappears from the report and the built-in-kind guard never fires.
+2. **`-verbose` also surfaces every CRD.** kubeconform ships no schema for
+   `CustomResourceDefinition`, so each one arrives as `statusSkipped`. Allow
+   exactly `(apiextensions.k8s.io/v1, CustomResourceDefinition)`; anything else
+   in a built-in group is a typo or an API version that no longer exists. Do not
+   allowlist the whole `apiextensions.k8s.io` group — that hides `v1beta1`.
+3. **A version in a URL is not integrity.** Pin the SHA-256 of every release
+   archive (`helm`, `kustomize`, `kubeconform`) in the workflow and run
+   `sha256sum --check --strict` before extracting. Same for installers:
+   `curl ... | sh` for `uv` becomes the SHA-pinned `astral-sh/setup-uv`.
+4. **The PipelineRun's dockerfile and context must travel.** Reading
+   `dockerfile` / `path-context` only to check they exist, then building
+   `Containerfile` with context `.`, lets a PR pass the simulator and break the
+   build Konflux actually runs. Resolve the target once and pass it to every
+   downstream check, including `COPY` source existence.
+5. **`.dockerignore` is a build input.** A PR that only edits it can break the
+   image build; it belongs in the relevant-path filter next to the Containerfile.
+6. **A lock is not an install.** `uv pip compile --python-platform
+   x86_64-manylinux_2_34` on an arm64 host proves the closure *resolves*. Gate
+   the offline install on `uname -m` matching the lock target and pass
+   `--python-platform` to both installs, or say plainly that only resolution ran.
+   For Go, `GOPROXY=off` alone still permits a direct VCS fetch for modules
+   matching `GONOPROXY`; add `GONOPROXY=none`.
+
+### Evidence table
+
+| Issue | Caught | By |
+|---|---|---|
+| RHOAIENG-100514 / 100515 — Data module NotReady, RBAC subject mismatch | Yes | `rbac-subjects` on the rendered chart |
+| RHOAIENG-99631 — DSC never Ready, rhods-operator renders the feast chart | Partly | Chart render + RBAC; platform consumption is out of scope |
+| RHOAIENG-57579 — duplicate `RELATED_IMAGE_CRON_JOB` | Yes | `duplicate-env` |
+| RHOAIENG-96436 — manifests out of sync | Partly | In-repo chart drift; downstream fork sync is separate |
+| RHOAIENG-83128 — `get-manifests.sh` pins an old feast commit | No | Needs a cluster |
+| RHOAIENG-101993 — reconciler crashes on `is not a WithReleases` | No | Needs `make test-e2e` |
+| RHOAIENG-79767 — ppc64le `ImagePullBackOff` | Warn | `build-platforms` absent from the PipelineRun |
+
+## Learning: the skill shipped the defects it was meant to catch
+
+Reviewing the two onboarding PRs side by side showed the same two findings in
+both. Neither came from the component repos — both were copied verbatim out of
+this skill's own recipes.
+
+**`kubeconform ... || true`.** Step 2.4b taught the typo guard with the exit
+status discarded. The guard then cannot fire: `statusInvalid` and `statusError`
+are exactly the states it exists to catch, and `|| true` drops both. CodeRabbit
+raised it independently on `feast#310` and `feast-module-operator#55`.
+
+**"DO NOT do binary checksum verification."** The security section said this
+explicitly, on the grounds that it was "too fragile in CI", and recommended
+HTTPS plus a pinned version instead. Both generated workflows therefore
+downloaded Helm, Kustomize, and kubeconform and `sudo install`ed them without a
+digest. Both PRs got CWE-494 / CWE-829 findings for it.
+
+Two things follow.
+
+1. **A skill snippet is a template, not an example.** Whatever it contains ends
+   up in every repo that onboards, so a defect in the recipe scales with
+   adoption. Review the recipes with the same suspicion as generated code —
+   ideally by fault-injecting them, the same rule the skill applies to checks.
+2. **Fix the fragility, don't abandon the control.** Checksum verification was
+   dropped because the first attempt was flaky, and the fix recorded was "don't
+   do it". The right fix is to pin the digest next to the version and read it
+   from the project's published checksum file, which is neither fragile nor
+   optional.
+
+The general rule already appears in this document — *a check that cannot fail is
+worse than no check* — and that is precisely what a `|| true` on a validator, or
+an unverified download-then-execute, produces. Apply it to the templates too.
+
+## Learning: one build variant is not the product
+
+The odh-dashboard simulator builds twice (`BUILD_MODE=ODH` and `=RHOAI`) and
+asserts the artifacts do not contaminate each other. That looked like
+dashboard-specific complexity, so the feast-module-operator onboarding copied
+the single-build shape. It was wrong, and the reason is visible in the
+repository rather than in the workflow.
+
+`feast-module-operator` has no `ARG BUILD_MODE`. It still has two products.
+`ODH_PLATFORM_TYPE=odh|rhoai` selects a different overlay at runtime:
+`opendatahub` vs `redhat-ods-applications`, `registry.k8s.io/kubectl` vs
+`registry.redhat.io/openshift4/ose-cli`, `odh-kube-rbac-proxy` vs
+`rhoai/odh-kube-rbac-proxy-rhel9`, and `rhoai` adds `../../prometheus` plus a
+`ServiceMonitor`. Only the ODH overlay had ever been deployed by CI. A
+`RELATED_IMAGE_*` value, a namespace, or a bundled monitoring object that only
+exists on one side is invisible to a single-variant simulator, and those are
+exactly the inputs to "component NotReady" tickets.
+
+The generalisation: a variant is anything that changes the artifact or the
+deployed resource set. Compile-time build-args, runtime platform selectors, and
+a separate `red-hat-data-services/*` repository are all variants. Enumerate
+them from the repo (Step 1.2b) before designing jobs; the workflow should have
+one leg per variant, named after it, with `fail-fast: false` so one red leg
+does not hide the other.
+
+## Learning: an unreferenced document does not exist
+
+`SKILL.md` described the skill but never mentioned `instructions.md` or
+`LEARNINGS.md`. Claude Code loads `SKILL.md` when a skill is invoked and does
+not walk the directory, so 2,900 lines of procedure — the steps, the
+thresholds, the fault-injection rules — were unreachable. The skill would have
+run from the summary alone and quietly produced the generic green checks it
+exists to prevent.
+
+The other skills in this repository link their supporting files from a
+`## Files` section; this one did not, which made it look like a deliberate
+split rather than an omission.
+
+Two things to take from it:
+
+1. **A skill is a package, and its entry point is the whole contract.** Anything
+   an agent must read has to be reachable from `SKILL.md`, transitively.
+   Writing the guidance is not the same as delivering it.
+2. **The lint rule that would have caught this does not run.** `skillsaw` ships
+   `agentskill-unreferenced-files` ("Every bundled skill file should be
+   referenced from SKILL.md, directly or transitively"), and it reports
+   `skipped (not applicable)` on this repository — verified against the
+   unfixed `SKILL.md`, which has zero references. So the guard cannot be
+   relied on. The `## Files` section is the fix; a reviewer is the check.
+   See the earlier learning on checks that cannot fail.
 
 ## References
 

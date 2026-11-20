@@ -16,6 +16,10 @@ Your job is to coordinate the analysis of a GitHub PR by:
 
 **Important:** This is an ADVISORY system only. Never block PRs - only provide recommendations.
 
+**MUST:** In Step 3, send all 4 Agent calls in a single message so they run in
+parallel. Calls sent in separate messages run sequentially and the analysis
+takes roughly four times as long.
+
 ---
 
 ## Step 0: Verify Dependencies & Parse Arguments
@@ -52,9 +56,8 @@ scripts/load_context.sh
 
 ## Step 3: Launch Analyzer Agents
 
-Launch 4 analyzers in parallel using the Agent tool:
-
-You MUST use the Agent tool to launch these 4 agents IN PARALLEL (in a single message with 4 Agent calls):
+Launch the 4 analyzers below with the Agent tool, following the parallelism
+rule at the top of this file:
 
 1. **Risk Analyzer** - Analyze security risks, breaking changes, critical paths
 2. **Test Validator** - Analyze test coverage and identify missing tests
@@ -100,8 +103,6 @@ REPO=${REPO}
 `
 })
 ```
-
-**IMPORTANT:** All 4 Agent calls must be in a single message so they run in parallel.
 
 After agents complete, verify all output artifacts exist:
 ```bash

@@ -7,6 +7,10 @@ description: Generates Claude Code agent rules for test creation by analyzing ex
 
 Automatically generates Claude Code agent rules for test creation by analyzing existing test patterns in a repository.
 
+**Read [`instructions.md`](instructions.md) before generating anything.** The
+full procedure — discovery, detection heuristics, rule templates and quality
+gates — lives there; this file is the summary.
+
 ## Usage
 
 ```bash
@@ -160,3 +164,8 @@ Generate markdown files with:
 3. **Onboarding**: New developers/agents learn patterns faster
 4. **Automation**: Enables agents to auto-create tests without manual guidance
 5. **Documentation**: Living documentation of test patterns
+
+## Files
+
+- `SKILL.md` — This document: what the skill generates and when to use it
+- `instructions.md` — The procedure the agent follows; read it before generating anything
