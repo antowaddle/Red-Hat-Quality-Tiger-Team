@@ -440,7 +440,7 @@ curl -fsSL "${PIPELINE_URL/github.com/raw.githubusercontent.com}/main/${PIPELINE
 **Rules:**
 
 - Only simulate images the repository's `.tekton` PR PipelineRuns build. Do not add controller, CSI, or test images Konflux does not build here, and do not duplicate coverage that existing workflows already provide (Kind/operator deployment, unit tests).
-- A pipeline named `multi-arch-*` is not automatically multi-arch: `odh-konflux-central` defaults `build-platforms` to `linux/x86_64`. Match CI to the resolved default (`linux/amd64` unless the PipelineRun overrides it).
+- A pipeline named `multi-arch-*` is not automatically multi-arch: `odh-konflux-central` defaults `build-platforms` to `linux/x86_64`. Compare against the exact value the pipeline resolves, or normalize the `x86_64`/`amd64` spellings before comparing; do not assume the two strings are interchangeable.
 - If `hermetic` or `prefetch-input` is set, the build depends on Hermeto prefetch; add the offline preflight from Step 2.1b.
 
 #### Step 1.6: Analyze Workspace Dependencies (Monorepo Only)
@@ -763,14 +763,18 @@ before extraction, so a swapped artifact fails closed:
 
 ```yaml
 env:
-  KUSTOMIZE_VERSION: 'v5.8.1'
-  KUSTOMIZE_SHA256: '<sha256 of kustomize_v5.8.1_linux_amd64.tar.gz>'
+  SIM_KUSTOMIZE_VERSION: 'v5.8.1'
+  SIM_KUSTOMIZE_SHA256: '<sha256 of kustomize_v5.8.1_linux_amd64.tar.gz>'
 run: |
   set -euo pipefail
-  curl -fsSL -o /tmp/kustomize.tar.gz "$URL"
-  printf '%s  %s\n' "$KUSTOMIZE_SHA256" /tmp/kustomize.tar.gz | sha256sum --check --strict
+  url="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${SIM_KUSTOMIZE_VERSION}/kustomize_${SIM_KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+  curl -fsSL -o /tmp/kustomize.tar.gz "$url"
+  printf '%s  %s\n' "$SIM_KUSTOMIZE_SHA256" /tmp/kustomize.tar.gz | sha256sum --check --strict
   tar -xzf /tmp/kustomize.tar.gz -C /tmp
 ```
+
+Name the variables `SIM_*` when the repository's Makefile defines the same
+version variable; see the Makefile-shadowing note in Step 2.4d.
 
 Take the digest from the project's published checksum file where one exists
 (Helm publishes `helm-vX.Y.Z-linux-amd64.tar.gz.sha256sum`, kubeconform ships
@@ -1421,7 +1425,8 @@ job, not a second image build:
       matrix:
         platform: [odh, rhoai]
     steps:
-      - run: make test-e2e ODH_PLATFORM_TYPE=${{ matrix.platform }} IMG=<pr image>
+      # $IMAGE is the operator image built by this PR's build job.
+      - run: make test-e2e ODH_PLATFORM_TYPE=${{ matrix.platform }} IMG="$IMAGE"
 ```
 
 Name the legs after the platform (`Operator e2e (odh)`, `Operator e2e (rhoai)`)
@@ -2126,10 +2131,11 @@ unrelated to the PR, and a pin lets you bump it deliberately.
          fi
          # -verbose is required for statusSkipped records. It also records the
          # CRDs themselves, which have no standalone schema — allow that exact
-         # (apiVersion, kind) pair, never a whole group.
+         # (apiVersion, kind) pair, never a whole group. Compare the fields, not
+         # the whole object: skipped records also carry a status field.
          BAD=$(jq -r '
            .resources[] | select(.status=="statusSkipped")
-           | select(. == {"version":"apiextensions.k8s.io/v1","kind":"CustomResourceDefinition"} | not)
+           | select((.version == "apiextensions.k8s.io/v1" and .kind == "CustomResourceDefinition") | not)
            | . as $r
            | (if ($r.version|contains("/")) then ($r.version|split("/")[0]) else "" end) as $g
            | select($g=="" or ($g|endswith(".k8s.io")) or ($g|IN("apps","batch","policy","autoscaling","extensions")))
@@ -2238,57 +2244,150 @@ grep -nE '^[a-zA-Z0-9_-]+:' Makefile | grep -iE 'helm|bundle|manifests|generate'
 gh search code "sourcePath: <dir>" --filename=manifests-config.yaml --limit 10
 ```
 
-Then regenerate from a clean export of `HEAD` and diff:
+Set `BASE_REF` to the PR base commit and fetch it before running the check.
+Regenerate both `HEAD` and the base, compare what each expects to generate, and
+only warn for drift already present on the base:
 
 ```bash
-tmp="$(mktemp -d)"; mkdir -p "$tmp/repo"
-git archive HEAD | tar -x -C "$tmp/repo"
-( cd "$tmp/repo" && make helm )
-diff -r config/chart "$tmp/repo/config/chart"
+set -euo pipefail
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+base_ref="${BASE_REF:?set BASE_REF to the PR base commit}"
+
+if ! git rev-parse --verify "$base_ref^{commit}" >/dev/null; then
+  echo "base ref $base_ref is not available; fetch it before checking drift" >&2
+  exit 1
+fi
+
+for ref in HEAD "$base_ref"; do
+  label=head
+  [ "$ref" = "$base_ref" ] && label=base
+  mkdir -p "$tmp/$label" "$tmp/$label-committed"
+  git archive "$ref" | tar -x -C "$tmp/$label"
+  if [ -d "$tmp/$label/config/chart" ]; then
+    cp -R "$tmp/$label/config/chart/." "$tmp/$label-committed/"
+  fi
+  if ! ( cd "$tmp/$label" && make helm >"$tmp/make-$label.log" 2>&1 ); then
+    cat "$tmp/make-$label.log" >&2
+    echo "::error::make helm failed on $ref; the chart cannot be verified" >&2
+    exit 1
+  fi
+  if [ ! -d "$tmp/$label/config/chart" ]; then
+    echo "::error::$ref generated no config/chart" >&2
+    exit 1
+  fi
+
+  # Record "path<TAB>generated digest" for every stale file. Keying on the
+  # content the ref generates, not just the path, catches a PR that changes
+  # what a file should contain while it stays committed stale.
+  : > "$tmp/$label.files"
+  for path in "$tmp/$label-committed"/* "$tmp/$label/config/chart"/*; do
+    rel="${path#"$tmp/$label-committed/"}"
+    rel="${rel#"$tmp/$label/config/chart/"}"
+    printf '%s\n' "$rel"
+  done | LC_ALL=C sort -u | while IFS= read -r rel; do
+    cmp -s "$tmp/$label-committed/$rel" "$tmp/$label/config/chart/$rel" \
+      || printf '%s\t%s\n' "$rel" "$(cksum < "$tmp/$label/config/chart/$rel")" \
+         >> "$tmp/$label.files"
+  done
+  LC_ALL=C sort -o "$tmp/$label.files" "$tmp/$label.files"
+  diff -ru "$tmp/$label-committed" "$tmp/$label/config/chart" > "$tmp/$label.diff" 2>&1 || true
+done
+
+new_drift="$(LC_ALL=C comm -23 "$tmp/head.files" "$tmp/base.files")"
+if [ -n "$new_drift" ]; then
+  cat "$tmp/head.diff" >&2
+  echo "::error::config/chart drift introduced by this PR:" >&2
+  printf '%s\n' "$new_drift" | cut -f1 >&2
+  exit 1
+fi
+if [ -s "$tmp/head.files" ]; then
+  echo "::warning::config/chart is already drifted on $base_ref: $(cut -f1 "$tmp/head.files" | paste -sd, -)"
+  cat "$tmp/head.diff"
+fi
 ```
+
+Pass the repository's prebuilt tool overrides (for example `KUSTOMIZE=...` or
+`HELM=...`) to `make` when it supports them, so the job does not depend on a
+network-backed `go run`.
 
 Rules:
 
 - **Warn, do not fail, on pre-existing drift.** If `main` is already drifted, a
-  hard failure blocks every PR on day one and the check gets removed. Emit the
-  diff as a warning, say how to fix it, and promote it to a hard failure once
-  the committed artifact is regenerated.
+  hard failure blocks every PR on day one and the check gets removed. Compare
+  the base and head drift sets: warn for files that are already stale on the
+  base, and fail when the PR changes what a file should generate while it stays
+  committed stale.
+- **A failed generator is a failure, not a skip.** If `make helm` cannot run,
+  exit non-zero; a green job that never generated the artifact is worse than a
+  red one.
 - Print *which files* drift. "chart is out of sync" is not actionable;
   `values.yaml`, the NetworkPolicy template, and a template that `make helm` no
   longer produces are.
-- Regenerate from `git archive HEAD`, not the working tree, so the check
-  compares what is committed.
+- Regenerate from `git archive <ref>` for both `HEAD` and the base, not the
+  working tree, so the check compares what is committed.
 - A generation target that also regenerates CRDs and deepcopy code (`helm:
   manifests generate`) is fine — only diff the artifact directory.
 
 **2. RBAC bindings that name an identity the manifests never create.**
 
-A kustomize `namePrefix` rewrites the `ServiceAccount` name but not the
-`subjects` of a `RoleBinding` or `ClusterRoleBinding`. The result renders,
-schema-validates, and then crash-loops on startup. RHOAIENG-100514 /
-RHOAIENG-100515: `tls_clusterrolebinding.yaml` still bound `controller-manager`
-while the prefix produced `feast-operator-controller-manager`; the operator
+A kustomize `namePrefix` is applied by the kustomization that declares it.
+Kustomize's name-reference transformer updates a `RoleBinding` or
+`ClusterRoleBinding` subject when the referenced `ServiceAccount` is part of the
+same rendered set; a binding rendered without that `ServiceAccount` keeps the
+literal name. In `feast-module-operator`, rendering `overlays/openshift` alone
+leaves `controller-manager`; rendering `overlays/rhoai` with `../../default`
+produces `feast-operator-controller-manager`. The failure is a binding rendered
+or applied without the prefixed `ServiceAccount`, not `namePrefix` ignoring
+subjects in general. RHOAIENG-100514 / RHOAIENG-100515:
+`tls_clusterrolebinding.yaml` still bound `controller-manager` while the
+deployed `ServiceAccount` was `feast-operator-controller-manager`; the operator
 could not read `apiservers.config.openshift.io`, `default-feastoperator` stayed
 `Not Ready`, and the `DataScienceCluster` was never Ready (RHOAIENG-99631 is the
 same outage from the platform side).
 
 ```python
-service_accounts = {d["metadata"]["name"] for d in docs if d["kind"] == "ServiceAccount"}
+# docs is the union of every rendered manifest applied to the cluster together.
+service_accounts = set()
 for d in docs:
-    if d["kind"] in {"RoleBinding", "ClusterRoleBinding"}:
+    if d.get("kind") != "ServiceAccount":
+        continue
+    meta = d.get("metadata") or {}
+    if meta.get("name"):
+        service_accounts.add((meta.get("namespace", ""), meta["name"]))
+
+for d in docs:
+    kind = d.get("kind")
+    meta = d.get("metadata") or {}
+    namespace = meta.get("namespace", "")
+    if kind in {"RoleBinding", "ClusterRoleBinding"}:
         for s in d.get("subjects") or []:
-            if s.get("kind") == "ServiceAccount" and s["name"] not in service_accounts:
-                fail(f"{d['kind']}/{d['metadata']['name']} binds {s['namespace']}/{s['name']}")
-    if d["kind"] in {"Deployment", "StatefulSet", "DaemonSet"}:
-        sa = d["spec"]["template"]["spec"].get("serviceAccountName")
-        if sa and sa not in service_accounts:
-            fail(f"{d['kind']}/{d['metadata']['name']} runs as {sa}")
+            if s.get("kind") != "ServiceAccount":
+                continue
+            account_ns = s.get("namespace") or namespace
+            if (account_ns, s.get("name")) not in service_accounts:
+                fail(f"{kind}/{meta.get('name')} binds {account_ns}/{s.get('name')}")
+
+    spec = d.get("spec") or {}
+    pod_spec = None
+    if kind in {"Deployment", "StatefulSet", "DaemonSet", "Job"}:
+        pod_spec = (spec.get("template") or {}).get("spec")
+    elif kind == "CronJob":
+        job = (spec.get("jobTemplate") or {}).get("spec") or {}
+        pod_spec = (job.get("template") or {}).get("spec")
+    if pod_spec:
+        sa = pod_spec.get("serviceAccountName")
+        if sa and (namespace, sa) not in service_accounts:
+            fail(f"{kind}/{meta.get('name')} runs as {sa}")
 ```
 
-Run it on **rendered** output. Raw kustomize directories do not apply
-`namePrefix`, so the mismatch is invisible there. Skip the whole check when the
-render produces no `ServiceAccount` at all — the platform may create the
-identity.
+Load every rendered manifest that is applied together into one `docs` list and
+run the check on that union. Do not run it once per overlay: `openshift` alone
+has the binding but no `ServiceAccount`, while `default` has the
+`ServiceAccount` but no binding. Raw kustomize directories do not apply
+`namePrefix`, so the mismatch is invisible there. Skip the whole check only
+when the union contains no `ServiceAccount`; do not skip an individual overlay
+that has a binding but no `ServiceAccount`.
 
 **3. The manifest path contract between image, chart, and binary.**
 
@@ -2311,9 +2410,10 @@ handoff. Fixtures: RHOAIENG-99568 (model-registry shipped to
 - `COPY --from=<stage> <path> <dest>` references an earlier build stage, not the
   build context. Skip every `COPY` line containing `--from=` before checking
   that sources exist, or the checker fails on any multi-stage Dockerfile.
-- Parse argv, not strings. `cp -r /manifests/. /opt/manifests/` arrives as
-  separate tokens; filtering tokens that start with `-` is enough to find the
-  source and destination.
+- Parse argv, not strings. The copier must have `cp` as its executable
+  (`os.path.basename(argv[0]) == "cp"`); an init container with `command: [echo]`
+  and `cp` in its arguments copies nothing. Filter flag tokens and handle
+  `cp -r SRC DEST`; `cp -t DIR SRC` and `sh -c "cp ..."` need explicit handling.
 
 **Do not export environment variables that the repo's Makefile defines.**
 `KUSTOMIZE_VERSION ?= v5.8.1` does **not** apply when the environment already

@@ -1333,10 +1333,20 @@ state right after applying a CR, before the operator has reconciled. The first
 run of the feast phase failed here after reconciling correctly, and the error
 reads like a reconcile failure if you only read the last line.
 
-Poll until `kubectl get deployment -o name` is non-empty, then wait:
+Poll until `kubectl get deployment -o name` is non-empty, then wait. Bound the
+poll: if the operator never creates the Deployment, an unbounded loop hangs
+until the job's own timeout and hides the operator error:
 
 ```bash
-while [ -z "$(kubectl -n "$NS" get deployment -o name)" ]; do sleep 5; done
+deadline=$((SECONDS + 120))
+while [ -z "$(kubectl -n "$NS" get deployment -o name)" ]; do
+  if [ "$SECONDS" -ge "$deadline" ]; then
+    kubectl -n "$NS" get pods,events 2>&1 | tail -40 >&2
+    echo "no Deployment appeared in $NS within 2m" >&2
+    exit 1
+  fi
+  sleep 5
+done
 kubectl -n "$NS" wait --for=condition=Available deployment --all --timeout=10m
 ```
 
@@ -1389,27 +1399,40 @@ committed chart is regenerated.
 
 ### RBAC identity: the check that reproduces RHOAIENG-100514
 
-The Data module outage in October 2026 was a kustomize rename, not a code bug.
-`namePrefix: feast-operator-` rewrote the `ServiceAccount` but not the
-`subjects` of `tls_clusterrolebinding.yaml`, so the operator ran as
-`feast-operator-controller-manager` while its binding granted permissions to
-`controller-manager`. It started, failed to read
+The Data module outage in October 2026 was a render-scope bug, not a kustomize
+rename bug. Kustomize's name-reference transformer *does* update a
+`RoleBinding`/`ClusterRoleBinding` subject when the referenced
+`ServiceAccount` is in the same rendered set; a binding rendered without that
+`ServiceAccount` keeps the literal name. In `feast-module-operator`,
+`kustomize build overlays/openshift` emits
+`tls_clusterrolebinding.yaml` with subject `controller-manager` and no
+`ServiceAccount`, while `overlays/rhoai` includes `../../default` and renders
+the subject as `feast-operator-controller-manager` in
+`redhat-ods-applications`. The operator ran as the prefixed identity while the
+binding that reached the cluster granted permissions to `controller-manager`.
+It started, failed to read
 `apiservers.config.openshift.io`, crash-looped, `default-feastoperator` stayed
 `Not Ready`, and the `DataScienceCluster` was never Ready
 (RHOAIENG-100514, RHOAIENG-100515, RHOAIENG-99631).
 
-The check is twenty lines: collect the rendered `ServiceAccount` names, then
-assert every RBAC subject and every pod `serviceAccountName` is in that set.
-Fault-injected by rewriting the rendered chart's subjects back to
-`controller-manager`:
+The check is twenty lines: collect the `(namespace, name)` of every rendered
+`ServiceAccount` in the **union** of manifests applied together, then assert
+every RBAC subject and every pod `serviceAccountName` is in that set. Fault-
+injected by rewriting the rendered chart's subjects back to `controller-manager`:
 
 ```
 ClusterRoleBinding/opendatahub-feast-manager-rolebinding binds to
 ServiceAccount validation/controller-manager, which the chart does not create
 ```
 
-It has to run on **rendered** output. `namePrefix` is a kustomize transform, so
-the raw overlay and the raw chart template both look correct.
+It has to run on **rendered** output, and on the union rather than per overlay.
+`namePrefix` is a kustomize transform, so the raw overlay and the raw chart
+template both look correct; and `openshift` alone has the binding but no
+`ServiceAccount`, while `default` has the `ServiceAccount` but no binding. Name
+and namespace must both match. For a `RoleBinding`, a subject with no explicit
+namespace defaults to the binding's namespace; for a `ClusterRoleBinding`, no
+namespace means the binding is invalid and should be reported. Comparing names
+alone reports a false mismatch whenever two namespaces define the same name.
 
 ### Two false positives worth pre-empting
 
@@ -1417,8 +1440,10 @@ the raw overlay and the raw chart template both look correct.
   A naive "every COPY source must exist" walk fails on every multi-stage
   Dockerfile. Skip `COPY` lines containing `--from=`.
 - `cp -r /manifests/. /opt/manifests/` reaches the parser as separate argv
-  tokens. Filter tokens starting with `-` and treat the last token as the
-  destination.
+  tokens. Require `cp` to be the executable (`os.path.basename(argv[0]) == "cp"`),
+  filter flag tokens, and treat the last token as the destination. `sh -c` and
+  `cp -t DIR SRC` need explicit handling; don't treat any argv that mentions
+  `cp` as a copy.
 
 ### The green job that skipped its own check
 

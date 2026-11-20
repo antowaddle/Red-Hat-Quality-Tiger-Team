@@ -181,8 +181,8 @@ Kind component filter excludes them. Emit the diff; do not reimplement them.
 - ✅ Overlay testing
 - ✅ **Operator-derived overlay coverage** - validates every overlay the operator renders at runtime, with dynamic module discovery (not just `find`-able kustomizations)
 - ✅ **kubeconform typo guard** - fails when a Kubernetes built-in kind is skipped for a missing schema (catches `Deploymnet`-style typos that `-ignore-missing-schemas` silently passes)
-- ✅ **Generated artifact drift** - regenerate `make helm` from `git archive HEAD` and diff (RHOAIENG-96436)
-- ✅ **RBAC identity** - binding subjects must name a rendered ServiceAccount (RHOAIENG-100514, -100515, -99631)
+- ✅ **Generated artifact drift** - regenerate `make helm` from `git archive` at both the PR base and HEAD; fail only on drift the PR adds (RHOAIENG-96436)
+- ✅ **RBAC identity** - RBAC subjects and pod identities must name a namespace-matching `ServiceAccount` in the same render set (RHOAIENG-100514, -100515, -99631)
 - ✅ **Manifest path contract** - image `COPY` dest = chart `cp` = `ODH_MODULE_OPERATOR_MANIFESTS_PATH` (RHOAIENG-99568)
 - ⚠️  Missing `build-platforms` warns only (RHOAIENG-79767)
 
