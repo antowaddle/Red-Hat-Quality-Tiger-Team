@@ -1199,6 +1199,57 @@ starts cleanly says nothing about whether the operator can render it, and the
 first model-registry onboarding looked complete while every one of those was
 still failing.
 
+### Worked example: kserve, where the component and the issue type both mislead
+
+kserve is not filed under its repository name either. Its work items live under
+`Serving Orchestration` (1000+ items); `Model Serving` is the legacy component
+(929 items) and still holds the older failures. `text ~ "kserve"` returns the
+same 1000+ because it matches comments on unrelated components, so text search
+is not a substitute for the component key.
+
+The second trap is the issue type. The Konflux and release automation file build
+failures as **Story**, not Bug: RHOAIENG-95421, 89178, 87954, 28024 and 46766
+are all Stories. A scan restricted to `issuetype = Bug`, which is what the
+model-registry run used, misses the incident where 7 of 8 components failed to
+build. Search `issuetype in (Bug, Story, Task)`.
+
+The filters that surfaced the build history:
+
+| Filter | What it found |
+|---|---|
+| `summary ~ "konflux"` | the Konflux-era build failures |
+| `summary ~ "build" AND summary ~ "fail"` | RHOAIENG-95421 (Go 1.26 vs `go-toolset:1.25`, 7 of 8 components), 28024, 46766 |
+| `summary ~ "hermetic" OR summary ~ "prefetch"` | 89178, 12260, 13042, 13043 |
+| `summary ~ "RELATED_IMAGE" OR summary ~ "digest"` | the operator/manifest pinning class, not image builds |
+
+Read the description and then the linked commit. RHOAIENG-53489 is titled only
+"Distro tag for LLMISVC controller build in downstream"; the commit it points at
+(`b9b3456`, "add distro arg to llmisvc konflux Dockerfile") is what makes it a
+build-arg-contract match rather than a documentation task.
+
+### Learning: the biggest historical failure class is often the one called out of scope
+
+The kserve impact scan found that the two largest clusters were hermetic prefetch
+(RHOAIENG-89178, 12260, 13042, 13043) and multi-arch (RHOAIENG-50322) — exactly
+the two classes the first draft listed as "not simulated, deliberately". Being
+explicit about a limitation is not the same as having measured it. Turn the
+limitation into a ranked backlog item, and say which historical tickets it would
+still miss.
+
+Before writing the scope paragraph, read `hermetic`, `prefetch-input` and
+`build-platforms` from every PipelineRun. If a class has historical tickets and
+the simulator does not cover it, it belongs under "What this does not catch"
+with a follow-up, not in a sentence that reads as a design decision.
+
+### Note: the repository's own Konflux app checks can be red for everyone
+
+On kserve, all nine or ten `Red Hat Konflux / <target>-on-pull` checks fail
+within about a minute on every open PR (2191, 2192, 2194 and 2201). They are
+Pipelines-as-Code statuses from the Konflux application, not the simulator's
+jobs. Before attributing a red Konflux check to the change, run the same check
+on an unrelated open PR. Name the simulator's own jobs in the PR body so a
+reviewer can tell which red is theirs.
+
 ## Learning: Fault injection is the only evidence a check works
 
 "This assertion would have caught it" is a hypothesis. Break the thing on a
