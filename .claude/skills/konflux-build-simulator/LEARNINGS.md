@@ -1904,6 +1904,28 @@ What to carry forward:
   the same security context passed while the exact Deployment container failed;
   the only remaining difference was the ConfigMap the Deployment referenced.
 
+## Learning: build the test object the API actually accepts
+
+The Kind job hand-built a `MaasTenantConfig` named `ci-tenant` and a matching
+`AITenant`. Both were rejected by the API the moment the job applied them:
+
+- the CRD carries `// +kubebuilder:validation:XValidation:rule="self.metadata.name
+  == 'default-tenant'"`, so every tenant config must be named `default-tenant`,
+  whatever tenant it describes; and
+- the AITenant admission webhook refuses a Gateway that another AITenant already
+  owns, so a second tenant needs its own Gateway.
+
+The error surfaced at `kubectl apply` with the whole job already five minutes in.
+The cheaper path was to stop fabricating a tenant and drive the
+`MaasTenantConfig/default-tenant` that the controller bootstraps on its own: it
+renders the same `maas-api` Deployment through the same code, and the only setup
+left is the Gateway, the database Secret and the test TLS material.
+
+Read the CRD's `x-kubernetes-validations` and the admission webhooks before
+writing a test fixture for a controller's CRs. A fixture that satisfies the
+schema can still be unrepresentable, and the controller's own bootstrap object
+is usually the most faithful thing to assert against.
+
 ## Worked example: three repos, eleven review rounds
 
 One session covered three repositories with different shapes:
