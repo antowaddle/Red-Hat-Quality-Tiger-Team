@@ -3119,12 +3119,22 @@ manifests/
 - [ ] Server smoke waits for the exact readiness line and bounds every probe
 - [ ] `kind load docker-image --name <cluster>` for images built in host Docker
 - [ ] FIPS settings read from the Dockerfile/Makefile that builds the target
+- [ ] The target file is exactly one `PipelineRun`, checked before its
+      parameters are read
 - [ ] `.dockerignore` evaluation is ordered and honours `!`
+- [ ] The effective ignore file is resolved per Dockerfile
+      (`<Dockerfile>.dockerignore` before the context's `.dockerignore`), and
+      the real `COPY` inputs are tested rather than synthetic probe paths
 - [ ] `COPY` sources and generator inputs are contained in the checkout
+- [ ] A digest-pinned manifest is patched locally and applied in one write
 
 **RBAC and operator handoff**
 
 - [ ] Effective rules scoped by RoleBinding namespace
+- [ ] A RoleBinding never satisfies a cluster-wide rule, and an unqualified
+      ServiceAccount subject uses the binding namespace
+- [ ] Role writes checked against grants that exist before the write; a
+      matching `escalate` grant is the only coverage bypass
 - [ ] `nonResourceURLs` matched as URLs, including wildcards
 - [ ] Aggregated ClusterRoles inspected for `escalate`
 - [ ] External consumers of vendored RBAC named in an `EXTERNAL_UNASSERTED`
@@ -3136,7 +3146,9 @@ manifests/
 
 - [ ] The repository's own `pre-commit` passes, not just a global hook
 - [ ] The repository's formatter passes, not just its linter
-- [ ] No predictable `/tmp` paths
+- [ ] No predictable `/tmp` paths; a default tool cache is `mktemp -d` and
+      removed on exit
+- [ ] Runs that rewrite a tracked file hold a lock from snapshot to restore
 - [ ] Documentation states the minimum Python/Go/Node version
 - [ ] Documentation is clear
 - [ ] Workflow syntax is valid

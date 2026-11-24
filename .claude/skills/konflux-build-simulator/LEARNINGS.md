@@ -1838,6 +1838,15 @@ The checks that made the closure meaningful:
 - **`escalate` can arrive through aggregation.** A ClusterRole with an
   `aggregationRule` inherits rules from labelled ClusterRoles. Reading only the
   literal `rules:` list misses an aggregate that grants `escalate`.
+- **A RoleBinding is namespaced, whatever it binds.** An unqualified
+  ServiceAccount subject resolves to the binding's namespace, and a RoleBinding
+  must never satisfy a cluster-wide rule. Only a ClusterRoleBinding grants
+  cluster scope.
+- **A role cannot authorize its own new rules.** Validate each role write
+  against the grants installed before that write; a proposed ClusterRole must
+  not satisfy its own coverage check. The bypass Kubernetes honors is an
+  `escalate` grant on that exact kind, scope and name, so check it first and
+  then keep the ordinary coverage check.
 
 ## Learning: a hermetic build must not mutate the checkout
 
@@ -1856,15 +1865,33 @@ steps changed files the PR would commit, or that a later step reads.
   Readiness before the memory limit lands proves the old spec is healthy.
 - **`.dockerignore` is ordered.** The last matching pattern wins and `!`
   re-includes. A "contains this pattern" check gets `!keep` after `*` backwards.
+- **Docker may not read the ignore file you checked.** When
+  `<Dockerfile>.dockerignore` exists next to the Dockerfile, Docker uses it and
+  ignores the context's `.dockerignore`. Resolve the effective file per target,
+  then test the paths the Dockerfile actually `COPY`s (`api/go.sum`), not
+  synthetic `__probe__` paths that no ignore rule can name.
 - **`COPY` globs must stay inside the build context.** Resolve `..` and absolute
   sources before deciding they are fine, and parse the JSON form
   (`COPY ["a", "b"]`) as well as the shell form.
+- **Serialize runs that rewrite a tracked file.** `deploy.py` writes the Kind
+  overlay's `params.env` in place. Two overlapping local runs can snapshot each
+  other's half-written values and leave the file dirty after both exit. Take a
+  checkout-scoped lock before the snapshot, restore the snapshot, then release.
+- **Submit a patched manifest in one API write.** `kubectl apply` followed by
+  `kubectl patch` lets a controller reconcile the unpatched spec (a mutable
+  `odh-stable` image, a `512Mi` limit) before the patch lands. Render the patch
+  locally with `kubectl patch --local -f ... -o yaml` and pipe that single
+  result to `kubectl apply -f -`.
 - **A FIPS setting is only real if the build that produces the image applies
   it.** Grepping for `GOEXPERIMENT` proves nothing; read the Dockerfile and
   Makefile that build the target and assert the digest of the Red Hat Go
   toolset.
 - **A chart ServiceMonitor needs `path: /metrics`.** One that scrapes `/`
   renders, deploys, and collects nothing.
+- **A default tool cache must be private.** A predictable shared path such as
+  `/tmp/<tool>-cache` lets another account plant an executable that skips the
+  download and checksum. Create the default with `mktemp -d` and remove it on
+  exit; only an explicit `TOOLS_DIR` may be reused.
 - **`verify-kustomize.yml` must run on `pull_request`.** A workflow that only
   runs on `push` never validates a contributor's PR.
 
