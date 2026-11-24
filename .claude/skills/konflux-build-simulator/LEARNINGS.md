@@ -1199,6 +1199,7 @@ starts cleanly says nothing about whether the operator can render it, and the
 first model-registry onboarding looked complete while every one of those was
 still failing.
 
+<a id="worked-example-kserve"></a>
 ### Worked example: kserve, where the component and the issue type both mislead
 
 kserve is not filed under its repository name either. Its work items live under
@@ -1411,6 +1412,7 @@ operator code. A suite that only runs when a maintainer asks for it has never
 had its timing assumptions tested against a loaded runner. Report it as a
 finding, do not "fix" it by re-adding the gate.
 
+<a id="worked-example-feast-module-operator"></a>
 ## Worked example: feast-module-operator (generated chart and RBAC identity)
 
 `feast-module-operator` builds one image and ships the operand manifests inside
@@ -1466,7 +1468,7 @@ It started, failed to read
 `Not Ready`, and the `DataScienceCluster` was never Ready
 (RHOAIENG-100514, RHOAIENG-100515, RHOAIENG-99631).
 
-The check is twenty lines: collect the `(namespace, name)` of every rendered
+The check is small: collect the `(namespace, name)` of every rendered
 `ServiceAccount` in the **union** of manifests applied together, then assert
 every RBAC subject and every pod `serviceAccountName` is in that set. Fault-
 injected by rewriting the rendered chart's subjects back to `controller-manager`:
@@ -1482,7 +1484,9 @@ template both look correct; and `openshift` alone has the binding but no
 `ServiceAccount`, while `default` has the `ServiceAccount` but no binding. Name
 and namespace must both match. For a `RoleBinding`, a subject with no explicit
 namespace defaults to the binding's namespace; for a `ClusterRoleBinding`, no
-namespace means the binding is invalid and should be reported. Comparing names
+namespace means the binding is invalid and should be reported. A rendered
+`ServiceAccount` with no `metadata.namespace` can only be matched by name, so
+render explicit namespaces to keep the namespace in the key: comparing names
 alone reports a false mismatch whenever two namespaces define the same name.
 
 ### Two false positives worth pre-empting
@@ -1666,6 +1670,7 @@ Two things to take from it:
 
 ## References
 
+- Worked examples: [kserve](#worked-example-kserve), [feast-module-operator](#worked-example-feast-module-operator)
 - npm issue with --network=none: https://github.com/npm/cli/issues
 - Hermeto documentation: (add link)
 - odh-dashboard PR #9658 (operator reconcile smoke test + kubeconform hardening): https://github.com/opendatahub-io/odh-dashboard/pull/9658

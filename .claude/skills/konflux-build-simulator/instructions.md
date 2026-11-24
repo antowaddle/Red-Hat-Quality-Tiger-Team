@@ -2120,10 +2120,12 @@ unrelated to the PR, and a pin lets you bump it deliberately.
            -kubernetes-version 1.31.0 -output json "$f" > /tmp/kc.json 2> /tmp/kc.err
          status=$?
          set -e
-         # statusInvalid / statusError are real defects: fail on them.
-         if [ "$status" -ne 0 ] && grep -Eq '"status": ?"(statusInvalid|statusError)"' /tmp/kc.json; then
+         # Any non-zero exit is a failure: invalid or errored resources, but
+         # also a malformed input or a crashed binary. Never key off the JSON
+         # alone — a partial report can omit both status strings.
+         if [ "$status" -ne 0 ]; then
            cat /tmp/kc.err /tmp/kc.json >&2
-           echo "❌ kubeconform rejected $f"; exit 1
+           echo "❌ kubeconform failed on $f (exit $status)"; exit 1
          fi
          if [ ! -s /tmp/kc.json ]; then
            cat /tmp/kc.err >&2
@@ -2148,8 +2150,9 @@ unrelated to the PR, and a pin lets you bump it deliberately.
 
    `|| true` on the kubeconform call is the single most common way this check
    ends up decorative: it discards the non-zero exit, so `statusInvalid` and
-   `statusError` never reach the summary and the job stays green. Compare the
-   exit status and the JSON report separately.
+   `statusError` never reach the summary and the job stays green. Fail on the
+   exit status alone and use the JSON report only for the `statusSkipped`
+   allow-list; a partial report with neither status string must not pass.
 
    Pin `kubeconform` and `kubernetes-version` (e.g. 1.31.0) so results are reproducible.
 
@@ -2244,18 +2247,25 @@ grep -nE '^[a-zA-Z0-9_-]+:' Makefile | grep -iE 'helm|bundle|manifests|generate'
 gh search code "sourcePath: <dir>" --filename=manifests-config.yaml --limit 10
 ```
 
-Set `BASE_REF` to the PR base commit and fetch it before running the check.
-Regenerate both `HEAD` and the base, compare what each expects to generate, and
-only warn for drift already present on the base:
+Set `BASE_REF` to the PR base commit (in the workflow, pass
+`${{ github.event.pull_request.base.sha }}`). The check fetches it when the
+checkout is shallow. Regenerate both `HEAD` and the base, compare what each
+expects to generate, and only warn for drift already present on the base:
 
 ```bash
 set -euo pipefail
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+trap "rm -rf '$tmp'" EXIT
 base_ref="${BASE_REF:?set BASE_REF to the PR base commit}"
 
-if ! git rev-parse --verify "$base_ref^{commit}" >/dev/null; then
-  echo "base ref $base_ref is not available; fetch it before checking drift" >&2
+# actions/checkout defaults to fetch-depth: 1, so the base commit is usually
+# absent even though the PR event carries its SHA.
+if ! git rev-parse --verify "$base_ref^{commit}" >/dev/null 2>&1; then
+  git fetch --no-tags --depth=1 origin "$base_ref"
+  base_ref="$(git rev-parse FETCH_HEAD^{commit})"
+fi
+if ! git rev-parse --verify "$base_ref^{commit}" >/dev/null 2>&1; then
+  echo "::error::base ref $base_ref is unavailable after fetch" >&2
   exit 1
 fi
 
@@ -2279,16 +2289,26 @@ for ref in HEAD "$base_ref"; do
 
   # Record "path<TAB>generated digest" for every stale file. Keying on the
   # content the ref generates, not just the path, catches a PR that changes
-  # what a file should contain while it stays committed stale.
+  # what a file should contain while it stays committed stale. Walk files with
+  # find: config/chart nests templates/*.yaml, which a top-level glob misses.
   : > "$tmp/$label.files"
-  for path in "$tmp/$label-committed"/* "$tmp/$label/config/chart"/*; do
-    rel="${path#"$tmp/$label-committed/"}"
-    rel="${rel#"$tmp/$label/config/chart/"}"
-    printf '%s\n' "$rel"
-  done | LC_ALL=C sort -u | while IFS= read -r rel; do
-    cmp -s "$tmp/$label-committed/$rel" "$tmp/$label/config/chart/$rel" \
-      || printf '%s\t%s\n' "$rel" "$(cksum < "$tmp/$label/config/chart/$rel")" \
-         >> "$tmp/$label.files"
+  {
+    ( cd "$tmp/$label-committed" && find . -type f -print )
+    ( cd "$tmp/$label/config/chart" && find . -type f -print )
+  } | sed 's|^\./||' | LC_ALL=C sort -u | while IFS= read -r rel; do
+    committed="$tmp/$label-committed/$rel"
+    generated="$tmp/$label/config/chart/$rel"
+    if cmp -s "$committed" "$generated"; then
+      continue
+    fi
+    # sha256sum, not cksum: this is content identity, not an integrity check,
+    # and the generated file may have been deleted by this ref.
+    if [ -f "$generated" ]; then
+      digest="$(sha256sum "$generated" | cut -d' ' -f1)"
+    else
+      digest="deleted"
+    fi
+    printf '%s\t%s\n' "$rel" "$digest" >> "$tmp/$label.files"
   done
   LC_ALL=C sort -o "$tmp/$label.files" "$tmp/$label.files"
   diff -ru "$tmp/$label-committed" "$tmp/$label/config/chart" > "$tmp/$label.diff" 2>&1 || true
@@ -2328,6 +2348,9 @@ Rules:
   working tree, so the check compares what is committed.
 - A generation target that also regenerates CRDs and deepcopy code (`helm:
   manifests generate`) is fine — only diff the artifact directory.
+- **Fetch the base commit inside the check.** `actions/checkout` defaults to
+  `fetch-depth: 1`, so a workflow that assumes the base is present fails before
+  it compares anything. Fetch the SHA the PR event provides.
 
 **2. RBAC bindings that name an identity the manifests never create.**
 
@@ -2354,19 +2377,36 @@ for d in docs:
         continue
     meta = d.get("metadata") or {}
     if meta.get("name"):
-        service_accounts.add((meta.get("namespace", ""), meta["name"]))
+        service_accounts.add((meta.get("namespace") or "", meta["name"]))
+
+def resolves(namespace, name):
+    # A ServiceAccount rendered without metadata.namespace is applied into the
+    # overlay's target namespace, which the union does not record. Match it by
+    # name; render explicit namespaces if you need cross-namespace precision.
+    return (namespace, name) in service_accounts or ("", name) in service_accounts
 
 for d in docs:
     kind = d.get("kind")
     meta = d.get("metadata") or {}
-    namespace = meta.get("namespace", "")
+    namespace = meta.get("namespace") or ""
     if kind in {"RoleBinding", "ClusterRoleBinding"}:
         for s in d.get("subjects") or []:
             if s.get("kind") != "ServiceAccount":
                 continue
-            account_ns = s.get("namespace") or namespace
-            if (account_ns, s.get("name")) not in service_accounts:
-                fail(f"{kind}/{meta.get('name')} binds {account_ns}/{s.get('name')}")
+            name = s.get("name")
+            if kind == "ClusterRoleBinding":
+                # Cluster-scoped bindings have no namespace to inherit: an
+                # omitted subject namespace is invalid, not defaulted.
+                if not s.get("namespace"):
+                    fail(f"{kind}/{meta.get('name')} binds {name} with no subject namespace")
+                    continue
+                account_ns = s["namespace"]
+            else:
+                # A RoleBinding subject with no namespace defaults to the
+                # binding's namespace (Kubernetes API semantics).
+                account_ns = s.get("namespace") or namespace
+            if not resolves(account_ns, name):
+                fail(f"{kind}/{meta.get('name')} binds {account_ns}/{name}")
 
     spec = d.get("spec") or {}
     pod_spec = None
@@ -2377,7 +2417,7 @@ for d in docs:
         pod_spec = (job.get("template") or {}).get("spec")
     if pod_spec:
         sa = pod_spec.get("serviceAccountName")
-        if sa and (namespace, sa) not in service_accounts:
+        if sa and not resolves(namespace, sa):
             fail(f"{kind}/{meta.get('name')} runs as {sa}")
 ```
 
@@ -2387,7 +2427,9 @@ has the binding but no `ServiceAccount`, while `default` has the
 `ServiceAccount` but no binding. Raw kustomize directories do not apply
 `namePrefix`, so the mismatch is invisible there. Skip the whole check only
 when the union contains no `ServiceAccount`; do not skip an individual overlay
-that has a binding but no `ServiceAccount`.
+that has a binding but no `ServiceAccount`. Render explicit `metadata.namespace`
+values when you can: the name-only fallback for an unqualified `ServiceAccount`
+cannot distinguish two same-named accounts in different namespaces.
 
 **3. The manifest path contract between image, chart, and binary.**
 
@@ -2405,15 +2447,92 @@ handoff. Fixtures: RHOAIENG-99568 (model-registry shipped to
 `/opt/manifests/modelregistry`, operator read `/opt/manifests/aihub`) and the
 `feast-module-operator` equivalent, which passes today.
 
+```python
+import os, posixpath, shlex
+
+def normalize(path):
+    return posixpath.normpath(path.rstrip("/")) or "/"
+
+def where(owner):
+    meta = owner.get("metadata") or {}
+    return f"{owner.get('kind')}/{meta.get('name')}"
+
+def pod_specs(docs):
+    for d in docs:
+        kind, spec = d.get("kind"), d.get("spec") or {}
+        if kind in {"Deployment", "StatefulSet", "DaemonSet", "Job"}:
+            yield d, (spec.get("template") or {}).get("spec") or {}
+        elif kind == "CronJob":
+            job = (spec.get("jobTemplate") or {}).get("spec") or {}
+            yield d, (job.get("template") or {}).get("spec") or {}
+
+# 1. Containerfile: the COPY --from that stages the operand manifests.
+image_dir = None
+for line in open("Containerfile", encoding="utf-8"):
+    line = line.strip()
+    if not line.upper().startswith("COPY "):
+        continue
+    argv = shlex.split(line, comments=True)
+    if not any(a.startswith("--from=") for a in argv):
+        continue  # build-context COPY: the image build verifies it, not this check
+    args = [a for a in argv[1:] if not a.startswith("--")]
+    if len(args) >= 2 and "manifests" in args[0]:
+        image_dir = normalize(args[-1])
+if image_dir is None:
+    fail("Containerfile has no COPY --from of the operand manifests")
+
+# 2. Chart initContainer: cp <staged tree> <shared volume>.
+chart_source = chart_dest = None
+for owner, pod in pod_specs(docs):
+    for container in pod.get("initContainers") or []:
+        argv = list(container.get("command") or []) + list(container.get("args") or [])
+        if not argv:
+            continue
+        shell_flags = [a for a in argv[1:] if a.startswith("-") and not a.startswith("--")]
+        if os.path.basename(argv[0]) in {"sh", "bash"} and any("c" in a[1:] for a in shell_flags):
+            fail(f"{where(owner)}: cp behind a shell string cannot be verified")
+        if os.path.basename(argv[0]) != "cp":
+            continue  # command: [echo] with cp in args copies nothing
+        target_dir = any(
+            a.startswith("--target-directory")
+            or (a.startswith("-") and not a.startswith("--") and "t" in a[1:])
+            for a in argv
+        )
+        if target_dir:
+            fail(f"{where(owner)}: cp -t is not handled; use cp SRC DEST")
+        rest = [a for a in argv[1:] if not a.startswith("-")]
+        if len(rest) != 2:
+            fail(f"{where(owner)}: expected cp SRC DEST, got {argv}")
+        chart_source, chart_dest = rest
+if chart_source is None:
+    fail("chart has no initContainer cp of the operand manifests")
+if normalize(chart_source) != image_dir:
+    fail(f"chart copies {chart_source}, image stages {image_dir}")
+
+# 3. Deployment env: the path the binary reads.
+env_path = None
+for owner, pod in pod_specs(docs):
+    for container in pod.get("containers") or []:
+        for env in container.get("env") or []:
+            if str(env.get("name", "")).endswith("MANIFESTS_PATH"):
+                env_path = env.get("value")
+if env_path is None:
+    fail("no *MANIFESTS_PATH env var on the Deployment")
+if normalize(chart_dest) != normalize(env_path):
+    fail(f"chart copies to {chart_dest}, binary reads {env_path}")
+```
+
 **Two false positives to avoid:**
 
 - `COPY --from=<stage> <path> <dest>` references an earlier build stage, not the
-  build context. Skip every `COPY` line containing `--from=` before checking
-  that sources exist, or the checker fails on any multi-stage Dockerfile.
+  build context. If you also check that build-context sources exist, skip every
+  `COPY` line containing `--from=`, or the checker fails on any multi-stage
+  Dockerfile.
 - Parse argv, not strings. The copier must have `cp` as its executable
   (`os.path.basename(argv[0]) == "cp"`); an init container with `command: [echo]`
-  and `cp` in its arguments copies nothing. Filter flag tokens and handle
-  `cp -r SRC DEST`; `cp -t DIR SRC` and `sh -c "cp ..."` need explicit handling.
+  and `cp` in its arguments copies nothing. The snippet filters flag tokens,
+  handles `cp -r SRC DEST`, and fails loudly on `cp -t DIR SRC` and
+  `sh -c "cp ..."` rather than silently skipping them.
 
 **Do not export environment variables that the repo's Makefile defines.**
 `KUSTOMIZE_VERSION ?= v5.8.1` does **not** apply when the environment already
