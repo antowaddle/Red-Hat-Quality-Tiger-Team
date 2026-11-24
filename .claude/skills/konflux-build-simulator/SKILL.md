@@ -25,6 +25,11 @@ Simulates Konflux build environment on PRs to catch build failures before they r
 
 This skill analyzes a repository and generates GitHub Actions workflows to validate builds at PR time, catching failures that would otherwise only be discovered in Konflux or production.
 
+**Read [`instructions.md`](instructions.md) before generating anything.** The
+procedure, thresholds, fault-injection requirements and environment traps live
+there; this file is the summary. Then read [`LEARNINGS.md`](LEARNINGS.md): it
+records why each check exists, and most checks make no sense without it.
+
 It starts from evidence, not a checklist: before generating anything it mines
 the component's historical Jira breakages, classifies each one as catchable
 here, catchable only in the consuming operator, or not catchable at all, and
@@ -93,7 +98,7 @@ Validation`.
 - ✅ Builds Docker image with production build mode (RHOAI, etc.)
 - ✅ Tests multi-stage build (builder + runtime)
 - ✅ Validates COPY commands and file paths
-- ✅ Catches BUILD_MODE environment differences
+- ✅ Covers every build variant (Step 1.2b/2.1c)
 
 #### Runtime Validation
 - ✅ Starts container
@@ -102,10 +107,7 @@ Validation`.
 - ✅ Tests non-root user runtime (catches permission issues)
 - ✅ Waits for health check
 - ✅ Validates endpoints
-- ✅ **Tests critical API endpoints** - Catches fastify v5 regressions
-  - Tests PATCH with `application/merge-patch+json` (415 error in Fastify 5)
-  - Tests PATCH with `application/json-patch+json` (breaks 28+ operations)
-  - Prevents PR #6727 style regressions
+- ✅ **PATCH content types** - catches fastify v5 415/merge-patch regressions (PR #6727)
 - ✅ **Tests WebSocket compatibility** - Catches connection crashes
   - Validates WebSocket endpoints don't crash the pod
   - Catches @fastify/websocket v11 regression (SocketStream removal)
@@ -176,11 +178,13 @@ Kind component filter excludes them. Emit the diff; do not reimplement them.
 
 #### Manifest Validation (if applicable)
 - ✅ Kustomize build validation
-- ✅ ConfigMap generation
 - ✅ Overlay testing
-- ✅ Resource validation
 - ✅ **Operator-derived overlay coverage** - validates every overlay the operator renders at runtime, with dynamic module discovery (not just `find`-able kustomizations)
 - ✅ **kubeconform typo guard** - fails when a Kubernetes built-in kind is skipped for a missing schema (catches `Deploymnet`-style typos that `-ignore-missing-schemas` silently passes)
+- ✅ **Generated artifact drift** - regenerate `make helm` from `git archive` at both the PR base and HEAD; fail only on drift the PR adds (RHOAIENG-96436)
+- ✅ **RBAC identity** - RBAC subjects and pod identities must name a namespace-matching `ServiceAccount` in the same render set (RHOAIENG-100514, -100515, -99631)
+- ✅ **Manifest path contract** - image `COPY` dest = chart `cp` = `ODH_MODULE_OPERATOR_MANIFESTS_PATH` (RHOAIENG-99568)
+- ⚠️  Missing `build-platforms` warns only (RHOAIENG-79767)
 
 #### Not Covered (state this explicitly)
 - ❌ Platform-operator reconciliation (`DataScienceCluster`): component
@@ -286,19 +290,8 @@ Ask in this order:
 - ✅ Faster development cycle
 
 ### Comprehensive Coverage
-- ✅ **Proven against real failures** - Checks are aimed at tickets that actually escaped, and shown to fail on them
-- ✅ **Hermetic build failures** - Catches issues before downstream RHOAI builds
-- ✅ **Workspace dependency issues** - Prevents missing package errors
-- ✅ **FIPS compliance violations** - Warns about release blockers
-- ✅ **Dependency regressions** - Detects crashloops from breaking changes (e.g., fastify v4→v5)
-- ✅ **WebSocket crashes** - Catches @fastify/websocket v11 pod crashes (PR #6727, #7387)
-- ✅ **API content-type rejections** - Detects 415 errors on PATCH operations (PR #6727, #7387)
-- ✅ **Permission issues** - Tests non-root user runtime
-- ✅ Docker build failures (any stage)
-- ✅ Module Federation issues (including missing chunks, slow loads)
-- ✅ Operator packaging problems
-- ✅ Manifest generation errors
-- ✅ Runtime crashes (immediate and delayed)
+- ✅ **Proven against real failures** - Each check is aimed at a ticket that actually escaped, and shown to fail on it
+- ✅ Build, hermetic, packaging, manifest, Module Federation and runtime failures, as listed above
 
 ### Developer Experience
 - ✅ Fast feedback (10-20 min)
@@ -317,3 +310,9 @@ Ask in this order:
 - Repository with Dockerfile
 - GitHub Actions enabled
 - Public or accessible repository
+
+## Files
+
+- `SKILL.md` — This document: what the skill does and what it checks
+- `instructions.md` — The procedure the agent follows; read it before generating anything
+- `LEARNINGS.md` — Why each check exists: field failures, gotchas, and approaches that were rejected
