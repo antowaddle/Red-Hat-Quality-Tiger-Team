@@ -738,6 +738,15 @@ This validates:
 
 Much stronger than just checking YAML syntax!
 
+**Apply a rendered bundle with an explicit `-n <namespace>`.** Kustomize
+`configMapGenerator`/`secretGenerator` output carries no `metadata.namespace`,
+so a bare `kubectl apply -f rendered.yaml` puts it in the caller's `default`
+namespace while the Deployment keeps its own namespace. The `configMapKeyRef`
+lookups then miss, `$(VAR)` arguments stay literal, and a controller that
+validates its flags before it calls `ctrl.SetLogger` exits 1 with no logs at
+all. Assert the generated ConfigMap exists in the Deployment's namespace before
+waiting for readiness.
+
 **Be lenient on manifest *application*, never on manifest *validation*.** When
 applying to a Kind cluster, `kubectl apply` may legitimately fail on resources
 the cluster cannot admit (CRDs not yet established, ClusterRoleBinding

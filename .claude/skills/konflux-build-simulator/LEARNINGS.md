@@ -1868,6 +1868,42 @@ steps changed files the PR would commit, or that a later step reads.
 - **`verify-kustomize.yml` must run on `pull_request`.** A workflow that only
   runs on `push` never validates a contributor's PR.
 
+## Learning: a container that exits 1 with no logs failed before its logger existed
+
+The models-as-a-service Kind job failed with `CrashLoopBackOff`, `exitCode: 1`,
+an empty termination `message`, and zero lines from `kubectl logs` and
+`kubectl logs --previous`. The same image started normally when run under the
+same security context in the same cluster from a shell, which ruled out the
+binary, the read-only root filesystem and the service account.
+
+The cause was the generated `maas-parameters` ConfigMap. Kustomize emits it
+without a namespace; `kubectl apply -f rendered.yaml` therefore put it in the
+caller's `default` namespace, while the Deployment reached `opendatahub` through
+its own explicit `metadata.namespace`. Every `configMapKeyRef` missed, so
+`--monitoring-namespace=$(MONITORING_NAMESPACE)` kept its literal text, failed
+`IsDNS1123Label`, and the manager called `setupLog.Error` before
+`ctrl.SetLogger` had run. The null logger swallowed the message and
+`os.Exit(1)` produced a silent crash loop.
+
+What to carry forward:
+
+- **Apply with `-n <namespace>` and then assert the ConfigMap is there.** The
+  generated name has no namespace, and the failure mode is remote from the
+  cause. `kubectl -n <ns> get configmap <name>` immediately after the apply
+  turns a five-minute crash-loop investigation into one line.
+- **Treat exit 1 with no output as a pre-logger validation failure.** In a
+  controller-runtime manager, check flag values and `$(VAR)` expansion before
+  looking for a panic, an OOM kill or a bad entrypoint. A panic, a missing
+  library and a segfault all leave text behind; a dropped `setupLog.Error`
+  does not.
+- **`describe` prints env references, not values.** `<set to the key
+  'monitoring-namespace' of config map 'maas-parameters'> Optional: true` says
+  nothing about whether the lookup succeeded. `kubectl exec -- env` shows the
+  resolved value.
+- **Reproduce the Deployment container, not only the image.** A debug Pod with
+  the same security context passed while the exact Deployment container failed;
+  the only remaining difference was the ConfigMap the Deployment referenced.
+
 ## Worked example: three repos, eleven review rounds
 
 One session covered three repositories with different shapes:
