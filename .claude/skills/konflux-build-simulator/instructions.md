@@ -3127,6 +3127,10 @@ manifests/
       the real `COPY` inputs are tested rather than synthetic probe paths
 - [ ] `COPY` sources and generator inputs are contained in the checkout
 - [ ] A digest-pinned manifest is patched locally and applied in one write
+- [ ] Prechecks abort before the renderer runs, and the renderer is isolated
+      with `LoadRestrictionsRootOnly`
+- [ ] A killed background process is the real one (`command ... &`), not a
+      shell-function subshell
 
 **RBAC and operator handoff**
 

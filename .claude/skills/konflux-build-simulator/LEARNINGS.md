@@ -1882,6 +1882,15 @@ steps changed files the PR would commit, or that a later step reads.
   `odh-stable` image, a `512Mi` limit) before the patch lands. Render the patch
   locally with `kubectl patch --local -f ... -o yaml` and pipe that single
   result to `kubectl apply -f -`.
+- **A recorded error is not a stop.** A precheck that appends to an error list
+  and then invokes the renderer still lets an outside-ROOT `envs` file be read
+  and written into the render output. Abort before the first `kustomize` call,
+  and isolate the render with `--load-restrictor LoadRestrictionsRootOnly`
+  from a temporary copy so a missed loader input cannot escape.
+- **`function &` records the subshell, not the process.** Backgrounding a shell
+  wrapper (`kk ... &`) makes `$!` the wrapper's PID; `kill` then leaves the
+  real `kubectl port-forward` running and listening. Start
+  `command kubectl ... &` directly when the PID must be killable.
 - **A FIPS setting is only real if the build that produces the image applies
   it.** Grepping for `GOEXPERIMENT` proves nothing; read the Dockerfile and
   Makefile that build the target and assert the digest of the Red Hat Go
