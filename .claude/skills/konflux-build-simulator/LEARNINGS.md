@@ -2011,6 +2011,11 @@ simulator, file tickets, or leave them out of scope. *Asking* belongs in the
 skill because the alternative — claiming DSC coverage from a component repo —
 is the failure that section exists to prevent.
 
+Standing decision from the 2026-11 onboarding: keep the component simulator
+scoped to the Konflux build and the component's own Kind deployment. These
+DSC/platform-operator and dashboard gaps are owned by later L1-4 stages; report
+them, do not simulate them here.
+
 ## References
 
 - Worked examples: [kserve](#worked-example-kserve), [feast-module-operator](#worked-example-feast-module-operator)
