@@ -3131,6 +3131,13 @@ manifests/
       with `LoadRestrictionsRootOnly`
 - [ ] A killed background process is the real one (`command ... &`), not a
       shell-function subshell
+- [ ] Kustomize loader refs are classified correctly: inline
+      `transformers`/`generators` are not paths, and transitive remote refs
+      skip the root with a warning
+- [ ] The staging copy validates every source, including directory symlinks,
+      and rejects cycles
+- [ ] Jobs that render depend on the manifest-contract job in both `needs` and
+      the summary map
 
 **RBAC and operator handoff**
 

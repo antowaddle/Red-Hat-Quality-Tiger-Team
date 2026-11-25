@@ -1891,6 +1891,21 @@ steps changed files the PR would commit, or that a later step reads.
   wrapper (`kk ... &`) makes `$!` the wrapper's PID; `kill` then leaves the
   real `kubectl port-forward` running and listening. Start
   `command kubectl ... &` directly when the PID must be killable.
+- **Kustomize's loader is more permissive than a path check.** `transformers`
+  and `generators` entries may be inline YAML (a block scalar contains a
+  newline), so treating every entry as a path records false errors. Remote
+  references can also arrive transitively through a local base; walk the local
+  bases and apply the existing consuming-operator warning to the root rather
+  than letting Kustomize fetch unpinned content mid-render.
+- **`shutil.copytree(symlinks=False)` follows directory symlinks.** A precheck
+  that only inspects leaf symlinks misses a directory symlink whose subtree
+  contains an outside-file symlink. Copy with a walker that resolves every
+  source against `ROOT` before opening it and tracks directory identities to
+  reject cycles.
+- **A job that renders must depend on the job that validates rendering.** Add
+  the manifest gate to the Kind job's `needs` and to the summary's dependency
+  map, otherwise a failed manifest contract still spends runner time applying
+  an unvalidated bundle.
 - **A FIPS setting is only real if the build that produces the image applies
   it.** Grepping for `GOEXPERIMENT` proves nothing; read the Dockerfile and
   Makefile that build the target and assert the digest of the Red Hat Go
