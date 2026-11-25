@@ -1668,6 +1668,354 @@ Two things to take from it:
    relied on. The `## Files` section is the fix; a reviewer is the check.
    See the earlier learning on checks that cannot fail.
 
+## Learning: a wheelhouse is not always wheels
+
+The feast, feast-module-operator and model-registry onboardings resolved against
+`packages.redhat.com` (AIPCC), which serves wheels, so the Python prefetch
+recipe assumed wheels everywhere. mlflow has a dependency the index does not
+carry as a wheel: `psycopg2` is an sdist that compiles against `pg_config`.
+
+The first recipe built a warm wheelhouse and then re-resolved offline:
+
+```bash
+pip wheel --require-hashes --no-deps -r requirements.txt --wheel-dir wheelhouse
+pip wheel --require-hashes --no-deps --no-build-isolation --find-links wheelhouse ...
+```
+
+The warm pass compiles `psycopg2` and writes a new wheel. The offline pass then
+hashes that wheel against the `--hash` line for the *sdist* and refuses it:
+
+```
+ERROR: THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE.
+```
+
+The hash is correct; the artifact is not the one that was hashed. `pip download`
+preserves artifact identity, so split the phases:
+
+```bash
+pip download --require-hashes --no-deps --dest downloads -r requirements.txt
+pip wheel --no-index --find-links downloads --no-build-isolation \
+  --require-hashes --no-deps --wheel-dir wheelhouse -r requirements.txt
+```
+
+Two more findings from the same job:
+
+- **`uv` reads the repository's `pyproject.toml`.** A `uv pip install` inside a
+  checkout inherits `[tool.uv]` (index overrides, `no-build`, constraint files)
+  and can resolve somewhere other than the wheelhouse you just built. Pass
+  `--no-config`, and clear the `UV_*` variables that setup-uv exports, before
+  any offline install.
+- **`--no-deps` proves nothing about the closure.** Install the runtime set into
+  a fresh venv and run `uv pip check`. That is the command that fails when a
+  transitive dependency is missing from the prefetch — the failure the hermetic
+  build reports after merge.
+- **One requirement file can redirect another.** `konflux-aipcc-requirements.txt`
+  starts with `--index-url https://console.redhat.com/...`. Handing that file
+  and the PyPI pins to a single resolver points *both* at the Red Hat index, and
+  the PyPI-only packages disappear — under `--offline` the error is the
+  misleading `was not found in the cache and you require ...`. Install the AIPCC
+  pins on their own, exactly as the Dockerfile does, then install the rebuilt
+  wheels from disk by path (`wheelhouse/*.whl dist/mlflow*.whl`). `pip check`
+  still proves the closure.
+
+## Learning: a public PR does not run Yarn the way your laptop does
+
+mlflow's Yarn install passed locally and failed on the pull request with:
+
+```
+➤ YN0080: │ @swc-node/register@npm:1.11.1 is listed by your project with version ...
+```
+
+Yarn's **hardened mode** is on for installs it considers untrusted, which
+includes public forks. It rejects exactly the protocols the lockfile validator
+looks for, and it rejects them before the offline proof runs, so the job fails
+for a reason unrelated to the diff.
+
+The simulator should prove the offline install, not Yarn's trust policy:
+
+- Set `YARN_ENABLE_HARDENED_MODE=0` for the offline proof and say why in a
+  comment.
+- Run the proof in a **copy** of the JS tree. The first version deleted
+  `node_modules/.yarn` in place, which destroys the developer's install and
+  makes the job non-idempotent on a runner with a warm checkout.
+- Snapshot `yarn.lock` bytes before and after and fail if they moved. An install
+  that rewrites the lockfile is not offline; it resolved something.
+
+## Learning: a smoke test that accepts exit 1 is not a smoke test
+
+models-as-a-service builds a controller whose `/manager --help` prints the full
+flag list and then exits 1. The generated job ran
+
+```bash
+docker run --rm --entrypoint /manager "$image" --help | grep -q -- '--health-probe-bind-address'
+```
+
+under `set -o pipefail`, so the image job failed on a binary that was behaving
+as designed. The fix is not to drop `pipefail`; assert the output and the status
+separately, and be explicit about which one carries the meaning:
+
+```bash
+help_output=$(docker run --rm --entrypoint /manager "$image" --help 2>&1 || true)
+grep -q -- '--health-probe-bind-address' <<<"$help_output" || { ...; return 1; }
+```
+
+Three related rules from the same run:
+
+- **`docker run ... -c '...'` starts a new shell.** `set -euo pipefail` in the
+  parent does not apply. Put `set -eu` inside the quoted script, or a failing
+  `test` in the middle is only a status nobody reads.
+- **Read the exact readiness line.** mlflow's server needs a Kubernetes API to
+  start, so the simulator serves a stub. Waiting for "something is listening"
+  let a stub that never became ready pass. Wait for the literal line the stub
+  prints (`READY stub listening on 0.0.0.0:<port>;`) and bound the probe with
+  `curl --connect-timeout` / `--max-time` so a hung socket fails instead of
+  hanging the job.
+- **Capture `docker logs` to a file before grepping it.** A pipeline that greps
+  the log directly reports "no crash signature" when `docker logs` itself
+  failed, and loses the buffer the failure message needed.
+
+## Learning: the repository's lint is part of the workflow contract
+
+Every onboarding spends a cycle fighting its own linter. Collect the rules up
+front instead:
+
+| Rule | How it appears |
+|---|---|
+| Top-level `cache-mode: none` | mlflow requires it on every workflow and grants `read`/`write` per job |
+| No Python shebang, no `print` | mlflow runs `clint`; use `sys.stdout.write` behind a helper |
+| No predictable `/tmp` paths | flagged by review; use `mktemp` or a job-scoped directory |
+| No redundant `permissions: {}` | inherited from the top level, so the block is a no-op and gets flagged |
+| Formatter is not the linter | `ruff check` passed while `ruff format --check` failed on the same file |
+
+Run the repository's own `pre-commit` before pushing. A global
+`rh-pre-commit` hook can pass on files the repository hook rejects, so a green
+local commit is not evidence.
+
+## Learning: enumerate Tekton PipelineRuns, not Containerfiles
+
+models-as-a-service has four Go modules (`maas-api`, `maas-common`,
+`maas-controller`, `maas-discovery`), no root target that builds them all, and
+four `.tekton` PipelineRuns that build three images. Listing `Dockerfile*` found
+two of the three and missed the one whose build context is a subdirectory.
+
+The enumeration that worked:
+
+```bash
+rg -n -A3 "path-context|dockerfile" .tekton/*pull-request*.yaml
+```
+
+Then, per target:
+
+- **Resolve the Dockerfile relative to `path-context`**, not to the repo root.
+- **One hermetic preflight per `go.mod`.** A multi-module repo may have no root
+  `go.mod` or `Makefile`; a single preflight proves one module.
+- **Reject duplicate targets** before the contract list is built, or the
+  summary silently reports the same job twice.
+- **A build platform is a leg, not a property.** Four `build-platforms` in the
+  Tekton spec are four images. An amd64 build is not evidence for arm64,
+  ppc64le or s390x; assert each leg and say which ones GitHub Actions does not
+  build.
+- **`kind load docker-image --name <cluster>`.** Images built in host Docker are
+  not visible to a Kind cluster until they are loaded. A deploy that can pull
+  from a registry will otherwise test the wrong bytes.
+
+## Learning: RBAC is a contract with a consumer you cannot see
+
+models-as-a-service's `maas-controller` RBAC is copied into
+`ai-gateway-operator`, which vendors the generated ClusterRole. A rule the
+controller grows without a matching change there is an escalation failure in a
+repository this simulator never checks out. Record it as an
+`EXTERNAL_UNASSERTED` warning that names the consumer, not as a pass.
+
+The checks that made the closure meaningful:
+
+- **Scope by RoleBinding namespace.** A ClusterRole's rules are only effective
+  where something binds it. Counting every rule in the file overstates the
+  surface and hides the ones no binding grants.
+- **`nonResourceURLs` are not API resources.** `/metrics`, `/healthz` and
+  wildcards such as `/metrics/*` need URL matching; a resource-name comparison
+  reports a false pass.
+- **`escalate` can arrive through aggregation.** A ClusterRole with an
+  `aggregationRule` inherits rules from labelled ClusterRoles. Reading only the
+  literal `rules:` list misses an aggregate that grants `escalate`.
+- **A RoleBinding is namespaced, whatever it binds.** An unqualified
+  ServiceAccount subject resolves to the binding's namespace, and a RoleBinding
+  must never satisfy a cluster-wide rule. Only a ClusterRoleBinding grants
+  cluster scope.
+- **A role cannot authorize its own new rules.** Validate each role write
+  against the grants installed before that write; a proposed ClusterRole must
+  not satisfy its own coverage check. The bypass Kubernetes honors is an
+  `escalate` grant on that exact kind, scope and name, so check it first and
+  then keep the ordinary coverage check.
+
+## Learning: a hermetic build must not mutate the checkout
+
+Two onboarding reviews produced the same class of finding: the simulator's own
+steps changed files the PR would commit, or that a later step reads.
+
+- **Copy the tree** before running an offline build that writes `go.sum`,
+  `yarn.lock` or a generated manifest. Overwriting the live `go.sum` lets the
+  job pass by editing its own input and leaves a dirty checkout.
+- **Give `deploy.py` a private kubeconfig** containing only the Kind context it
+  created. `kind export kubeconfig` writes the user's default file, so a stale
+  current-context can deploy to whatever cluster the runner had.
+- **Patch the owning CR, not the generated Deployment.** A Deployment rendered
+  by an operator is reconciled back; patch the CR and wait for the operator.
+- **Wait for the patched field to be observed** before accepting readiness.
+  Readiness before the memory limit lands proves the old spec is healthy.
+- **`.dockerignore` is ordered.** The last matching pattern wins and `!`
+  re-includes. A "contains this pattern" check gets `!keep` after `*` backwards.
+- **Docker may not read the ignore file you checked.** When
+  `<Dockerfile>.dockerignore` exists next to the Dockerfile, Docker uses it and
+  ignores the context's `.dockerignore`. Resolve the effective file per target,
+  then test the paths the Dockerfile actually `COPY`s (`api/go.sum`), not
+  synthetic `__probe__` paths that no ignore rule can name.
+- **`COPY` globs must stay inside the build context.** Resolve `..` and absolute
+  sources before deciding they are fine, and parse the JSON form
+  (`COPY ["a", "b"]`) as well as the shell form.
+- **Serialize runs that rewrite a tracked file.** `deploy.py` writes the Kind
+  overlay's `params.env` in place. Two overlapping local runs can snapshot each
+  other's half-written values and leave the file dirty after both exit. Take a
+  checkout-scoped lock before the snapshot, restore the snapshot, then release.
+- **Submit a patched manifest in one API write.** `kubectl apply` followed by
+  `kubectl patch` lets a controller reconcile the unpatched spec (a mutable
+  `odh-stable` image, a `512Mi` limit) before the patch lands. Render the patch
+  locally with `kubectl patch --local -f ... -o yaml` and pipe that single
+  result to `kubectl apply -f -`.
+- **A recorded error is not a stop.** A precheck that appends to an error list
+  and then invokes the renderer still lets an outside-ROOT `envs` file be read
+  and written into the render output. Abort before the first `kustomize` call,
+  and isolate the render with `--load-restrictor LoadRestrictionsRootOnly`
+  from a temporary copy so a missed loader input cannot escape.
+- **`function &` records the subshell, not the process.** Backgrounding a shell
+  wrapper (`kk ... &`) makes `$!` the wrapper's PID; `kill` then leaves the
+  real `kubectl port-forward` running and listening. Start
+  `command kubectl ... &` directly when the PID must be killable.
+- **Kustomize's loader is more permissive than a path check.** `transformers`
+  and `generators` entries may be inline YAML (a block scalar contains a
+  newline), so treating every entry as a path records false errors. Remote
+  references can also arrive transitively through a local base; walk the local
+  bases and apply the existing consuming-operator warning to the root rather
+  than letting Kustomize fetch unpinned content mid-render.
+- **`shutil.copytree(symlinks=False)` follows directory symlinks.** A precheck
+  that only inspects leaf symlinks misses a directory symlink whose subtree
+  contains an outside-file symlink. Copy with a walker that resolves every
+  source against `ROOT` before opening it and tracks directory identities to
+  reject cycles.
+- **A job that renders must depend on the job that validates rendering.** Add
+  the manifest gate to the Kind job's `needs` and to the summary's dependency
+  map, otherwise a failed manifest contract still spends runner time applying
+  an unvalidated bundle.
+- **A FIPS setting is only real if the build that produces the image applies
+  it.** Grepping for `GOEXPERIMENT` proves nothing; read the Dockerfile and
+  Makefile that build the target and assert the digest of the Red Hat Go
+  toolset.
+- **A chart ServiceMonitor needs `path: /metrics`.** One that scrapes `/`
+  renders, deploys, and collects nothing.
+- **A default tool cache must be private.** A predictable shared path such as
+  `/tmp/<tool>-cache` lets another account plant an executable that skips the
+  download and checksum. Create the default with `mktemp -d` and remove it on
+  exit; only an explicit `TOOLS_DIR` may be reused.
+- **`verify-kustomize.yml` must run on `pull_request`.** A workflow that only
+  runs on `push` never validates a contributor's PR.
+
+## Learning: a container that exits 1 with no logs failed before its logger existed
+
+The models-as-a-service Kind job failed with `CrashLoopBackOff`, `exitCode: 1`,
+an empty termination `message`, and zero lines from `kubectl logs` and
+`kubectl logs --previous`. The same image started normally when run under the
+same security context in the same cluster from a shell, which ruled out the
+binary, the read-only root filesystem and the service account.
+
+The cause was the generated `maas-parameters` ConfigMap. Kustomize emits it
+without a namespace; `kubectl apply -f rendered.yaml` therefore put it in the
+caller's `default` namespace, while the Deployment reached `opendatahub` through
+its own explicit `metadata.namespace`. Every `configMapKeyRef` missed, so
+`--monitoring-namespace=$(MONITORING_NAMESPACE)` kept its literal text, failed
+`IsDNS1123Label`, and the manager called `setupLog.Error` before
+`ctrl.SetLogger` had run. The null logger swallowed the message and
+`os.Exit(1)` produced a silent crash loop.
+
+What to carry forward:
+
+- **Apply with `-n <namespace>` and then assert the ConfigMap is there.** The
+  generated name has no namespace, and the failure mode is remote from the
+  cause. `kubectl -n <ns> get configmap <name>` immediately after the apply
+  turns a five-minute crash-loop investigation into one line.
+- **Treat exit 1 with no output as a pre-logger validation failure.** In a
+  controller-runtime manager, check flag values and `$(VAR)` expansion before
+  looking for a panic, an OOM kill or a bad entrypoint. A panic, a missing
+  library and a segfault all leave text behind; a dropped `setupLog.Error`
+  does not.
+- **`describe` prints env references, not values.** `<set to the key
+  'monitoring-namespace' of config map 'maas-parameters'> Optional: true` says
+  nothing about whether the lookup succeeded. `kubectl exec -- env` shows the
+  resolved value.
+- **Reproduce the Deployment container, not only the image.** A debug Pod with
+  the same security context passed while the exact Deployment container failed;
+  the only remaining difference was the ConfigMap the Deployment referenced.
+
+## Learning: build the test object the API actually accepts
+
+The Kind job hand-built a `MaasTenantConfig` named `ci-tenant` and a matching
+`AITenant`. Both were rejected by the API the moment the job applied them:
+
+- the CRD carries `// +kubebuilder:validation:XValidation:rule="self.metadata.name
+  == 'default-tenant'"`, so every tenant config must be named `default-tenant`,
+  whatever tenant it describes; and
+- the AITenant admission webhook refuses a Gateway that another AITenant already
+  owns, so a second tenant needs its own Gateway.
+
+The error surfaced at `kubectl apply` with the whole job already five minutes in.
+The cheaper path was to stop fabricating a tenant and drive the
+`MaasTenantConfig/default-tenant` that the controller bootstraps on its own: it
+renders the same `maas-api` Deployment through the same code, and the only setup
+left is the Gateway, the database Secret and the test TLS material.
+
+Read the CRD's `x-kubernetes-validations` and the admission webhooks before
+writing a test fixture for a controller's CRs. A fixture that satisfies the
+schema can still be unrepresentable, and the controller's own bootstrap object
+is usually the most faithful thing to assert against.
+
+## Worked example: three repos, eleven review rounds
+
+One session covered three repositories with different shapes:
+
+| Repo | Shape | Targets | What the first version missed |
+|---|---|---|---|
+| `mlflow` | Python + Yarn monorepo | 1 image, 4 build platforms | sdist hash semantics, Yarn hardened mode, exact stub readiness |
+| `mlflow-operator` | Go operator with an operator handoff | 3 images | isolated source tree, private kubeconfig, ordered `.dockerignore` |
+| `models-as-a-service` | 4 Go modules | 3 images + Kind + RBAC closure | per-module preflight, namespace-scoped RBAC, `kind load` |
+
+What transferred between repos was the Tekton enumeration, the
+`RELATED_IMAGE_*` reachability contract, the skip gate and the summary's
+dependency-aware expectations. What did not was every package-manager recipe and
+every Kind detail. The lockfile ecosystem, not the repository language,
+determines the prefetch recipe.
+
+### The gap the simulator cannot close
+
+All three components are reconciled by a platform operator, and in every case
+the operator-side coverage had a hole the component PR could not fix:
+
+| Component | Where the hole is | Symptom |
+|---|---|---|
+| `mlflow-operator` | `claude-operator`'s `e2e-test-xks` hardcodes `E2E_TEST_COMPONENT="kserve"` | the MLflow operand is never reconciled in Kind |
+| models-as-a-service | no standalone `modelsasservice` e2e, and `ModelsAsAService` Managed needs the `AuthConfig` CRD | a Managed DSC entry cannot become Ready in Kind |
+| models-as-a-service | `ai-gateway-operator` vendors `maascontroller` RBAC | an RBAC change passes here and fails there |
+| dashboard | `testMlflowExperiments`, `testMlflowAgentObservability`, `testMaaSPolicies`, `testMaaSSubscriptions`, `testApiKeys`, `testOverviewTab` | DSC-level UI behaviour is unasserted |
+
+Report these under "Platform operator coverage (not in this PR)", never as a
+simulator pass, and ask the maintainer whether to extend the operator
+simulator, file tickets, or leave them out of scope. *Asking* belongs in the
+skill because the alternative — claiming DSC coverage from a component repo —
+is the failure that section exists to prevent.
+
+Standing decision from the 2026-11 onboarding: keep the component simulator
+scoped to the Konflux build and the component's own Kind deployment. These
+DSC/platform-operator and dashboard gaps are owned by later L1-4 stages; report
+them, do not simulate them here.
+
 ## References
 
 - Worked examples: [kserve](#worked-example-kserve), [feast-module-operator](#worked-example-feast-module-operator)
@@ -1677,3 +2025,6 @@ Two things to take from it:
 - Cachi2 documentation: (add link)
 - CWE-494: Download of Code Without Integrity Check
 - CWE-829: Inclusion of Functionality from Untrusted Control Sphere
+- mlflow PR #438: https://github.com/opendatahub-io/mlflow/pull/438
+- mlflow-operator PR #290: https://github.com/opendatahub-io/mlflow-operator/pull/290
+- models-as-a-service PR #1909: https://github.com/opendatahub-io/models-as-a-service/pull/1909

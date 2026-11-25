@@ -738,6 +738,15 @@ This validates:
 
 Much stronger than just checking YAML syntax!
 
+**Apply a rendered bundle with an explicit `-n <namespace>`.** Kustomize
+`configMapGenerator`/`secretGenerator` output carries no `metadata.namespace`,
+so a bare `kubectl apply -f rendered.yaml` puts it in the caller's `default`
+namespace while the Deployment keeps its own namespace. The `configMapKeyRef`
+lookups then miss, `$(VAR)` arguments stay literal, and a controller that
+validates its flags before it calls `ctrl.SetLogger` exits 1 with no logs at
+all. Assert the generated ConfigMap exists in the Deployment's namespace before
+waiting for readiness.
+
 **Be lenient on manifest *application*, never on manifest *validation*.** When
 applying to a Kind cluster, `kubectl apply` may legitimately fail on resources
 the cluster cannot admit (CRDs not yet established, ClusterRoleBinding
@@ -2595,7 +2604,25 @@ environment and split with `strings.Fields`, so `"kserve,aihub"` collapses into
 a single malformed name and validation fails before any test runs. Check for a
 regression test that pins the format before you edit it.
 
-**4. Emit the follow-up**
+**4. Check whether the component's DSC entry can become Ready at all**
+
+Two fixtures are missing often enough to check for them every time:
+
+```bash
+# CRDs the Managed/Removed spec renders against that Kind does not ship
+rg -n "AuthConfig|authorino|kuadrant" config/ manifests/ internal/ | head
+# Vendored copies of this repo's RBAC in a consumer operator
+gh search code "<role-name>" --filename=manifests-config.yaml --limit 10
+```
+
+- A `Managed` entry that needs a CRD absent from Kind cannot reach `Ready`, so
+  the "DSC condition" asked of the component repo is unprovable there. Say so
+  and file the follow-up against the operator.
+- A consumer that vendors your RBAC (`ai-gateway-operator` vendors
+  `maascontroller`) is a second contract. A rule change passes here and fails
+  there; record it as `EXTERNAL_UNASSERTED`.
+
+**5. Emit the follow-up**
 
 | Suite registered | In Kind target | Follow-up |
 |---|---|---|
@@ -3066,11 +3093,78 @@ manifests/
 
 #### Step 5.2: Validation Checklist
 
-- [ ] Workflow syntax is valid
+**Shape of the workflow**
+
+- [ ] One job per Tekton PR PipelineRun, named after the image it builds
+- [ ] Dockerfile resolved relative to each PipelineRun's `path-context`
+- [ ] Duplicate targets rejected before the contract list is built
+- [ ] One hermetic preflight per `go.mod` / lockfile, not per repository
+- [ ] Every `build-platforms` leg recorded, with the legs GitHub Actions does
+      not build called out in the PR
+- [ ] Skip gate diffs from the merge base with NUL-delimited file names
 - [ ] Build args match Konflux configuration
-- [ ] Module Federation modules detected correctly
-- [ ] Manifest paths are correct
+- [ ] Summary expectations are dependency-aware: a job whose dependency failed
+      is expected to be `skipped`, not `success`
+
+**Proofs that must actually be able to fail**
+
+- [ ] Offline install runs in a copy of the tree, and the lockfile bytes are
+      compared afterwards
+- [ ] Python prefetch preserves sdist hashes (`pip download`, then offline
+      `pip wheel --no-build-isolation`), with `pip check` on the resulting venv
+- [ ] `uv` invocations pass `--no-config`
+- [ ] Smoke-test commands assert the exit status they mean; `--help` that exits
+      non-zero with valid output is handled explicitly
+- [ ] `set -eu` is inside every `docker run ... -c` script
+- [ ] Server smoke waits for the exact readiness line and bounds every probe
+- [ ] `kind load docker-image --name <cluster>` for images built in host Docker
+- [ ] FIPS settings read from the Dockerfile/Makefile that builds the target
+- [ ] The target file is exactly one `PipelineRun`, checked before its
+      parameters are read
+- [ ] `.dockerignore` evaluation is ordered and honours `!`
+- [ ] The effective ignore file is resolved per Dockerfile
+      (`<Dockerfile>.dockerignore` before the context's `.dockerignore`), and
+      the real `COPY` inputs are tested rather than synthetic probe paths
+- [ ] `COPY` sources and generator inputs are contained in the checkout
+- [ ] A digest-pinned manifest is patched locally and applied in one write
+- [ ] Prechecks abort before the renderer runs, and the renderer is isolated
+      with `LoadRestrictionsRootOnly`
+- [ ] A killed background process is the real one (`command ... &`), not a
+      shell-function subshell
+- [ ] Kustomize loader refs are classified correctly: inline
+      `transformers`/`generators` are not paths, and transitive remote refs
+      skip the root with a warning
+- [ ] The staging copy validates every source, including directory symlinks,
+      and rejects cycles
+- [ ] Jobs that render depend on the manifest-contract job in both `needs` and
+      the summary map
+
+**RBAC and operator handoff**
+
+- [ ] Effective rules scoped by RoleBinding namespace
+- [ ] A RoleBinding never satisfies a cluster-wide rule, and an unqualified
+      ServiceAccount subject uses the binding namespace
+- [ ] Role writes checked against grants that exist before the write; a
+      matching `escalate` grant is the only coverage bypass
+- [ ] `nonResourceURLs` matched as URLs, including wildcards
+- [ ] Aggregated ClusterRoles inspected for `escalate`
+- [ ] External consumers of vendored RBAC named in an `EXTERNAL_UNASSERTED`
+      warning
+- [ ] `verify-kustomize.yml` (or the equivalent) runs on `pull_request`
+- [ ] Chart ServiceMonitors scrape `path: /metrics`
+
+**Repository hygiene**
+
+- [ ] The repository's own `pre-commit` passes, not just a global hook
+- [ ] The repository's formatter passes, not just its linter
+- [ ] No predictable `/tmp` paths; a default tool cache is `mktemp -d` and
+      removed on exit
+- [ ] Runs that rewrite a tracked file hold a lock from snapshot to restore
+- [ ] Documentation states the minimum Python/Go/Node version
 - [ ] Documentation is clear
+- [ ] Workflow syntax is valid
+- [ ] Module Federation modules detected correctly (frontend repos)
+- [ ] Manifest paths are correct
 - [ ] Scripts are executable
 
 ### Phase 6: Integration with Existing Workflows
